@@ -23,7 +23,7 @@ import yaml
 from critbuddy.core.config import ExperimentConfig, generate_cases
 from critbuddy.solvers import OpenMCSolver, MCNPSolver
 from critbuddy.utils import Status, working_directory, setup_logging, get_logger
-from critbuddy.reporting import print_report, save_report
+from critbuddy.reporting import print_report, save_report, create_geometry_plot
 
 
 def load_config():
@@ -147,7 +147,7 @@ def validate_geometry(template_module, case, experiment_dir, template_dir):
         materials.export_to_xml()
         geometry.export_to_xml()
 
-        plots, _ = template_module.create_plots(dims, materials)
+        plots, color_legend = template_module.create_plots(dims, materials)
         plots.export_to_xml()
         openmc.plot_geometry()
 
@@ -156,7 +156,21 @@ def validate_geometry(template_module, case, experiment_dir, template_dir):
             if src.exists():
                 src.rename(f"{name}.png")
 
-    print(f"\nGeometry plots: {val_dir}/xy.png, {val_dir}/xz.png")
+    # Create combined geometry plot
+    xy_plot = val_dir / "xy.png"
+    xz_plot = val_dir / "xz.png"
+    output_path = val_dir / "geometry.png"
+
+    if xy_plot.exists() and xz_plot.exists():
+        create_geometry_plot(
+            xy_plot_path=xy_plot,
+            xz_plot_path=xz_plot,
+            output_path=output_path,
+            color_legend=color_legend,
+        )
+        print(f"\nCombined geometry: {output_path}")
+    else:
+        print(f"\nGeometry plots: {val_dir}/xy.png, {val_dir}/xz.png")
 
 
 def run_cases(solver, cases, run_dir, template_dir, safety_limit):
@@ -324,8 +338,8 @@ Path:       {experiment_dir}
     write_results(run_dir, all_results)
     print_summary(all_results)
 
-    # Generate report if requested
-    if args.report:
+    # Generate report by default (skip with --no-report)
+    if not args.no_report:
         results_csv = run_dir / "results.csv"
         if results_csv.exists():
             print("\nGenerating report...")
@@ -349,7 +363,7 @@ def main():
     parser.add_argument("--case", help="Run specific case label")
     parser.add_argument("--solver", choices=["openmc", "mcnp", "all"], help="Override solver")
     parser.add_argument("--smoke", action="store_true", help="Quick smoke test")
-    parser.add_argument("--report", action="store_true", help="Generate report after run")
+    parser.add_argument("--no-report", action="store_true", help="Skip report generation")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (warnings only)")
     args = parser.parse_args()
