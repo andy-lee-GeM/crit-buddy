@@ -1,0 +1,297 @@
+"""
+Shared material definitions for criticality safety analyses.
+
+Provides material definitions for both OpenMC and MCNP solvers.
+This ensures consistent material physics across all templates and solvers.
+
+Usage (OpenMC):
+    from critbuddy.core.materials import create_uf6, create_aluminum, create_water
+    m1 = create_uf6(enrichment_pct=20.0, density=5.09)
+
+Usage (MCNP):
+    from critbuddy.core.materials import mcnp_uf6, mcnp_aluminum, mcnp_water
+    materials_block = mcnp_uf6(1, 20.0, 5.09) + mcnp_aluminum(2) + mcnp_water(3)
+
+Usage (Registry - for enum-based material selection):
+    from critbuddy.core.materials import get_material, get_density
+    wall = get_material("aluminum", solver="openmc")
+    rho = get_density("aluminum")
+"""
+
+import openmc
+
+
+# =============================================================================
+# SHARED CALCULATIONS
+# =============================================================================
+
+def _uranium_fractions(enrichment_pct: float) -> tuple[float, float]:
+    """
+    Convert U-235 weight percent to atom fractions.
+
+    Args:
+        enrichment_pct: U-235 weight percent (e.g., 5.0, 20.0, 93.0)
+
+    Returns:
+        (u235_atom_frac, u238_atom_frac)
+    """
+    M_U235 = 235.044
+    M_U238 = 238.051
+
+    enrich_frac = enrichment_pct / 100.0
+    u235_atom_frac = (enrich_frac / M_U235) / (
+        enrich_frac / M_U235 + (1 - enrich_frac) / M_U238
+    )
+    u238_atom_frac = 1.0 - u235_atom_frac
+
+    return u235_atom_frac, u238_atom_frac
+
+
+# =============================================================================
+# OPENMC MATERIALS
+# =============================================================================
+
+def create_uf6(enrichment_pct: float, density: float = 5.09) -> openmc.Material:
+    """Create UF6 material for OpenMC."""
+    uf6 = openmc.Material(name="UF6")
+    uf6.set_density("g/cm3", density)
+
+    u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
+
+    # UF6 has 7 atoms: 1 U + 6 F
+    uf6.add_nuclide("U235", u235_frac / 7.0)
+    uf6.add_nuclide("U238", u238_frac / 7.0)
+    uf6.add_nuclide("F19", 6.0 / 7.0)
+
+    return uf6
+
+
+def create_heu(enrichment_pct: float, density: float = 18.95) -> openmc.Material:
+    """Create HEU metal for OpenMC."""
+    heu = openmc.Material(name="HEU")
+    heu.set_density("g/cm3", density)
+
+    u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
+
+    heu.add_nuclide("U235", u235_frac)
+    heu.add_nuclide("U238", u238_frac)
+
+    return heu
+
+
+def create_aluminum() -> openmc.Material:
+    """Create aluminum for OpenMC."""
+    al = openmc.Material(name="Aluminum")
+    al.set_density("g/cm3", 2.70)
+    al.add_nuclide("Al27", 1.0)
+    return al
+
+
+def create_steel() -> openmc.Material:
+    """Create stainless steel 316 for OpenMC."""
+    steel = openmc.Material(name="Steel")
+    steel.set_density("g/cm3", 8.0)
+    steel.add_nuclide("Fe56", 0.68)
+    steel.add_nuclide("Cr52", 0.17)
+    steel.add_nuclide("Ni58", 0.12)
+    steel.add_nuclide("Mo96", 0.025)
+    steel.add_nuclide("Mn55", 0.005)
+    return steel
+
+
+def create_water() -> openmc.Material:
+    """Create water with thermal scattering for OpenMC."""
+    water = openmc.Material(name="Water")
+    water.set_density("g/cm3", 1.0)
+    water.add_nuclide("H1", 2.0)
+    water.add_nuclide("O16", 1.0)
+    water.add_s_alpha_beta("c_H_in_H2O")
+    return water
+
+
+def create_concrete() -> openmc.Material:
+    """Create ordinary concrete for OpenMC."""
+    concrete = openmc.Material(name="Concrete")
+    concrete.set_density("g/cm3", 2.3)
+    concrete.add_element("H", 0.01, "wo")
+    concrete.add_element("O", 0.53, "wo")
+    concrete.add_element("Si", 0.34, "wo")
+    concrete.add_element("Ca", 0.04, "wo")
+    concrete.add_element("Al", 0.03, "wo")
+    concrete.add_element("Fe", 0.01, "wo")
+    return concrete
+
+
+def create_air() -> openmc.Material:
+    """Create air for OpenMC."""
+    air = openmc.Material(name="Air")
+    air.set_density("g/cm3", 0.001225)
+    air.add_element("N", 0.78, "ao")
+    air.add_element("O", 0.21, "ao")
+    air.add_element("Ar", 0.01, "ao")
+    return air
+
+
+# =============================================================================
+# MCNP MATERIALS
+# =============================================================================
+
+def mcnp_uf6(mat_num: int, enrichment_pct: float, density: float = 5.09) -> str:
+    """
+    Generate MCNP material card for UF6.
+
+    Args:
+        mat_num: MCNP material number (e.g., 1)
+        enrichment_pct: U-235 weight percent
+        density: Material density in g/cm3
+
+    Returns:
+        MCNP material card text
+    """
+    u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
+
+    # UF6 has 7 atoms: 1 U + 6 F
+    u235 = u235_frac / 7.0
+    u238 = u238_frac / 7.0
+    f19 = 6.0 / 7.0
+
+    return f"""c Material {mat_num}: UF6 at {enrichment_pct:.2f} wt% U-235, {density:.4f} g/cc
+m{mat_num}   92235.80c  {u235:.6e}   $ U-235
+     92238.80c  {u238:.6e}   $ U-238
+     9019.80c   {f19:.6e}    $ F-19
+"""
+
+
+def mcnp_heu(mat_num: int, enrichment_pct: float, density: float = 18.95) -> str:
+    """Generate MCNP material card for HEU metal."""
+    u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
+
+    return f"""c Material {mat_num}: HEU metal at {enrichment_pct:.2f} wt% U-235, {density:.4f} g/cc
+m{mat_num}   92235.80c  {u235_frac:.6e}   $ U-235
+     92238.80c  {u238_frac:.6e}   $ U-238
+"""
+
+
+def mcnp_aluminum(mat_num: int) -> str:
+    """Generate MCNP material card for aluminum."""
+    return f"""c Material {mat_num}: Aluminum, 2.70 g/cc
+m{mat_num}   13027.80c  1.0   $ Al-27
+"""
+
+
+def mcnp_steel(mat_num: int) -> str:
+    """Generate MCNP material card for stainless steel 316."""
+    return f"""c Material {mat_num}: Stainless Steel 316, 8.0 g/cc
+m{mat_num}   26056.80c  0.68    $ Fe-56
+     24052.80c  0.17    $ Cr-52
+     28058.80c  0.12    $ Ni-58
+     42096.80c  0.025   $ Mo-96
+     25055.80c  0.005   $ Mn-55
+"""
+
+
+def mcnp_water(mat_num: int) -> str:
+    """Generate MCNP material card for water with thermal scattering."""
+    return f"""c Material {mat_num}: Water, 1.0 g/cc
+m{mat_num}   1001.80c   2.0   $ H-1
+     8016.80c   1.0   $ O-16
+mt{mat_num}  lwtr.20t         $ S(a,b) thermal scattering
+"""
+
+
+def mcnp_concrete(mat_num: int) -> str:
+    """Generate MCNP material card for ordinary concrete."""
+    return f"""c Material {mat_num}: Concrete, 2.3 g/cc
+m{mat_num}   1001.80c   0.01   $ H
+     8016.80c   0.53   $ O
+     14028.80c  0.34   $ Si
+     20040.80c  0.04   $ Ca
+     13027.80c  0.03   $ Al
+     26056.80c  0.01   $ Fe
+"""
+
+
+def mcnp_air(mat_num: int) -> str:
+    """Generate MCNP material card for air."""
+    return f"""c Material {mat_num}: Air, 0.001225 g/cc
+m{mat_num}   7014.80c   0.78   $ N-14
+     8016.80c   0.21   $ O-16
+     18040.80c  0.01   $ Ar-40
+"""
+
+
+# =============================================================================
+# MATERIAL REGISTRY (single source of truth for material properties)
+# =============================================================================
+
+MATERIAL_REGISTRY = {
+    "aluminum": {
+        "openmc": create_aluminum,
+        "mcnp": mcnp_aluminum,
+        "density": 2.70,
+    },
+    "steel": {
+        "openmc": create_steel,
+        "mcnp": mcnp_steel,
+        "density": 8.0,
+    },
+    "water": {
+        "openmc": create_water,
+        "mcnp": mcnp_water,
+        "density": 1.0,
+    },
+    "concrete": {
+        "openmc": create_concrete,
+        "mcnp": mcnp_concrete,
+        "density": 2.3,
+    },
+    "air": {
+        "openmc": create_air,
+        "mcnp": mcnp_air,
+        "density": 0.001225,
+    },
+}
+
+# Convenience alias for backwards compatibility
+DENSITY = {name: entry["density"] for name, entry in MATERIAL_REGISTRY.items()}
+# Add fissile material defaults (these require enrichment so aren't in registry)
+DENSITY["uf6"] = 5.09
+DENSITY["heu"] = 18.95
+
+
+def get_material(name: str, solver: str = "openmc", mat_num: int = None):
+    """
+    Get material by registry name.
+
+    Args:
+        name: Material name (e.g., "aluminum", "water")
+        solver: "openmc" or "mcnp"
+        mat_num: MCNP material number (required for MCNP solver)
+
+    Returns:
+        OpenMC Material object or MCNP material card string
+    """
+    if name not in MATERIAL_REGISTRY:
+        raise ValueError(
+            f"Unknown material: '{name}'. Available: {list(MATERIAL_REGISTRY.keys())}"
+        )
+
+    entry = MATERIAL_REGISTRY[name]
+
+    if solver == "openmc":
+        return entry["openmc"]()
+    elif solver == "mcnp":
+        if mat_num is None:
+            raise ValueError("mat_num required for MCNP materials")
+        return entry["mcnp"](mat_num)
+    else:
+        raise ValueError(f"Unknown solver: {solver}")
+
+
+def get_density(name: str) -> float:
+    """Get material density by name."""
+    if name not in MATERIAL_REGISTRY:
+        raise ValueError(
+            f"Unknown material: '{name}'. Available: {list(MATERIAL_REGISTRY.keys())}"
+        )
+    return MATERIAL_REGISTRY[name]["density"]

@@ -1,0 +1,89 @@
+# Single Cylinder Template Schema
+# Defines allowed parameters, defaults, and validation
+
+name: single_cylinder
+description: Single vertical cylinder filled with UF6
+
+parameters:
+  # Fissile Material
+  enrichment:
+    type: float
+    default: 20.0
+    min: 0.7
+    max: 100.0
+    unit: "%"
+    description: U-235 weight percent
+
+  uf6_density:
+    type: float
+    default: 5.09
+    unit: "g/cc"
+    description: UF6 density (5.09 solid, 3.63 liquid)
+
+  # Geometry
+  radius_cm:
+    type: float
+    required: true
+    unit: "cm"
+    description: Inner radius of cylinder
+    presets:
+      2-inch:  2.63
+      3-inch:  3.90
+      4-inch:  5.11
+      6-inch:  7.70
+      8-inch:  10.14
+      10-inch: 12.73
+      12-inch: 15.16
+
+  height_cm:
+    type: float
+    default: 182.88
+    unit: "cm"
+    description: Cylinder height
+    presets:
+      3-ft:  91.44
+      6-ft:  182.88
+      10-ft: 304.80
+      12-ft: 365.76
+
+  # Wall
+  wall_material:
+    type: string
+    default: aluminum
+    options: [aluminum, steel]
+    description: Container wall material
+
+  wall_thickness:
+    type: float
+    default: 0.3175
+    unit: "cm"
+    description: Wall thickness (0.3175 = 1/8 inch)
+
+  # Reflector
+  reflector:
+    type: string
+    default: water
+    options: [water, concrete, null]
+    description: Reflector material (null = bare)
+
+  reflector_thickness:
+    type: float
+    default: 30.0
+    unit: "cm"
+    description: Reflector thickness (30 = full reflection)
+
+  # Simulation
+  particles:
+    type: int
+    default: 10000
+    description: Neutrons per batch
+
+  batches:
+    type: int
+    default: 150
+    description: Total batches
+
+  inactive:
+    type: int
+    default: 50
+    description: Inactive batches (discarded)

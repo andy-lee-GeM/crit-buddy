@@ -1,0 +1,13 @@
+# Smoke test for crit-buddy
+problem: single_cylinder
+name: "Smoke Test"
+
+# Physical parameters - lists mean sweep
+enrichment: 5.0
+radius_cm: [5, 10]
+height_cm: 100
+wall_material: aluminum
+wall_thickness_cm: 0.3175
+reflector_material: water
+reflector_thickness_cm: 30.0
+uf6_density: 5.09

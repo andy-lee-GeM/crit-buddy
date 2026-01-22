@@ -1,0 +1,34 @@
+# Experiment runs (large output files)
+experiments/*/runs/
+experiments/*/_validation/
+
+# OpenMC output files
+statepoint.*.h5
+summary.h5
+tallies.out
+*.xml
+
+# MCNP output files
+runtpe*
+srctp*
+outp*
+meshtal*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Local config (contains machine-specific paths)
+config.yaml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

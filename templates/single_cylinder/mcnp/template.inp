@@ -1,0 +1,33 @@
+Single Cylinder UF6 Criticality - {{CASE_LABEL}}
+c ================================================================================
+c TEMPLATE: single_cylinder
+c PROBLEM:  Vertical cylinder filled with UF6, aluminum wall, water reflector
+c ================================================================================
+c CELL CARDS
+c ================================================================================
+1    1  -{{UF6_DENSITY}}   -1  +4 -5           imp:n=1   $ UF6
+2    2  -2.70              +1 -2  +4 -5        imp:n=1   $ Aluminum wall
+3    3  -1.00              +2 -3  +4 -5        imp:n=1   $ Water radial
+4    3  -1.00              -3  +6 -4           imp:n=1   $ Water bottom
+5    3  -1.00              -3  +5 -7           imp:n=1   $ Water top
+6    0                     +3:+7:-6            imp:n=0   $ Void outside
+
+c ================================================================================
+c SURFACE CARDS
+c ================================================================================
+1    cz    {{R1}}           $ Inner cylinder (UF6)
+2    cz    {{R2}}           $ Wall outer
+3    cz    {{R3}}           $ Reflector outer
+4    pz    {{Z_BOTTOM}}     $ Cylinder bottom
+5    pz    {{Z_TOP}}        $ Cylinder top
+6    pz    {{Z_REFL_BOTTOM}}  $ Reflector bottom
+7    pz    {{Z_REFL_TOP}}   $ Reflector top
+
+c ================================================================================
+c MATERIALS (from shared library)
+c ================================================================================
+{{MATERIALS}}c ================================================================================
+c CRITICALITY SOURCE
+c ================================================================================
+kcode  {{PARTICLES}} 1.0 {{INACTIVE}} {{BATCHES}}
+ksrc   0 0 {{KSRC_Z}}
