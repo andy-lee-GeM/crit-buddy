@@ -4,6 +4,7 @@ MCNP execution module for crit-buddy.
 Provides a clean interface for running MCNP simulations with:
 - Configurable parallel tasks (MCNP `tasks N` flag)
 - Timeout handling
+- Progress monitoring
 - Structured result object
 """
 
@@ -13,6 +14,9 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
+
+from critbuddy.progress import MCNPProgressMonitor
+
 
 def _get_mcnp_executable():
     """Get MCNP executable from environment variable (checked at runtime)."""
@@ -53,6 +57,7 @@ class MCNPExecutor:
         executable: str = None,
         tasks: int = 4,
         timeout: int = 3600,
+        show_progress: bool = True,
     ):
         """
         Initialize executor with configuration.
@@ -61,10 +66,12 @@ class MCNPExecutor:
             executable: Path to MCNP executable (default: from MCNP_EXECUTABLE env var)
             tasks: Number of parallel tasks for MCNP
             timeout: Execution timeout in seconds
+            show_progress: Whether to display progress bar during execution
         """
         self.executable = executable or _get_mcnp_executable()
         self.tasks = tasks
         self.timeout = timeout
+        self.show_progress = show_progress
 
     def is_available(self) -> bool:
         """Check if MCNP executable exists and is accessible."""
@@ -98,6 +105,7 @@ class MCNPExecutor:
             output_name = f"{input_name}o"
 
         output_path = working_dir / output_name
+        input_path = working_dir / input_name
 
         # Build command with tasks flag
         cmd = [
@@ -109,49 +117,72 @@ class MCNPExecutor:
         ]
 
         start_time = time.time()
+        monitor = None
 
         try:
-            # Run MCNP
-            result = subprocess.run(
+            # Setup progress monitoring
+            if self.show_progress and input_path.exists():
+                monitor = MCNPProgressMonitor(
+                    input_file=input_path,
+                    output_file=output_path,
+                )
+                monitor.start()
+
+            # Run MCNP with Popen for non-blocking execution
+            process = subprocess.Popen(
                 cmd,
                 cwd=working_dir,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=self.timeout,
             )
+
+            # Wait for completion with timeout
+            try:
+                stdout, stderr = process.communicate(timeout=self.timeout)
+                return_code = process.returncode
+            except subprocess.TimeoutExpired:
+                process.kill()
+                stdout, stderr = process.communicate()
+                if monitor:
+                    monitor.stop()
+                return MCNPExecutionResult(
+                    success=False,
+                    return_code=-1,
+                    execution_time=self.timeout,
+                    error_message=f"MCNP timeout after {self.timeout}s",
+                )
+
+            # Stop progress monitor
+            if monitor:
+                monitor.stop()
 
             execution_time = time.time() - start_time
 
             # Check result
-            if result.returncode == 0:
+            if return_code == 0:
                 return MCNPExecutionResult(
                     success=True,
-                    return_code=result.returncode,
+                    return_code=return_code,
                     execution_time=execution_time,
                     output_file=output_path if output_path.exists() else None,
-                    stdout=result.stdout,
-                    stderr=result.stderr,
+                    stdout=stdout,
+                    stderr=stderr,
                 )
             else:
                 return MCNPExecutionResult(
                     success=False,
-                    return_code=result.returncode,
+                    return_code=return_code,
                     execution_time=execution_time,
                     output_file=output_path if output_path.exists() else None,
-                    error_message=f"MCNP exited with code {result.returncode}",
-                    stdout=result.stdout,
-                    stderr=result.stderr,
+                    error_message=f"MCNP exited with code {return_code}",
+                    stdout=stdout,
+                    stderr=stderr,
                 )
 
-        except subprocess.TimeoutExpired:
-            return MCNPExecutionResult(
-                success=False,
-                return_code=-1,
-                execution_time=self.timeout,
-                error_message=f"MCNP timeout after {self.timeout}s",
-            )
-
         except FileNotFoundError:
+            if monitor:
+                monitor.stop()
             return MCNPExecutionResult(
                 success=False,
                 return_code=-1,
@@ -160,6 +191,8 @@ class MCNPExecutor:
             )
 
         except Exception as e:
+            if monitor:
+                monitor.stop()
             return MCNPExecutionResult(
                 success=False,
                 return_code=-1,

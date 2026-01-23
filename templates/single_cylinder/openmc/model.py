@@ -57,32 +57,51 @@ def build_model(p):
     # CELLS
     # ══════════════════════════════════════════════════════════════════════════
 
+    # Wall thickness for caps (same as radial wall)
+    wall_thickness = p["WALL_THICKNESS"]
+    z_uf6_bottom = p["Z_BOTTOM"] + wall_thickness
+    z_uf6_top = p["Z_TOP"] - wall_thickness
+
+    # Additional z-planes for wall caps
+    s_uf6_bottom = openmc.ZPlane(z0=z_uf6_bottom, name="s_uf6_bottom")
+    s_uf6_top = openmc.ZPlane(z0=z_uf6_top, name="s_uf6_top")
+
     cells = []
 
-    # Cell 1: UF6
+    # Cell 1: UF6 (inside wall caps)
     c1 = openmc.Cell(cell_id=1, name="UF6", fill=m1)
-    c1.region = -s1 & +s4 & -s5
+    c1.region = -s1 & +s_uf6_bottom & -s_uf6_top
     cells.append(c1)
 
-    # Cell 2: Wall
+    # Cell 2: Wall (radial - sides)
     c2 = openmc.Cell(cell_id=2, name="Wall", fill=m2)
     c2.region = +s1 & -s2 & +s4 & -s5
     cells.append(c2)
 
-    # Cell 3: Reflector (radial)
-    c3 = openmc.Cell(cell_id=3, name="Refl_radial", fill=m3)
-    c3.region = +s2 & -s3 & +s4 & -s5
+    # Cell 3: Wall (bottom cap)
+    c3 = openmc.Cell(cell_id=3, name="Wall_bottom", fill=m2)
+    c3.region = -s1 & +s4 & -s_uf6_bottom
     cells.append(c3)
 
-    # Cell 4: Reflector (bottom)
-    c4 = openmc.Cell(cell_id=4, name="Refl_bottom", fill=m3)
-    c4.region = -s3 & +s6 & -s4
+    # Cell 4: Wall (top cap)
+    c4 = openmc.Cell(cell_id=4, name="Wall_top", fill=m2)
+    c4.region = -s1 & +s_uf6_top & -s5
     cells.append(c4)
 
-    # Cell 5: Reflector (top)
-    c5 = openmc.Cell(cell_id=5, name="Refl_top", fill=m3)
-    c5.region = -s3 & +s5 & -s7
+    # Cell 5: Reflector (radial)
+    c5 = openmc.Cell(cell_id=5, name="Refl_radial", fill=m3)
+    c5.region = +s2 & -s3 & +s4 & -s5
     cells.append(c5)
+
+    # Cell 6: Reflector (bottom)
+    c6 = openmc.Cell(cell_id=6, name="Refl_bottom", fill=m3)
+    c6.region = -s3 & +s6 & -s4
+    cells.append(c6)
+
+    # Cell 7: Reflector (top)
+    c7 = openmc.Cell(cell_id=7, name="Refl_top", fill=m3)
+    c7.region = -s3 & +s5 & -s7
+    cells.append(c7)
 
     # ══════════════════════════════════════════════════════════════════════════
     # GEOMETRY
@@ -132,8 +151,14 @@ def create_plots(dims, materials):
             color_mapping[mat] = (127, 255, 0)      # Chartreuse green
         elif mat.name == "Aluminum":
             color_mapping[mat] = (147, 112, 219)    # Medium purple
+        elif mat.name == "Steel":
+            color_mapping[mat] = (105, 105, 105)    # Dim gray
         elif mat.name == "Water":
             color_mapping[mat] = (30, 144, 255)     # Dodger blue
+        elif mat.name == "Air":
+            color_mapping[mat] = (135, 206, 250)    # Light sky blue
+        elif mat.name == "Concrete":
+            color_mapping[mat] = (188, 143, 143)    # Rosy brown
         else:
             color_mapping[mat] = (200, 200, 200)    # Gray default
 

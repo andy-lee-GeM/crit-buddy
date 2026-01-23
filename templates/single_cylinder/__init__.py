@@ -31,7 +31,7 @@ class SingleCylinderTemplate(ProblemTemplate):
         "radius_cm": ParameterSpec(
             type="float",
             required=True,
-            min=1.0,
+            min=0.1,
             max=100.0,
             unit="cm",
             description="Inner cylinder radius",
@@ -60,7 +60,7 @@ class SingleCylinderTemplate(ProblemTemplate):
         ),
         "reflector_material": ParameterSpec(
             type="enum",
-            options=["water", "concrete", "none"],
+            options=["water", "concrete", "air", "none"],
             default="water",
             description="Reflector material",
         ),
@@ -115,6 +115,11 @@ class SingleCylinderTemplate(ProblemTemplate):
         Z_REFL_BOTTOM = -refl_thickness
         Z_REFL_TOP = p["height_cm"] + refl_thickness
 
+        # UF6 z-bounds (accounting for wall caps at top and bottom)
+        wall_thickness = p["wall_thickness_cm"]
+        Z_UF6_BOTTOM = Z_BOTTOM + wall_thickness
+        Z_UF6_TOP = Z_TOP - wall_thickness
+
         # Source position (center of cylinder)
         KSRC_Z = p["height_cm"] / 2.0
 
@@ -136,6 +141,8 @@ class SingleCylinderTemplate(ProblemTemplate):
             "Z_TOP": Z_TOP,
             "Z_REFL_BOTTOM": Z_REFL_BOTTOM,
             "Z_REFL_TOP": Z_REFL_TOP,
+            "Z_UF6_BOTTOM": Z_UF6_BOTTOM,
+            "Z_UF6_TOP": Z_UF6_TOP,
             "KSRC_Z": KSRC_Z,
             # Pass through user params with uppercase keys
             "ENRICHMENT": p["enrichment"],

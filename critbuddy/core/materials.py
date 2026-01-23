@@ -110,15 +110,15 @@ def create_water() -> openmc.Material:
 
 
 def create_concrete() -> openmc.Material:
-    """Create ordinary concrete for OpenMC."""
+    """Create ordinary concrete for OpenMC (simplified composition)."""
     concrete = openmc.Material(name="Concrete")
     concrete.set_density("g/cm3", 2.3)
-    concrete.add_element("H", 0.01, "wo")
-    concrete.add_element("O", 0.53, "wo")
-    concrete.add_element("Si", 0.34, "wo")
-    concrete.add_element("Ca", 0.04, "wo")
-    concrete.add_element("Al", 0.03, "wo")
-    concrete.add_element("Fe", 0.01, "wo")
+    concrete.add_nuclide("H1", 0.01, "wo")
+    concrete.add_nuclide("O16", 0.53, "wo")
+    concrete.add_nuclide("Si28", 0.34, "wo")
+    concrete.add_nuclide("Ca40", 0.04, "wo")
+    concrete.add_nuclide("Al27", 0.03, "wo")
+    concrete.add_nuclide("Fe56", 0.01, "wo")
     return concrete
 
 
@@ -126,9 +126,9 @@ def create_air() -> openmc.Material:
     """Create air for OpenMC."""
     air = openmc.Material(name="Air")
     air.set_density("g/cm3", 0.001225)
-    air.add_element("N", 0.78, "ao")
-    air.add_element("O", 0.21, "ao")
-    air.add_element("Ar", 0.01, "ao")
+    air.add_nuclide("N14", 0.78)
+    air.add_nuclide("O16", 0.21)
+    air.add_nuclide("Ar40", 0.01)
     return air
 
 

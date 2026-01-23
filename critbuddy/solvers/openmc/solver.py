@@ -3,6 +3,7 @@ OpenMC solver backend for criticality calculations.
 """
 
 import importlib.util
+import subprocess
 import time
 from pathlib import Path
 from typing import Optional
@@ -10,6 +11,7 @@ from typing import Optional
 import openmc
 
 from critbuddy.solvers.base import Solver, SolverResult, compute_status
+from critbuddy.progress import OpenMCProgressMonitor, clear_progress_bar
 from critbuddy.utils import working_directory, get_logger
 
 logger = get_logger(__name__)
@@ -20,9 +22,14 @@ class OpenMCSolver(Solver):
 
     name = "openmc"
 
-    def __init__(self):
-        """Initialize OpenMC solver."""
-        pass
+    def __init__(self, show_progress: bool = True):
+        """
+        Initialize OpenMC solver.
+
+        Args:
+            show_progress: Whether to display progress bar during execution
+        """
+        self.show_progress = show_progress
 
     def _load_template(self, template_dir: Path):
         """Dynamically load template module."""
@@ -72,6 +79,9 @@ class OpenMCSolver(Solver):
             case_dir.mkdir(parents=True, exist_ok=True)
 
             with working_directory(case_dir):
+                # Reset OpenMC's internal ID counters to avoid conflicts between cases
+                openmc.reset_auto_ids()
+
                 # Build model
                 logger.debug("Building model...")
                 materials, geometry, dims = template.build_model(params)
@@ -84,11 +94,13 @@ class OpenMCSolver(Solver):
                 settings = template.create_settings(params, dims)
                 settings.export_to_xml()
 
-                # Run OpenMC
-                openmc.run(output=False)
-
-                # Extract results (handle both uppercase and lowercase param names)
+                # Get batch count for progress monitoring
                 batches = params.get('BATCHES', params.get('batches', 150))
+
+                # Run OpenMC as subprocess with progress monitoring
+                self._run_openmc_with_progress(int(batches))
+
+                # Extract results
                 statepoint_file = f"statepoint.{int(batches)}.h5"
                 with openmc.StatePoint(statepoint_file) as sp:
                     keff = sp.keff.nominal_value
@@ -119,6 +131,50 @@ class OpenMCSolver(Solver):
                 error_msg=str(e),
             )
 
+    def _run_openmc_with_progress(self, total_batches: int) -> None:
+        """
+        Run OpenMC as subprocess with progress bar.
+
+        Args:
+            total_batches: Total number of batches for progress tracking
+        """
+        if not self.show_progress:
+            # Fall back to Python API without progress
+            openmc.run(output=False)
+            return
+
+        # Setup progress monitor
+        monitor = OpenMCProgressMonitor(total_batches=total_batches)
+
+        # Run OpenMC as subprocess
+        process = subprocess.Popen(
+            ["openmc"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,  # Line buffered
+        )
+
+        # Process output lines for progress, capturing output for error reporting
+        output_lines = []
+        try:
+            for line in process.stdout:
+                output_lines.append(line)
+                monitor.process_line(line)
+
+            process.wait()
+
+            if process.returncode != 0:
+                # Get last 20 lines of output for error context
+                error_context = "".join(output_lines[-20:])
+                raise RuntimeError(
+                    f"OpenMC exited with code {process.returncode}\n"
+                    f"Last output:\n{error_context}"
+                )
+
+        finally:
+            monitor.finish()
+
     def validate(
         self,
         params: dict,
@@ -144,6 +200,9 @@ class OpenMCSolver(Solver):
         case_dir.mkdir(parents=True, exist_ok=True)
 
         with working_directory(case_dir):
+            # Reset OpenMC's internal ID counters to avoid conflicts between cases
+            openmc.reset_auto_ids()
+
             # Build model
             materials, geometry, dims = template.build_model(params)
 

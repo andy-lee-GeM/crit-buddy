@@ -81,8 +81,8 @@ def expand_sweeps(user_params: dict) -> List[tuple]:
 
     Example:
         >>> expand_sweeps({"radius_cm": [5, 10], "enrichment": 5.0})
-        [("5", {"radius_cm": 5, "enrichment": 5.0}),
-         ("10", {"radius_cm": 10, "enrichment": 5.0})]
+        [("case_1", {"radius_cm": 5, "enrichment": 5.0}),
+         ("case_2", {"radius_cm": 10, "enrichment": 5.0})]
     """
     # Identify swept vs fixed parameters
     swept = {}
@@ -96,27 +96,21 @@ def expand_sweeps(user_params: dict) -> List[tuple]:
 
     # If no sweeps, return single case
     if not swept:
-        return [("default", dict(fixed))]
+        return [("case_1", dict(fixed))]
 
     # Generate cartesian product of swept values
     sweep_keys = list(swept.keys())
     sweep_values = [swept[k] for k in sweep_keys]
 
     cases = []
-    for combo in itertools.product(*sweep_values):
+    for case_num, combo in enumerate(itertools.product(*sweep_values), start=1):
         # Build params dict
         params = dict(fixed)
-        label_parts = []
 
         for key, value in zip(sweep_keys, combo):
             params[key] = value
-            # Create label from swept values
-            if isinstance(value, float):
-                label_parts.append(f"{value:.4g}")
-            else:
-                label_parts.append(str(value))
 
-        label = "_".join(label_parts)
+        label = f"case_{case_num}"
         cases.append((label, params))
 
     return cases

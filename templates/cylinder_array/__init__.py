@@ -1,0 +1,185 @@
+"""
+Cylinder Array Problem Template.
+
+An array of vertical cylinders filled with UF6, surrounded by an environment.
+Used for studying interaction effects between multiple fissile units.
+"""
+
+from critbuddy.templates.base import ProblemTemplate, ParameterSpec
+
+
+class CylinderArrayTemplate(ProblemTemplate):
+    """
+    Rectangular array of vertical cylinders with fissile material.
+
+    Geometry:
+        - Multiple cylinders arranged in rows x cols grid
+        - Each cylinder: UF6 core with steel wall
+        - Configurable pitch (center-to-center distance)
+        - Surrounding environment: air or water
+    """
+
+    PARAMETERS = {
+        "enrichment": ParameterSpec(
+            type="float",
+            default=5.0,
+            min=0.7,
+            max=100.0,
+            unit="wt%",
+            description="U-235 enrichment (weight percent)",
+        ),
+        "rows": ParameterSpec(
+            type="int",
+            required=True,
+            min=1,
+            max=10,
+            description="Number of rows in array",
+        ),
+        "cols": ParameterSpec(
+            type="int",
+            required=True,
+            min=1,
+            max=10,
+            description="Number of columns in array",
+        ),
+        "radius_cm": ParameterSpec(
+            type="float",
+            required=True,
+            min=1.0,
+            max=50.0,
+            unit="cm",
+            description="Inner cylinder radius",
+        ),
+        "height_cm": ParameterSpec(
+            type="float",
+            default=100.0,
+            min=1.0,
+            max=500.0,
+            unit="cm",
+            description="Cylinder height",
+        ),
+        "wall_material": ParameterSpec(
+            type="enum",
+            options=["aluminum", "steel"],
+            default="steel",
+            description="Container wall material",
+        ),
+        "wall_thickness_cm": ParameterSpec(
+            type="float",
+            default=0.6,
+            min=0.0,
+            max=5.0,
+            unit="cm",
+            description="Wall thickness",
+        ),
+        "pitch_cm": ParameterSpec(
+            type="float",
+            required=True,
+            min=1.0,
+            max=200.0,
+            unit="cm",
+            description="Center-to-center spacing between cylinders",
+        ),
+        "environment": ParameterSpec(
+            type="enum",
+            options=["air", "water"],
+            default="air",
+            description="Surrounding environment material",
+        ),
+        "boundary_thickness_cm": ParameterSpec(
+            type="float",
+            default=30.0,
+            min=5.0,
+            max=100.0,
+            unit="cm",
+            description="Thickness of environment around array",
+        ),
+        "uf6_density": ParameterSpec(
+            type="float",
+            default=5.09,
+            min=1.0,
+            max=6.0,
+            unit="g/cc",
+            description="UF6 density",
+        ),
+    }
+
+    SIMULATION = {
+        "PARTICLES": 10000,
+        "BATCHES": 150,
+        "INACTIVE": 50,
+    }
+
+    SAFETY_LIMIT = 0.95
+
+    def derive_params(self, p: dict) -> dict:
+        """
+        Compute geometry parameters from user inputs.
+        """
+        from critbuddy.core.materials import get_density
+
+        rows = p["rows"]
+        cols = p["cols"]
+        radius = p["radius_cm"]
+        wall = p["wall_thickness_cm"]
+        pitch = p["pitch_cm"]
+        height = p["height_cm"]
+        boundary = p["boundary_thickness_cm"]
+
+        # Outer radius of each cylinder (with wall)
+        outer_radius = radius + wall
+
+        # Array dimensions
+        array_width_x = (cols - 1) * pitch + 2 * outer_radius
+        array_width_y = (rows - 1) * pitch + 2 * outer_radius
+
+        # Total bounding box (including environment)
+        total_x = array_width_x + 2 * boundary
+        total_y = array_width_y + 2 * boundary
+        total_z = height + 2 * boundary
+
+        # Array center offset (so cylinders are centered in environment)
+        x_offset = -(cols - 1) * pitch / 2
+        y_offset = -(rows - 1) * pitch / 2
+
+        # Material densities
+        wall_density = get_density(p["wall_material"])
+        env_density = get_density(p["environment"])
+
+        return {
+            # Array configuration
+            "ROWS": rows,
+            "COLS": cols,
+            "PITCH": pitch,
+            # Cylinder geometry
+            "INNER_RADIUS": radius,
+            "OUTER_RADIUS": outer_radius,
+            "HEIGHT": height,
+            "WALL_THICKNESS": wall,
+            # Offsets for centering
+            "X_OFFSET": x_offset,
+            "Y_OFFSET": y_offset,
+            # Bounding box
+            "TOTAL_X": total_x,
+            "TOTAL_Y": total_y,
+            "TOTAL_Z": total_z,
+            "BOUNDARY": boundary,
+            # Z coordinates
+            "Z_BOTTOM": 0.0,
+            "Z_TOP": height,
+            "Z_ENV_BOTTOM": -boundary,
+            "Z_ENV_TOP": height + boundary,
+            # Source position
+            "KSRC_Z": height / 2.0,
+            # Materials
+            "ENRICHMENT": p["enrichment"],
+            "UF6_DENSITY": p["uf6_density"],
+            "WALL_MATERIAL": p["wall_material"],
+            "WALL_DENSITY": wall_density,
+            "ENVIRONMENT": p["environment"],
+            "ENV_DENSITY": env_density,
+        }
+
+
+# Export the template class
+Template = CylinderArrayTemplate

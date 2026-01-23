@@ -1,16 +1,18 @@
 Single Cylinder UF6 Criticality - {{CASE_LABEL}}
 c ================================================================================
 c TEMPLATE: single_cylinder
-c PROBLEM:  Vertical cylinder filled with UF6, aluminum wall, water reflector
+c PROBLEM:  Vertical cylinder filled with UF6, wall, and reflector
 c ================================================================================
 c CELL CARDS
 c ================================================================================
-1    1  -{{UF6_DENSITY}}   -1  +4 -5           imp:n=1   $ UF6
-2    2  -2.70              +1 -2  +4 -5        imp:n=1   $ Aluminum wall
-3    3  -1.00              +2 -3  +4 -5        imp:n=1   $ Water radial
-4    3  -1.00              -3  +6 -4           imp:n=1   $ Water bottom
-5    3  -1.00              -3  +5 -7           imp:n=1   $ Water top
-6    0                     +3:+7:-6            imp:n=0   $ Void outside
+1    1  -{{UF6_DENSITY}}   -1  +8 -9           imp:n=1   $ UF6 (inside wall caps)
+2    2  -{{WALL_DENSITY}}  +1 -2  +4 -5        imp:n=1   $ Wall radial
+3    2  -{{WALL_DENSITY}}  -1  +4 -8           imp:n=1   $ Wall bottom cap
+4    2  -{{WALL_DENSITY}}  -1  +9 -5           imp:n=1   $ Wall top cap
+5    3  -{{REFL_DENSITY}}  +2 -3  +4 -5        imp:n=1   $ Reflector radial
+6    3  -{{REFL_DENSITY}}  -3  +6 -4           imp:n=1   $ Reflector bottom
+7    3  -{{REFL_DENSITY}}  -3  +5 -7           imp:n=1   $ Reflector top
+8    0                     +3:+7:-6            imp:n=0   $ Void outside
 
 c ================================================================================
 c SURFACE CARDS
@@ -22,6 +24,8 @@ c ==============================================================================
 5    pz    {{Z_TOP}}        $ Cylinder top
 6    pz    {{Z_REFL_BOTTOM}}  $ Reflector bottom
 7    pz    {{Z_REFL_TOP}}   $ Reflector top
+8    pz    {{Z_UF6_BOTTOM}} $ UF6 bottom (above wall cap)
+9    pz    {{Z_UF6_TOP}}    $ UF6 top (below wall cap)
 
 c ================================================================================
 c MATERIALS (from shared library)

@@ -23,7 +23,7 @@ import yaml
 from critbuddy.core.config import ExperimentConfig, generate_cases
 from critbuddy.solvers import OpenMCSolver, MCNPSolver
 from critbuddy.utils import Status, working_directory, setup_logging, get_logger
-from critbuddy.reporting import print_report, save_report, create_geometry_plot
+from critbuddy.reporting import create_geometry_plot, plot_keff
 
 
 def load_config():
@@ -177,16 +177,18 @@ def run_cases(solver, cases, run_dir, template_dir, safety_limit):
     """Run all cases with a solver."""
     results = []
     original_dir = Path.cwd()
+    total_cases = len(cases)
 
     print(f"\n  Running {solver.name.upper()} solver...")
 
-    for case in cases:
+    for idx, case in enumerate(cases, 1):
         params = {**case.all_params, "CASE_LABEL": case.label}
         case_name = case.label.replace(" ", "_").replace("-", "")
         case_dir = run_dir / "cases" / case_name / solver.name
         case_dir.mkdir(parents=True, exist_ok=True)
 
-        print(f"    {case.label:<20}", end="", flush=True)
+        # Print case header on its own line
+        print(f"  [{idx}/{total_cases}] {case.label}")
 
         result = solver.run(
             params=params,
@@ -197,10 +199,11 @@ def run_cases(solver, cases, run_dir, template_dir, safety_limit):
         )
         os.chdir(original_dir)
 
+        # Print result on new line after progress bar clears
         if result.status in (Status.FAILED, Status.SKIPPED):
-            print(f"  [{result.status.value}] {result.errors[0] if result.errors else ''}")
+            print(f"    Result: [{result.status.value}] {result.errors[0] if result.errors else ''}")
         else:
-            print(f"  k-eff = {result.keff:.5f} +/- {result.uncertainty:.5f}  [{result.status.value}]")
+            print(f"    Result: k-eff = {result.keff:.5f} +/- {result.uncertainty:.5f}  [{result.status.value}]")
 
         results.append({
             "case": case.label,
@@ -338,17 +341,17 @@ Path:       {experiment_dir}
     write_results(run_dir, all_results)
     print_summary(all_results)
 
-    # Generate report by default (skip with --no-report)
+    # Generate plots by default (skip with --no-report)
     if not args.no_report:
         results_csv = run_dir / "results.csv"
         if results_csv.exists():
-            print("\nGenerating report...")
-            report_path = save_report(
+            plot_paths = plot_keff(
                 results_csv,
-                output_dir=run_dir,
+                output_dir=run_dir / "plots",
                 safety_limit=template_class.SAFETY_LIMIT,
             )
-            print(f"Report: {report_path}")
+            if plot_paths:
+                print(f"\nPlots: {run_dir / 'plots'}")
 
     print(f"\nResults: {run_dir}")
     print(f"Latest:  {experiment_dir / 'runs' / 'latest'}")
@@ -363,7 +366,7 @@ def main():
     parser.add_argument("--case", help="Run specific case label")
     parser.add_argument("--solver", choices=["openmc", "mcnp", "all"], help="Override solver")
     parser.add_argument("--smoke", action="store_true", help="Quick smoke test")
-    parser.add_argument("--no-report", action="store_true", help="Skip report generation")
+    parser.add_argument("--no-report", action="store_true", help="Skip plot generation")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (warnings only)")
     args = parser.parse_args()
