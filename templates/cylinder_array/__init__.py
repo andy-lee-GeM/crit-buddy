@@ -75,10 +75,10 @@ class CylinderArrayTemplate(ProblemTemplate):
         "pitch_cm": ParameterSpec(
             type="float",
             required=True,
-            min=1.0,
+            min=0.0,
             max=200.0,
             unit="cm",
-            description="Center-to-center spacing between cylinders",
+            description="Gap between outer walls of adjacent cylinders",
         ),
         "environment": ParameterSpec(
             type="enum",
@@ -122,16 +122,19 @@ class CylinderArrayTemplate(ProblemTemplate):
         cols = p["cols"]
         radius = p["radius_cm"]
         wall = p["wall_thickness_cm"]
-        pitch = p["pitch_cm"]
+        gap = p["pitch_cm"]  # Gap between outer walls
         height = p["height_cm"]
         boundary = p["boundary_thickness_cm"]
 
         # Outer radius of each cylinder (with wall)
         outer_radius = radius + wall
 
-        # Array dimensions
-        array_width_x = (cols - 1) * pitch + 2 * outer_radius
-        array_width_y = (rows - 1) * pitch + 2 * outer_radius
+        # Center-to-center spacing = gap + 2 * outer_radius
+        center_to_center = gap + 2 * outer_radius
+
+        # Array dimensions (from leftmost outer wall to rightmost outer wall)
+        array_width_x = (cols - 1) * center_to_center + 2 * outer_radius
+        array_width_y = (rows - 1) * center_to_center + 2 * outer_radius
 
         # Total bounding box (including environment)
         total_x = array_width_x + 2 * boundary
@@ -139,8 +142,8 @@ class CylinderArrayTemplate(ProblemTemplate):
         total_z = height + 2 * boundary
 
         # Array center offset (so cylinders are centered in environment)
-        x_offset = -(cols - 1) * pitch / 2
-        y_offset = -(rows - 1) * pitch / 2
+        x_offset = -(cols - 1) * center_to_center / 2
+        y_offset = -(rows - 1) * center_to_center / 2
 
         # Material densities
         wall_density = get_density(p["wall_material"])
@@ -150,7 +153,8 @@ class CylinderArrayTemplate(ProblemTemplate):
             # Array configuration
             "ROWS": rows,
             "COLS": cols,
-            "PITCH": pitch,
+            "PITCH": center_to_center,  # Center-to-center for model positioning
+            "GAP": gap,  # Original gap between outer walls
             # Cylinder geometry
             "INNER_RADIUS": radius,
             "OUTER_RADIUS": outer_radius,
@@ -164,9 +168,11 @@ class CylinderArrayTemplate(ProblemTemplate):
             "TOTAL_Y": total_y,
             "TOTAL_Z": total_z,
             "BOUNDARY": boundary,
-            # Z coordinates
+            # Z coordinates (caps extend wall thickness above/below UF6)
             "Z_BOTTOM": 0.0,
             "Z_TOP": height,
+            "Z_CAP_BOTTOM": -wall,
+            "Z_CAP_TOP": height + wall,
             "Z_ENV_BOTTOM": -boundary,
             "Z_ENV_TOP": height + boundary,
             # Source position

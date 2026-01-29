@@ -23,7 +23,7 @@ import yaml
 from critbuddy.core.config import ExperimentConfig, generate_cases
 from critbuddy.solvers import OpenMCSolver, MCNPSolver
 from critbuddy.utils import Status, working_directory, setup_logging, get_logger
-from critbuddy.reporting import create_geometry_plot, plot_keff
+from critbuddy.reporting import create_geometry_plot, plot_keff, create_voxel_plot
 
 
 def load_config():
@@ -83,17 +83,29 @@ def load_template_module(template_dir: Path):
     return module
 
 
-def create_run_directory(experiment_dir: Path) -> Path:
-    """Create timestamped run directory."""
-    runs_dir = experiment_dir / "runs"
-    runs_dir.mkdir(exist_ok=True)
+def create_run_directory(experiment_dir: Path, run_name: str) -> Path:
+    """Create timestamped run directory under a named subdirectory.
+
+    Args:
+        experiment_dir: Base experiment directory
+        run_name: Name for the run (typically YAML filename stem)
+
+    Returns:
+        Path to the timestamped run directory
+
+    Directory structure:
+        experiment_dir/runs/{run_name}/{timestamp}/
+        experiment_dir/runs/{run_name}/latest -> {timestamp}
+    """
+    runs_dir = experiment_dir / "runs" / run_name
+    runs_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     run_dir = runs_dir / timestamp
     run_dir.mkdir(parents=True)
     (run_dir / "cases").mkdir()
 
-    # Update 'latest' symlink
+    # Update 'latest' symlink within the run_name directory
     latest_link = runs_dir / "latest"
     if latest_link.is_symlink():
         latest_link.unlink()
@@ -141,12 +153,15 @@ def validate_geometry(template_module, case, experiment_dir, template_dir):
 
     with working_directory(val_dir):
         import openmc
+        openmc.reset_auto_ids()
+
         materials, geometry, dims = template_module.build_model(case.all_params)
         template_module.print_summary(case.all_params, dims)
 
         materials.export_to_xml()
         geometry.export_to_xml()
 
+        # Generate 2D slice plots
         plots, color_legend = template_module.create_plots(dims, materials)
         plots.export_to_xml()
         openmc.plot_geometry()
@@ -156,21 +171,102 @@ def validate_geometry(template_module, case, experiment_dir, template_dir):
             if src.exists():
                 src.rename(f"{name}.png")
 
-    # Create combined geometry plot
-    xy_plot = val_dir / "xy.png"
-    xz_plot = val_dir / "xz.png"
-    output_path = val_dir / "geometry.png"
+        # Create combined geometry plot
+        xy_plot = val_dir / "xy.png"
+        xz_plot = val_dir / "xz.png"
+        output_path = val_dir / "geometry.png"
 
-    if xy_plot.exists() and xz_plot.exists():
-        create_geometry_plot(
-            xy_plot_path=xy_plot,
-            xz_plot_path=xz_plot,
-            output_path=output_path,
-            color_legend=color_legend,
+        if xy_plot.exists() and xz_plot.exists():
+            create_geometry_plot(
+                xy_plot_path=xy_plot,
+                xz_plot_path=xz_plot,
+                output_path=output_path,
+                color_legend=color_legend,
+            )
+            print(f"\nCombined geometry: {output_path}")
+        else:
+            print(f"\nGeometry plots: {val_dir}/xy.png, {val_dir}/xz.png")
+
+
+def generate_voxel(template_module, case, experiment_dir):
+    """Generate 3D voxel visualization."""
+    print("\n" + "=" * 60)
+    print("  3D VOXEL VISUALIZATION")
+    print("=" * 60)
+    print(f"\nGenerating voxel for: {case.label}")
+
+    val_dir = experiment_dir / "_validation"
+    val_dir.mkdir(exist_ok=True)
+
+    with working_directory(val_dir):
+        import openmc
+        openmc.reset_auto_ids()
+
+        materials, geometry, dims = template_module.build_model(case.all_params)
+
+        # Get color legend from plots
+        _, color_legend = template_module.create_plots(dims, materials)
+
+        # Determine dimensions based on template type
+        if "total_x" in dims:
+            # Cylinder array
+            width = (dims["total_x"], dims["total_y"], dims["height"] + 2 * dims["boundary"])
+            center = (0, 0, dims["height"] / 2)
+        else:
+            # Single cylinder
+            r3 = dims.get("r3", dims.get("r2", 10) + 10)
+            h = dims.get("h", 100)
+            rt = dims.get("rt", 30)
+            width = (r3 * 2.2, r3 * 2.2, h + 2 * rt)
+            center = (0, 0, h / 2)
+
+        voxel_path = val_dir / "voxel_3d.png"
+
+        # Adaptive resolution based on smallest feature (wall thickness)
+        # Ensure at least 2 pixels per wall thickness for visibility
+        wall_thickness = case.all_params.get("WALL_THICKNESS",
+                         case.all_params.get("wall_thickness_cm", 0.3))
+        min_feature = max(wall_thickness, 0.1)  # Floor to avoid division issues
+
+        # Calculate pixels needed: at least 2 pixels per smallest feature
+        pixels_per_cm = 2.0 / min_feature
+        nx = int(width[0] * pixels_per_cm)
+        ny = int(width[1] * pixels_per_cm)
+        nz = int(width[2] * pixels_per_cm * 0.5)  # Half resolution in Z
+
+        # Cap resolution to avoid memory issues (max 300x300x150)
+        max_xy, max_z = 300, 150
+        if nx > max_xy or ny > max_xy:
+            scale = max_xy / max(nx, ny)
+            nx = int(nx * scale)
+            ny = int(ny * scale)
+            nz = int(nz * scale)
+        nz = min(nz, max_z)
+
+        # Ensure minimum resolution
+        nx = max(nx, 40)
+        ny = max(ny, 40)
+        nz = max(nz, 20)
+
+        print(f"Generating 3D voxel plot...")
+        print(f"  Wall thickness: {wall_thickness:.3f} cm")
+        print(f"  Resolution: {nx} x {ny} x {nz} pixels")
+        print(f"  (This may take a moment for high resolution...)")
+
+        # Export geometry for OpenMC voxel generation
+        materials.export_to_xml()
+        geometry.export_to_xml()
+
+        create_voxel_plot(
+            geometry=geometry,
+            materials=materials,
+            output_path=voxel_path,
+            width=width,
+            center=center,
+            pixels=(nx, ny, nz),
+            color_mapping=color_legend,
         )
-        print(f"\nCombined geometry: {output_path}")
-    else:
-        print(f"\nGeometry plots: {val_dir}/xy.png, {val_dir}/xz.png")
+        print(f"\n3D voxel plot: {voxel_path}")
 
 
 def run_cases(solver, cases, run_dir, template_dir, safety_limit):
@@ -271,6 +367,151 @@ def print_summary(all_results):
     print("=" * 80)
 
 
+def create_consultant_package(
+    run_dir: Path,
+    experiment_dir: Path,
+    config: "ExperimentConfig",
+) -> Path:
+    """
+    Create a consultant package with all files needed for independent verification.
+
+    Args:
+        run_dir: The timestamped run directory containing results
+        experiment_dir: The experiment directory containing specification.md
+        config: The experiment configuration
+
+    Returns:
+        Path to the consultant_package directory
+    """
+    from critbuddy.core.materials import write_materials_yaml
+
+    package_dir = run_dir / "consultant_package"
+    package_dir.mkdir(exist_ok=True)
+
+    print("\n" + "=" * 60)
+    print("  GENERATING CONSULTANT PACKAGE")
+    print("=" * 60)
+
+    # 1. Copy specification.md
+    spec_src = experiment_dir / "specification.md"
+    if spec_src.exists():
+        shutil.copy(spec_src, package_dir / "specification.md")
+        print(f"  + specification.md")
+    else:
+        print(f"  - specification.md (not found)")
+
+    # 2. Copy geometry visualization
+    validation_dir = experiment_dir / "_validation"
+    if validation_dir.exists():
+        geometry_src = validation_dir / "geometry.png"
+        if geometry_src.exists():
+            shutil.copy(geometry_src, package_dir / "geometry.png")
+            print(f"  + geometry.png")
+        else:
+            print(f"  - geometry.png (not found)")
+    else:
+        print(f"  - geometry.png (_validation not found)")
+
+    # 3. Generate materials.yaml
+    enrichment = config.user_params.get("enrichment", 5.0)
+    uf6_density = config.user_params.get("uf6_density", 5.09)
+    write_materials_yaml(
+        package_dir / "materials.yaml",
+        enrichment_pct=enrichment,
+        uf6_density=uf6_density,
+    )
+    print(f"  + materials.yaml")
+
+    # 4. Copy results
+    results_src = run_dir / "results.csv"
+    if results_src.exists():
+        shutil.copy(results_src, package_dir / "results.csv")
+        print(f"  + results.csv")
+
+    # 5. Copy plots
+    plots_src = run_dir / "plots"
+    if plots_src.exists():
+        plots_dst = package_dir / "plots"
+        if plots_dst.exists():
+            shutil.rmtree(plots_dst)
+        shutil.copytree(plots_src, plots_dst)
+        print(f"  + plots/")
+
+    # 6. Copy example input files from first case
+    cases_dir = run_dir / "cases"
+    if cases_dir.exists():
+        inputs_dir = package_dir / "example_inputs"
+        inputs_dir.mkdir(exist_ok=True)
+
+        # Find first case directory
+        case_dirs = sorted([d for d in cases_dir.iterdir() if d.is_dir()])
+        if case_dirs:
+            first_case = case_dirs[0]
+
+            # Copy OpenMC inputs
+            openmc_dir = first_case / "openmc"
+            if openmc_dir.exists():
+                openmc_dst = inputs_dir / "openmc"
+                openmc_dst.mkdir(exist_ok=True)
+                for xml_file in ["geometry.xml", "materials.xml", "settings.xml"]:
+                    src = openmc_dir / xml_file
+                    if src.exists():
+                        shutil.copy(src, openmc_dst / xml_file)
+                print(f"  + example_inputs/openmc/")
+
+            # Copy MCNP input
+            mcnp_dir = first_case / "mcnp"
+            if mcnp_dir.exists():
+                mcnp_dst = inputs_dir / "mcnp"
+                mcnp_dst.mkdir(exist_ok=True)
+                mcnp_input = mcnp_dir / "input"
+                if mcnp_input.exists():
+                    shutil.copy(mcnp_input, mcnp_dst / "input")
+                    print(f"  + example_inputs/mcnp/")
+
+    # 7. Create README
+    readme_content = f"""# Consultant Verification Package
+
+## Experiment: {config.name}
+
+This package contains all information needed to independently verify
+the criticality calculations performed for this experiment.
+
+## Contents
+
+| File | Description |
+|------|-------------|
+| specification.md | Complete methodology, assumptions, and parameters |
+| materials.yaml | Exact isotopic compositions used in calculations |
+| results.csv | Calculated k-eff values for all cases |
+| geometry.png | Geometry visualization |
+| example_inputs/ | Example input files (OpenMC/MCNP) |
+
+## Verification Steps
+
+1. Review specification.md to understand the analysis
+2. Build your model using the geometry and materials specified
+3. Verify materials.yaml matches your material definitions
+4. Run calculations and compare to results.csv
+5. Results should match within statistical uncertainty (k-eff ± 2σ)
+
+## Acceptance Criteria
+
+k-eff + 2σ < 0.95 (per ANSI/ANS-8.1)
+
+## Questions
+
+Contact: [Your contact information]
+"""
+    (package_dir / "README.md").write_text(readme_content)
+    print(f"  + README.md")
+
+    print("=" * 60)
+    print(f"\nConsultant package: {package_dir}")
+
+    return package_dir
+
+
 def run_experiment(experiment_path: Path, args):
     """Run an experiment."""
     experiment_path = experiment_path.resolve()
@@ -305,6 +546,11 @@ Path:       {experiment_dir}
         validate_geometry(template_module, cases[0], experiment_dir, template_dir)
         return
 
+    # Voxel mode (standalone 3D visualization)
+    if args.voxel:
+        generate_voxel(template_module, cases[0], experiment_dir)
+        return
+
     # Setup solvers (default: OpenMC only, use --solver flag to change)
     solvers = create_solvers(args.solver or "openmc")
 
@@ -323,8 +569,11 @@ Path:       {experiment_dir}
 
     print(f"Cases: {len(cases)}")
 
+    # Determine run name (CLI override or YAML filename)
+    run_name = args.name if args.name else experiment_path.stem
+
     # Create run directory
-    run_dir = create_run_directory(experiment_dir)
+    run_dir = create_run_directory(experiment_dir, run_name)
     shutil.copy(experiment_path, run_dir / "config.yaml")
     print(f"Run directory: {run_dir}")
 
@@ -353,8 +602,12 @@ Path:       {experiment_dir}
             if plot_paths:
                 print(f"\nPlots: {run_dir / 'plots'}")
 
+    # Generate consultant package if requested
+    if args.package:
+        create_consultant_package(run_dir, experiment_dir, config)
+
     print(f"\nResults: {run_dir}")
-    print(f"Latest:  {experiment_dir / 'runs' / 'latest'}")
+    print(f"Latest:  {experiment_dir / 'runs' / run_name / 'latest'}")
 
 
 def main():
@@ -362,11 +615,14 @@ def main():
 
     parser = argparse.ArgumentParser(description="Run criticality experiment")
     parser.add_argument("experiment", nargs="?", help="Path to experiment.yaml")
-    parser.add_argument("--validate", action="store_true", help="Visualize geometry only")
+    parser.add_argument("--validate", action="store_true", help="Generate 2D geometry plots")
+    parser.add_argument("--voxel", action="store_true", help="Generate 3D voxel visualization")
     parser.add_argument("--case", help="Run specific case label")
     parser.add_argument("--solver", choices=["openmc", "mcnp", "all"], help="Override solver")
     parser.add_argument("--smoke", action="store_true", help="Quick smoke test")
+    parser.add_argument("--name", help="Custom name for this run (default: YAML filename)")
     parser.add_argument("--no-report", action="store_true", help="Skip plot generation")
+    parser.add_argument("--package", action="store_true", help="Generate consultant verification package")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (warnings only)")
     args = parser.parse_args()

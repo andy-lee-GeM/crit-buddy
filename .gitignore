@@ -1,6 +1,7 @@
 # Experiment runs (large output files)
 experiments/*/runs/
 experiments/*/_validation/
+experiments/*
 
 # OpenMC output files
 statepoint.*.h5

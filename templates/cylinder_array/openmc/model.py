@@ -46,9 +46,12 @@ def build_model(p):
     cells = []
     cell_id = 1
 
-    # Z planes for cylinder bounds
+    # Z planes for cylinder bounds (UF6 region)
     z_bottom = openmc.ZPlane(z0=p["Z_BOTTOM"], name="z_bottom")
     z_top = openmc.ZPlane(z0=p["Z_TOP"], name="z_top")
+    # Z planes for caps (wall material extends above/below UF6)
+    z_cap_bottom = openmc.ZPlane(z0=p["Z_CAP_BOTTOM"], name="z_cap_bottom")
+    z_cap_top = openmc.ZPlane(z0=p["Z_CAP_TOP"], name="z_cap_top")
 
     # Bounding box surfaces
     x_min = openmc.XPlane(x0=-p["TOTAL_X"]/2, boundary_type="vacuum", name="x_min")
@@ -79,14 +82,26 @@ def build_model(p):
             cells.append(c_uf6)
             cell_id += 1
 
-            # Wall cell
+            # Wall cell (cylindrical shell)
             c_wall = openmc.Cell(cell_id=cell_id, name=f"Wall_{row}_{col}", fill=m_wall)
             c_wall.region = +inner_cyl & -outer_cyl & +z_bottom & -z_top
             cells.append(c_wall)
             cell_id += 1
 
-            # Track outer cylinder region
-            cylinder_regions.append(-outer_cyl & +z_bottom & -z_top)
+            # Bottom cap (disk of wall material below UF6)
+            c_cap_bottom = openmc.Cell(cell_id=cell_id, name=f"CapBottom_{row}_{col}", fill=m_wall)
+            c_cap_bottom.region = -outer_cyl & +z_cap_bottom & -z_bottom
+            cells.append(c_cap_bottom)
+            cell_id += 1
+
+            # Top cap (disk of wall material above UF6)
+            c_cap_top = openmc.Cell(cell_id=cell_id, name=f"CapTop_{row}_{col}", fill=m_wall)
+            c_cap_top.region = -outer_cyl & +z_top & -z_cap_top
+            cells.append(c_cap_top)
+            cell_id += 1
+
+            # Track full cylinder region (including caps) for environment exclusion
+            cylinder_regions.append(-outer_cyl & +z_cap_bottom & -z_cap_top)
 
     # Environment cell (everything outside cylinders, inside bounding box)
     # We need to exclude all cylinder regions from the environment
@@ -118,6 +133,8 @@ def build_model(p):
         "total_x": p["TOTAL_X"],
         "total_y": p["TOTAL_Y"],
         "boundary": boundary,
+        "x_offset": p["X_OFFSET"],
+        "y_offset": p["Y_OFFSET"],
     }
 
     return materials, geometry, dims
@@ -189,6 +206,9 @@ def create_plots(dims, materials):
     total_y = dims["total_y"]
     height = dims["height"]
     boundary = dims["boundary"]
+    y_offset = dims["y_offset"]
+    pitch = dims["pitch"]
+    rows = dims["rows"]
 
     # XY slice (top-down view at mid-height)
     p1 = openmc.Plot(name="xy")
@@ -200,10 +220,12 @@ def create_plots(dims, materials):
     p1.colors = color_mapping
     plots.append(p1)
 
-    # XZ slice (side view through center row)
+    # XZ slice (side view through first row of cylinders)
+    # Position y at the first row to slice through cylinders, not air
+    first_row_y = y_offset  # y-coordinate of first row of cylinders
     p2 = openmc.Plot(name="xz")
     p2.basis = "xz"
-    p2.origin = (0, 0, height / 2)
+    p2.origin = (0, first_row_y, height / 2)
     p2.width = (total_x * 1.1, (height + 2 * boundary) * 1.1)
     p2.pixels = (800, 600)
     p2.color_by = "material"
@@ -226,10 +248,12 @@ ARRAY CONFIGURATION
   Layout:             {dims['rows']} rows x {dims['cols']} cols = {n_cylinders} cylinders
   Pitch:              {dims['pitch']:>8.2f} cm (center-to-center)
 
-CYLINDER GEOMETRY
+CYLINDER GEOMETRY (sealed with caps)
   Inner radius:       {dims['inner_r']:>8.2f} cm
   Outer radius:       {dims['outer_r']:>8.2f} cm
-  Height:             {dims['height']:>8.2f} cm
+  Wall thickness:     {p['WALL_THICKNESS']:>8.2f} cm
+  Height (UF6):       {dims['height']:>8.2f} cm
+  Total height:       {dims['height'] + 2*p['WALL_THICKNESS']:>8.2f} cm (with caps)
 
 FISSILE MATERIAL
   Enrichment:         {p['ENRICHMENT']:>8.2f} wt% U-235
