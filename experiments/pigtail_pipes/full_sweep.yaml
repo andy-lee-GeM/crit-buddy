@@ -1,0 +1,22 @@
+# Pigtail Pipes - Full Parameter Sweep
+# Reference: docs/standards/pipe_schedule_10s.md
+# Sweeps: enrichment (LEU/HALEU), reflector (air/water), radius
+problem: single_cylinder
+name: "Pigtail Pipes - Full Sweep (Sch 10S)"
+
+# Enrichment (swept)
+enrichment: [5.0, 20.0]
+
+# Schedule 10S pigtail inner radii (Ri) in cm
+# NPS 1/8 = 0.390, NPS 1/4 = 0.521, NPS 3/8 = 0.692
+radius_cm: [0.390, 0.521, 0.692]
+
+# Environment (swept)
+reflector_material: [air, water]
+
+# Fixed parameters
+height_cm: 100.0
+wall_material: aluminum
+wall_thickness_cm: 0.124  # Conservative (thinnest) - NPS 1/8
+reflector_thickness_cm: 30.0
+uf6_density: 5.09

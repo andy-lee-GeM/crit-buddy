@@ -1,13 +1,11 @@
-# Experiment runs (large output files)
-experiments/*/runs/
-experiments/*/_validation/
-experiments/*
-
 # OpenMC output files
 statepoint.*.h5
 summary.h5
 tallies.out
 *.xml
+
+# Experiment run outputs
+experiments/*/runs/
 
 # MCNP output files
 runtpe*

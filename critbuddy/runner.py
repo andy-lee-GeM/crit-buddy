@@ -213,12 +213,12 @@ def generate_voxel(template_module, case, experiment_dir):
             width = (dims["total_x"], dims["total_y"], dims["height"] + 2 * dims["boundary"])
             center = (0, 0, dims["height"] / 2)
         else:
-            # Single cylinder
-            r3 = dims.get("r3", dims.get("r2", 10) + 10)
-            h = dims.get("h", 100)
-            rt = dims.get("rt", 30)
-            width = (r3 * 2.2, r3 * 2.2, h + 2 * rt)
-            center = (0, 0, h / 2)
+            # Single cylinder (single_cylinder, uf6_30b)
+            r_outer = dims["r_outer"]
+            height = dims["height"]
+            refl_thickness = dims["refl_thickness"]
+            width = (r_outer * 2.2, r_outer * 2.2, height + 2 * refl_thickness)
+            center = (0, 0, height / 2)
 
         voxel_path = val_dir / "voxel_3d.png"
 
@@ -234,8 +234,8 @@ def generate_voxel(template_module, case, experiment_dir):
         ny = int(width[1] * pixels_per_cm)
         nz = int(width[2] * pixels_per_cm * 0.5)  # Half resolution in Z
 
-        # Cap resolution to avoid memory issues (max 300x300x150)
-        max_xy, max_z = 300, 150
+        # Cap resolution to avoid memory issues (max 100x100x50 for speed)
+        max_xy, max_z = 100, 50
         if nx > max_xy or ny > max_xy:
             scale = max_xy / max(nx, ny)
             nx = int(nx * scale)

@@ -183,21 +183,9 @@ def create_plots(dims, materials):
         plots: openmc.Plots object
         color_legend: dict mapping material name -> RGB tuple
     """
-    # Define colors for each material
-    color_mapping = {}
-    for mat in materials:
-        if mat.name == "UF6":
-            color_mapping[mat] = (127, 255, 0)      # Chartreuse green
-        elif mat.name == "Steel":
-            color_mapping[mat] = (105, 105, 105)    # Dim gray
-        elif mat.name == "Aluminum":
-            color_mapping[mat] = (147, 112, 219)    # Medium purple
-        elif mat.name == "Water":
-            color_mapping[mat] = (30, 144, 255)     # Dodger blue
-        elif mat.name == "Air":
-            color_mapping[mat] = (135, 206, 250)    # Light sky blue
-        else:
-            color_mapping[mat] = (200, 200, 200)    # Gray default
+    from critbuddy.core.materials import get_color_mapping
+
+    color_mapping = get_color_mapping(materials)
 
     plots = openmc.Plots()
 
@@ -232,9 +220,8 @@ def create_plots(dims, materials):
     p2.colors = color_mapping
     plots.append(p2)
 
-    legend_colors = {mat.name: rgb for mat, rgb in color_mapping.items()}
-
-    return plots, legend_colors
+    from critbuddy.core.materials import get_color_legend
+    return plots, get_color_legend(materials)
 
 
 def print_summary(p, dims):

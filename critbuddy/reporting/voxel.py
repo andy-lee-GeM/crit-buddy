@@ -40,17 +40,11 @@ def create_voxel_plot(
         Path to the generated PNG
     """
     import openmc
+    from critbuddy.core.materials import MATERIAL_COLORS
 
-    # Default colors
+    # Use centralized colors if not provided
     if color_mapping is None:
-        color_mapping = {
-            "UF6": (127, 255, 0),
-            "Aluminum": (147, 112, 219),
-            "Steel": (105, 105, 105),
-            "Water": (30, 144, 255),
-            "Air": (135, 206, 250),
-            "Concrete": (188, 143, 143),
-        }
+        color_mapping = MATERIAL_COLORS
 
     # Create voxel plot
     voxel_plot = openmc.Plot()
@@ -176,15 +170,10 @@ def create_isometric_slices(
         Path to the generated PNG
     """
     import openmc
+    from critbuddy.core.materials import MATERIAL_COLORS
 
     if color_mapping is None:
-        color_mapping = {
-            "UF6": (127, 255, 0),
-            "Aluminum": (147, 112, 219),
-            "Steel": (105, 105, 105),
-            "Water": (30, 144, 255),
-            "Air": (135, 206, 250),
-        }
+        color_mapping = MATERIAL_COLORS
 
     # Build color mapping for OpenMC
     omc_colors = {}

@@ -1,0 +1,13 @@
+case,solver,keff,std,keff_2sigma,status,execution_time,enrichment,height_cm,radius_cm,reflector_material,reflector_thickness_cm,uf6_density,wall_material,wall_thickness_cm
+case_1,openmc,0.00603,0.00001,0.00605,SAFE,3.1,20.0,100.0,0.39,air,30.0,5.09,aluminum,0.124
+case_2,openmc,0.00800,0.00001,0.00803,SAFE,3.0,20.0,100.0,0.521,air,30.0,5.09,aluminum,0.124
+case_3,openmc,0.01060,0.00001,0.01063,SAFE,2.7,20.0,100.0,0.692,air,30.0,5.09,aluminum,0.124
+case_1,mcnp,0.00602,0.00001,0.00604,SAFE,4.2,20.0,100.0,0.39,air,30.0,5.09,aluminum,0.124
+case_2,mcnp,0.00802,0.00001,0.00804,SAFE,4.1,20.0,100.0,0.521,air,30.0,5.09,aluminum,0.124
+case_3,mcnp,0.01061,0.00001,0.01063,SAFE,4.1,20.0,100.0,0.692,air,30.0,5.09,aluminum,0.124
+case_1,openmc,0.07966,0.00036,0.08039,SAFE,27.7,20.0,100.0,0.39,water,30.0,5.09,aluminum,0.124
+case_2,openmc,0.10728,0.00045,0.10819,SAFE,27.8,20.0,100.0,0.521,water,30.0,5.09,aluminum,0.124
+case_3,openmc,0.14075,0.00048,0.14172,SAFE,26.7,20.0,100.0,0.692,water,30.0,5.09,aluminum,0.124
+case_1,mcnp,0.07910,0.00029,0.07968,SAFE,109.7,20.0,100.0,0.39,water,30.0,5.09,aluminum,0.124
+case_2,mcnp,0.10722,0.00032,0.10786,SAFE,105.8,20.0,100.0,0.521,water,30.0,5.09,aluminum,0.124
+case_3,mcnp,0.14002,0.00038,0.14078,SAFE,125.8,20.0,100.0,0.692,water,30.0,5.09,aluminum,0.124

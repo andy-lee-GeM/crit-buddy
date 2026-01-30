@@ -1,0 +1,2 @@
+case,solver,keff,std,keff_2sigma,status,execution_time,cylinder_height_cm,cylinder_radius_cm,enrichment,reflector_material,reflector_thickness_cm,uf6_density,wall_thickness_cm
+case_1,openmc,1.00377,0.00069,1.00515,CRITICAL,28.4,170.0,37.30625,20,water,30.0,5.5,0.79375

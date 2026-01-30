@@ -56,18 +56,14 @@ def _uranium_fractions(enrichment_pct: float) -> tuple[float, float]:
 # OPENMC MATERIALS
 # =============================================================================
 def create_uf6(enrichment_pct: float, density: float = 5.09) -> openmc.Material:
-    """Create UF6 material for OpenMC."""
+    """Create UF6 material for OpenMC using explicit U-235/U-238 nuclides."""
+    u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
+
     uf6 = openmc.Material(name="UF6")
     uf6.set_density(units="g/cm3", density=density)
-    uf6.add_element(
-        element="U",
-        percent=1.0,
-        percent_type="ao",
-        enrichment=enrichment_pct,
-        enrichment_target="U235",
-        enrichment_type="wo",
-    )
-    uf6.add_element(element="F", percent=6.0, percent_type="ao")
+    uf6.add_nuclide(nuclide="U235", percent=u235_frac, percent_type="ao")
+    uf6.add_nuclide(nuclide="U238", percent=u238_frac, percent_type="ao")
+    uf6.add_nuclide(nuclide="F19", percent=6.0, percent_type="ao")
     return uf6
 
 
@@ -119,9 +115,78 @@ def create_air() -> openmc.Material:
     air = openmc.Material(name="Air")
     air.set_density("g/cm3", 0.001225)
     air.add_nuclide("N14", 0.78)
-    air.add_nuclide("O16", 0.21)
+    air.add_nuclide("O16", 1.0)
     air.add_nuclide("Ar40", 0.01)
     return air
+
+
+def create_carbon_steel() -> openmc.Material:
+    """
+    Create carbon steel for OpenMC (30B cylinder wall material).
+
+    Per ORNL/TM-2021/2043, carbon steel at 7.82 g/cm³.
+    Simplified composition: Fe with ~1% C.
+    """
+    cs = openmc.Material(name="Carbon_Steel")
+    cs.set_density("g/cm3", 7.82)
+    cs.add_nuclide("Fe56", 0.99, "wo")
+    cs.add_nuclide("C0", 0.01, "wo")
+    return cs
+
+
+def create_ss304() -> openmc.Material:
+    """
+    Create stainless steel 304 for OpenMC (overpack material).
+
+    Per ORNL/TM-2021/2043, SS304 at 7.94 g/cm³ for overpack.
+    """
+    ss304 = openmc.Material(name="SS304")
+    ss304.set_density("g/cm3", 7.94)
+    ss304.add_nuclide("Fe56", 0.70, "wo")
+    ss304.add_nuclide("Cr52", 0.19, "wo")
+    ss304.add_nuclide("Ni58", 0.10, "wo")
+    ss304.add_nuclide("Mn55", 0.01, "wo")
+    return ss304
+
+
+def create_hf() -> openmc.Material:
+    """Create pure HF (hydrogen fluoride) for OpenMC."""
+    hf = openmc.Material(name="HF")
+    hf.set_density("g/cm3", 1.0)  # Density not critical for mixing
+    hf.add_nuclide("H1", 1.0, "ao")
+    hf.add_nuclide("F19", 1.0, "ao")
+    return hf
+
+
+def create_uf6_with_hf(enrichment_pct: float, density: float = 5.09,
+                        hf_wt_pct: float = 0.5) -> openmc.Material:
+    """
+    Create UF6 with HF impurity for OpenMC (30B cylinder contents).
+
+    Per ORNL/TM-2021/2043: 99.5 wt% UF6 + 0.5 wt% HF.
+
+    Uses mix_materials to combine pure UF6 and HF by weight fraction.
+
+    Args:
+        enrichment_pct: U-235 weight percent (of uranium only)
+        density: Material density in g/cm3
+        hf_wt_pct: HF weight percent (default 0.5 wt%)
+    """
+    uf6 = create_uf6(enrichment_pct, density)
+    hf = create_hf()
+
+    uf6_wt_frac = (100.0 - hf_wt_pct) / 100.0  # 0.995
+    hf_wt_frac = hf_wt_pct / 100.0              # 0.005
+
+    uf6_hf = openmc.Material.mix_materials(
+        [uf6, hf],
+        [uf6_wt_frac, hf_wt_frac],
+        percent_type='wo',
+        name='UF6_HF'
+    )
+    uf6_hf.set_density("g/cm3", density)
+
+    return uf6_hf
 
 
 # =============================================================================
@@ -202,6 +267,25 @@ m{mat_num}   7014.80c   0.78   $ N-14
 """
 
 
+def mcnp_carbon_steel(mat_num: int) -> str:
+    """Generate MCNP material card for carbon steel (30B cylinder)."""
+    return f"""c Material {mat_num}: Carbon Steel, 7.82 g/cm3
+m{mat_num}   26056.80c  0.99   $ Fe-56
+     6000.80c   0.01   $ C-nat
+"""
+
+
+def mcnp_ss304(mat_num: int) -> str:
+    """Generate MCNP material card for stainless steel 304 (overpack)."""
+    return f"""c Material {mat_num}: Stainless Steel 304, 7.94 g/cm3
+m{mat_num}   26056.80c  0.70   $ Fe-56
+     24052.80c  0.19   $ Cr-52
+     28058.80c  0.10   $ Ni-58
+     25055.80c  0.01   $ Mn-55
+"""
+
+
+
 # =============================================================================
 # MATERIAL REGISTRY (single source of truth for material properties)
 # =============================================================================
@@ -232,7 +316,76 @@ MATERIAL_REGISTRY = {
         "mcnp": mcnp_air,
         "density": 0.001225,
     },
+    "carbon_steel": {
+        "openmc": create_carbon_steel,
+        "mcnp": mcnp_carbon_steel,
+        "density": 7.82,
+    },
+    "ss304": {
+        "openmc": create_ss304,
+        "mcnp": mcnp_ss304,
+        "density": 7.94,
+    },
 }
+
+
+# =============================================================================
+# MATERIAL COLORS (for visualization)
+# =============================================================================
+
+MATERIAL_COLORS = {
+    # Fissile materials - green tones
+    "UF6": (127, 255, 0),           # Chartreuse green
+    "UF6_HF": (127, 255, 0),        # Same as UF6
+    "HUR_Heel": (50, 205, 50),      # Lime green
+
+    # Structural materials - gray/brown tones
+    "Aluminum": (147, 112, 219),    # Medium purple
+    "Steel": (105, 105, 105),       # Dim gray
+    "Carbon_Steel": (139, 69, 19),  # Saddle brown
+    "SS304": (169, 169, 169),       # Dark gray
+
+    # Moderators/reflectors - blue tones
+    "Water": (30, 144, 255),        # Dodger blue
+    "Concrete": (188, 143, 143),    # Rosy brown
+
+    # Environment
+    "Air": (135, 206, 250),         # Light sky blue
+}
+
+
+def get_material_color(name: str) -> tuple[int, int, int]:
+    """Get RGB color tuple for a material by name."""
+    return MATERIAL_COLORS.get(name, (200, 200, 200))
+
+
+def get_color_mapping(materials) -> dict:
+    """
+    Build color mapping dict for OpenMC plots from a Materials object.
+
+    Args:
+        materials: OpenMC Materials object or list of Material objects
+
+    Returns:
+        Dict mapping Material objects to RGB tuples
+    """
+    color_mapping = {}
+    for mat in materials:
+        color_mapping[mat] = get_material_color(mat.name)
+    return color_mapping
+
+
+def get_color_legend(materials) -> dict:
+    """
+    Build color legend dict for plot annotations.
+
+    Args:
+        materials: OpenMC Materials object or list of Material objects
+
+    Returns:
+        Dict mapping material names to RGB tuples
+    """
+    return {mat.name: get_material_color(mat.name) for mat in materials}
 
 
 def get_material(name: str, solver: str = "openmc", mat_num: int = None):

@@ -110,13 +110,13 @@ def build_model(p):
     universe = openmc.Universe(cells=cells)
     geometry = openmc.Geometry(universe)
 
-    # Return model components and dimensions for plotting
+    # Return model components and dimensions for plotting (standardized keys)
     dims = {
-        "r1": p["R1"],
-        "r2": p["R2"],
-        "r3": p["R3"],
-        "h": p["HEIGHT_CM"],
-        "rt": p["REFL_THICKNESS"],
+        "r_inner": p["R1"],           # Inner radius (UF6 region)
+        "r_wall": p["R2"],            # Wall outer radius
+        "r_outer": p["R3"],           # Outermost radius (including reflector)
+        "height": p["HEIGHT_CM"],     # Cylinder height
+        "refl_thickness": p["REFL_THICKNESS"],
     }
     return materials, geometry, dims
 
@@ -142,33 +142,21 @@ def create_plots(dims, materials):
         plots: openmc.Plots object
         color_legend: dict mapping material name -> RGB tuple
     """
-    r3, h, rt = dims["r3"], dims["h"], dims["rt"]
+    from critbuddy.core.materials import get_color_mapping, get_color_legend
 
-    # Define colors for each material
-    color_mapping = {}
-    for mat in materials:
-        if mat.name == "UF6":
-            color_mapping[mat] = (127, 255, 0)      # Chartreuse green
-        elif mat.name == "Aluminum":
-            color_mapping[mat] = (147, 112, 219)    # Medium purple
-        elif mat.name == "Steel":
-            color_mapping[mat] = (105, 105, 105)    # Dim gray
-        elif mat.name == "Water":
-            color_mapping[mat] = (30, 144, 255)     # Dodger blue
-        elif mat.name == "Air":
-            color_mapping[mat] = (135, 206, 250)    # Light sky blue
-        elif mat.name == "Concrete":
-            color_mapping[mat] = (188, 143, 143)    # Rosy brown
-        else:
-            color_mapping[mat] = (200, 200, 200)    # Gray default
+    r_outer = dims["r_outer"]
+    height = dims["height"]
+    refl_thickness = dims["refl_thickness"]
+
+    color_mapping = get_color_mapping(materials)
 
     plots = openmc.Plots()
 
     # XY slice (top-down)
     p1 = openmc.Plot(name="xy")
     p1.basis = "xy"
-    p1.origin = (0, 0, h / 2)
-    p1.width = (r3 * 2.2, r3 * 2.2)
+    p1.origin = (0, 0, height / 2)
+    p1.width = (r_outer * 2.2, r_outer * 2.2)
     p1.pixels = (600, 600)
     p1.color_by = "material"
     p1.colors = color_mapping
@@ -177,17 +165,14 @@ def create_plots(dims, materials):
     # XZ slice (side view)
     p2 = openmc.Plot(name="xz")
     p2.basis = "xz"
-    p2.origin = (0, 0, h / 2)
-    p2.width = (r3 * 2.2, (h + 2 * rt) * 1.1)
+    p2.origin = (0, 0, height / 2)
+    p2.width = (r_outer * 2.2, (height + 2 * refl_thickness) * 1.1)
     p2.pixels = (400, 800)
     p2.color_by = "material"
     p2.colors = color_mapping
     plots.append(p2)
 
-    # Legend for validation plot
-    legend_colors = {mat.name: rgb for mat, rgb in color_mapping.items()}
-
-    return plots, legend_colors
+    return plots, get_color_legend(materials)
 
 
 def print_summary(p, dims):
@@ -201,10 +186,10 @@ FISSILE MATERIAL
   Density:            {p['UF6_DENSITY']:>8.3f} g/cc
 
 GEOMETRY (cm)
-  Inner radius:       {dims['r1']:>8.4f}
-  Wall outer:         {dims['r2']:>8.4f}
-  Reflector outer:    {dims['r3']:>8.4f}
-  Height:             {dims['h']:>8.2f}
+  Inner radius:       {dims['r_inner']:>8.4f}
+  Wall outer:         {dims['r_wall']:>8.4f}
+  Reflector outer:    {dims['r_outer']:>8.4f}
+  Height:             {dims['height']:>8.2f}
 
 SIMULATION
   {int(p['PARTICLES'])} particles x {int(p['BATCHES'])} batches ({int(p['INACTIVE'])} inactive)

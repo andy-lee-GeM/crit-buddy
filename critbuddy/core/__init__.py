@@ -5,6 +5,7 @@ Provides configuration loading and shared material definitions.
 """
 
 from .config import ExperimentConfig, Case, generate_cases, expand_sweeps
+from .template import ProblemTemplate, ParameterSpec
 from .materials import (
     create_uf6,
     create_aluminum,
@@ -28,6 +29,8 @@ __all__ = [
     "Case",
     "generate_cases",
     "expand_sweeps",
+    "ProblemTemplate",
+    "ParameterSpec",
     "create_uf6",
     "create_aluminum",
     "create_steel",

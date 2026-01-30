@@ -6,7 +6,7 @@ Engineers specify physical parameters; this template handles all geometry
 derivation and simulation settings.
 """
 
-from critbuddy.templates.base import ProblemTemplate, ParameterSpec
+from critbuddy.core.template import ProblemTemplate, ParameterSpec
 
 
 class SingleCylinderTemplate(ProblemTemplate):

@@ -5,7 +5,7 @@ An array of vertical cylinders filled with UF6, surrounded by an environment.
 Used for studying interaction effects between multiple fissile units.
 """
 
-from critbuddy.templates.base import ProblemTemplate, ParameterSpec
+from critbuddy.core.template import ProblemTemplate, ParameterSpec
 
 
 class CylinderArrayTemplate(ProblemTemplate):

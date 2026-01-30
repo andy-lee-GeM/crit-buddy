@@ -1,0 +1,84 @@
+# 30B UF6 Cylinder Template Schema
+# Based on ORNL/TM-2021/2043: Analysis of Maximum Enrichments for 30B UF6 Cylinders
+# Defines allowed parameters, defaults, and validation
+
+name: uf6_30b
+description: 30B UF6 cylinder for HALEU transportation/storage
+
+parameters:
+  # Fissile Material
+  enrichment:
+    type: float
+    default: 10.0
+    min: 0.7
+    max: 30.0
+    unit: "wt%"
+    description: U-235 weight percent (max 20% for HALEU)
+
+  uf6_density:
+    type: float
+    default: 3.5
+    min: 2.5
+    max: 5.5
+    unit: "g/cc"
+    description: UF6 density (2.5-5.5 g/cm³ per ORNL analysis)
+
+  # 30B Cylinder Geometry
+  cylinder_radius_cm:
+    type: float
+    default: 38.1
+    min: 35.0
+    max: 40.0
+    unit: "cm"
+    description: Inner radius of 30B cylinder (standard 38.1 cm = 76.2 cm diameter)
+
+  cylinder_height_cm:
+    type: float
+    default: 76.2
+    min: 50.0
+    max: 100.0
+    unit: "cm"
+    description: Internal height of 30B cylinder
+
+  wall_thickness_cm:
+    type: float
+    default: 0.79375
+    min: 0.79375
+    max: 1.27
+    unit: "cm"
+    description: Carbon steel wall thickness (5/16" to 1/2")
+    presets:
+      5/16-inch: 0.79375
+      3/8-inch: 0.9525
+      1/2-inch: 1.27
+
+  # External Reflector
+  reflector_material:
+    type: string
+    default: "water"
+    options: ["water", "none"]
+    description: External reflector material (water for full reflection)
+
+  reflector_thickness_cm:
+    type: float
+    default: 30.0
+    min: 0.0
+    max: 100.0
+    unit: "cm"
+    description: External reflector thickness (30 cm = full water reflection)
+
+  # Simulation
+  particles:
+    type: int
+    default: 10000
+    description: Neutrons per batch
+
+  batches:
+    type: int
+    default: 200
+    description: Total batches (increased for precision)
+
+  inactive:
+    type: int
+    default: 50
+    description: Inactive batches (discarded for source convergence)

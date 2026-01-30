@@ -1,0 +1,16 @@
+# ORNL 30B Benchmark - Single Cylinder Parametric Study
+# Based on ORNL/TM-2021/2043
+# Sweep: enrichment and UF6 density
+problem: uf6_30b
+name: "ORNL 30B Single Cylinder Sweep"
+
+# Sweep parameters
+enrichment: [6, 7, 8, 9, 10, 12, 15, 20]    # wt% U-235
+uf6_density: [2.5, 3.5, 4.5, 5.5]     # g/cm³
+
+# Fixed parameters (standard 30B per ORNL/TM-2021/2043)
+cylinder_radius_cm: 38.1
+cylinder_height_cm: 194.31
+wall_thickness_cm: 0.79375    # 5/16" minimum
+reflector_material: water
+reflector_thickness_cm: 30.0  # Full reflection
