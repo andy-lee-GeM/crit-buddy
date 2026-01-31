@@ -233,6 +233,12 @@ class OpenMCSolver(Solver):
                 output_path=output_path,
                 color_legend=color_legend,
             )
+            # Clean up intermediate plot files
+            xy_plot.unlink()
+            xz_plot.unlink()
+            yz_plot = case_dir / "yz.png"
+            if yz_plot.exists():
+                yz_plot.unlink()
             return output_path
 
         return None

@@ -1,0 +1,22 @@
+# Chemical Trap Criticality Analysis
+# Rectangular box filled with UF6, typical chemical trap geometry
+
+problem: rectangular_box
+name: "Chemical Trap - HALEU"
+
+# Fissile material
+enrichment: 20.0
+uf6_density: 5.09
+
+# Internal dimensions (cm)
+length_cm: 30.0
+width_cm: 20.0
+height_cm: 15.0
+
+# Container
+wall_material: steel
+wall_thickness_cm: 0.3175  # 1/8 inch
+
+# Reflector
+reflector_material: water
+reflector_thickness_cm: 30.0

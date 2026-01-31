@@ -1,0 +1,17 @@
+# Three Parallel Pipes - Spacing Study
+# Test for parallel_pipes template
+
+problem: parallel_pipes
+name: "3 Parallel NPS 2 Pipes"
+
+num_pipes: 3
+pipe_size: "2"
+length_cm: 100.0
+gap_cm: 5.0
+
+enrichment: 20.0
+uf6_density: 5.09
+
+wall_material: ss304
+reflector_material: water
+reflector_thickness_cm: 30.0

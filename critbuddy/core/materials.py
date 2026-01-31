@@ -120,6 +120,22 @@ def create_air() -> openmc.Material:
     return air
 
 
+def create_monel() -> openmc.Material:
+    """
+    Create Monel 400 alloy for OpenMC (5A/5B cylinder wall material).
+
+    Monel 400 composition: ~67% Ni, ~30% Cu, ~2% Fe, ~1% Mn
+    Density: 8.80 g/cm³
+    """
+    monel = openmc.Material(name="Monel")
+    monel.set_density("g/cm3", 8.80)
+    monel.add_nuclide("Ni58", 0.67, "wo")
+    monel.add_nuclide("Cu63", 0.30, "wo")
+    monel.add_nuclide("Fe56", 0.02, "wo")
+    monel.add_nuclide("Mn55", 0.01, "wo")
+    return monel
+
+
 def create_carbon_steel() -> openmc.Material:
     """
     Create carbon steel for OpenMC (30B cylinder wall material).
@@ -267,6 +283,16 @@ m{mat_num}   7014.80c   0.78   $ N-14
 """
 
 
+def mcnp_monel(mat_num: int) -> str:
+    """Generate MCNP material card for Monel 400 alloy (5A/5B cylinders)."""
+    return f"""c Material {mat_num}: Monel 400, 8.80 g/cm3
+m{mat_num}   28058.80c  0.67   $ Ni-58
+     29063.80c  0.30   $ Cu-63
+     26056.80c  0.02   $ Fe-56
+     25055.80c  0.01   $ Mn-55
+"""
+
+
 def mcnp_carbon_steel(mat_num: int) -> str:
     """Generate MCNP material card for carbon steel (30B cylinder)."""
     return f"""c Material {mat_num}: Carbon Steel, 7.82 g/cm3
@@ -326,6 +352,11 @@ MATERIAL_REGISTRY = {
         "mcnp": mcnp_ss304,
         "density": 7.94,
     },
+    "monel": {
+        "openmc": create_monel,
+        "mcnp": mcnp_monel,
+        "density": 8.80,
+    },
 }
 
 
@@ -344,6 +375,7 @@ MATERIAL_COLORS = {
     "Steel": (105, 105, 105),       # Dim gray
     "Carbon_Steel": (139, 69, 19),  # Saddle brown
     "SS304": (169, 169, 169),       # Dark gray
+    "Monel": (184, 115, 51),        # Copper-ish (Ni-Cu alloy)
 
     # Moderators/reflectors - blue tones
     "Water": (30, 144, 255),        # Dodger blue

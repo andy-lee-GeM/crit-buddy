@@ -1,0 +1,26 @@
+# 30B Cylinder 2x2x2 Array Test
+problem: cylinder_array_3d
+name: "30B 2x2x2 Array"
+
+# Cylinder specification
+cylinder_type: 30b
+enrichment: 20
+uf6_density: 5.09
+
+# 2x2x2 array
+rows: 2
+cols: 2
+layers: 2
+
+# Spacing
+gap_x_cm: 10
+gap_y_cm: 10
+gap_z_cm: 5
+
+# Floor
+floor_material: concrete
+floor_thickness_cm: 30.0
+
+# Environment
+environment: air
+boundary_thickness_cm: 30.0

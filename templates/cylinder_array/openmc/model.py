@@ -126,7 +126,8 @@ def build_model(p):
     dims = {
         "rows": rows,
         "cols": cols,
-        "pitch": pitch,
+        "pitch": pitch,  # Center-to-center (internal use)
+        "gap": p["GAP"],  # Gap between outer walls (user-facing)
         "inner_r": inner_r,
         "outer_r": outer_r,
         "height": height,
@@ -233,6 +234,7 @@ def print_summary(p, dims):
 ================================================================================
 ARRAY CONFIGURATION
   Layout:             {dims['rows']} rows x {dims['cols']} cols = {n_cylinders} cylinders
+  Gap:                {dims['gap']:>8.2f} cm (between outer walls)
   Pitch:              {dims['pitch']:>8.2f} cm (center-to-center)
 
 CYLINDER GEOMETRY (sealed with caps)

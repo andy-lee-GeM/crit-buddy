@@ -1,0 +1,30 @@
+# 48Y HALEU Quick Study - Reduced Parameter Space
+# Start with this to identify regions of interest, then run detailed sweeps
+#
+# Focus: Single stack height/width sensitivity at 20% enrichment (worst case)
+
+problem: cylinder_array_3d
+name: "48Y HALEU Quick Study"
+
+# Cylinder specification - worst case enrichment
+cylinder_type: 48y
+enrichment: 20
+uf6_density: 5.09
+
+# Stack height sensitivity (single column)
+rows: 1
+cols: 1
+layers: [1, 2, 3]
+
+# Spacing
+gap_x_cm: 0
+gap_y_cm: 0
+gap_z_cm: [0, 10, 20, 30]
+
+# Floor
+floor_material: concrete
+floor_thickness_cm: 30.0
+
+# Environment
+environment: [air, water]
+boundary_thickness_cm: 30.0

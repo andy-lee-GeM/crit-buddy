@@ -1,0 +1,14 @@
+# Single Process Pipe - NPS 2
+# Test for process_pipe template
+
+problem: process_pipe
+name: "Single NPS 2 Pipe"
+
+pipe_size: "2"
+length_cm: 100.0
+enrichment: 20.0
+uf6_density: 5.09
+
+wall_material: ss304
+reflector_material: water
+reflector_thickness_cm: 30.0

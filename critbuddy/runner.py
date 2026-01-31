@@ -23,7 +23,15 @@ import yaml
 from critbuddy.core.config import ExperimentConfig, generate_cases
 from critbuddy.solvers import OpenMCSolver, MCNPSolver
 from critbuddy.utils import Status, working_directory, setup_logging, get_logger
-from critbuddy.reporting import create_geometry_plot, plot_keff, create_voxel_plot
+from critbuddy.reporting import (
+    create_geometry_plot,
+    plot_keff,
+    create_voxel_plot,
+    get_plot_spec,
+    generate_voxel_data,
+    export_vti as export_vti_file,
+    view_interactive,
+)
 
 
 def load_config():
@@ -183,13 +191,35 @@ def validate_geometry(template_module, case, experiment_dir, template_dir):
                 output_path=output_path,
                 color_legend=color_legend,
             )
+            # Clean up intermediate plot files
+            xy_plot.unlink()
+            xz_plot.unlink()
+            yz_plot = val_dir / "yz.png"
+            if yz_plot.exists():
+                yz_plot.unlink()
             print(f"\nCombined geometry: {output_path}")
         else:
             print(f"\nGeometry plots: {val_dir}/xy.png, {val_dir}/xz.png")
 
 
-def generate_voxel(template_module, case, experiment_dir):
-    """Generate 3D voxel visualization."""
+def generate_voxel(
+    template_module,
+    template,
+    case,
+    experiment_dir,
+    save_vti: bool = False,
+    interactive: bool = False,
+):
+    """Generate 3D voxel visualization.
+
+    Args:
+        template_module: Module with build_model() function
+        template: ProblemTemplate instance (for optional get_plot_spec)
+        case: Case object with parameters
+        experiment_dir: Experiment directory path
+        save_vti: Also export .vti file for ParaView
+        interactive: Launch interactive PyVista viewer
+    """
     print("\n" + "=" * 60)
     print("  3D VOXEL VISUALIZATION")
     print("=" * 60)
@@ -204,69 +234,40 @@ def generate_voxel(template_module, case, experiment_dir):
 
         materials, geometry, dims = template_module.build_model(case.all_params)
 
-        # Get color legend from plots
-        _, color_legend = template_module.create_plots(dims, materials)
-
-        # Determine dimensions based on template type
-        if "total_x" in dims:
-            # Cylinder array
-            width = (dims["total_x"], dims["total_y"], dims["height"] + 2 * dims["boundary"])
-            center = (0, 0, dims["height"] / 2)
-        else:
-            # Single cylinder (single_cylinder, uf6_30b)
-            r_outer = dims["r_outer"]
-            height = dims["height"]
-            refl_thickness = dims["refl_thickness"]
-            width = (r_outer * 2.2, r_outer * 2.2, height + 2 * refl_thickness)
-            center = (0, 0, height / 2)
-
-        voxel_path = val_dir / "voxel_3d.png"
-
-        # Adaptive resolution based on smallest feature (wall thickness)
-        # Ensure at least 2 pixels per wall thickness for visibility
-        wall_thickness = case.all_params.get("WALL_THICKNESS",
-                         case.all_params.get("wall_thickness_cm", 0.3))
-        min_feature = max(wall_thickness, 0.1)  # Floor to avoid division issues
-
-        # Calculate pixels needed: at least 2 pixels per smallest feature
-        pixels_per_cm = 2.0 / min_feature
-        nx = int(width[0] * pixels_per_cm)
-        ny = int(width[1] * pixels_per_cm)
-        nz = int(width[2] * pixels_per_cm * 0.5)  # Half resolution in Z
-
-        # Cap resolution to avoid memory issues (max 100x100x50 for speed)
-        max_xy, max_z = 100, 50
-        if nx > max_xy or ny > max_xy:
-            scale = max_xy / max(nx, ny)
-            nx = int(nx * scale)
-            ny = int(ny * scale)
-            nz = int(nz * scale)
-        nz = min(nz, max_z)
-
-        # Ensure minimum resolution
-        nx = max(nx, 40)
-        ny = max(ny, 40)
-        nz = max(nz, 20)
-
-        print(f"Generating 3D voxel plot...")
-        print(f"  Wall thickness: {wall_thickness:.3f} cm")
-        print(f"  Resolution: {nx} x {ny} x {nz} pixels")
-        print(f"  (This may take a moment for high resolution...)")
-
         # Export geometry for OpenMC voxel generation
         materials.export_to_xml()
         geometry.export_to_xml()
 
+        # Get plot spec (auto-computed from bounding box, or template-provided)
+        spec = get_plot_spec(geometry, template, dims)
+
+        print("Generating 3D voxel plot...")
+        print(f"  Center: ({spec.center[0]:.1f}, {spec.center[1]:.1f}, {spec.center[2]:.1f})")
+        print(f"  Width: ({spec.width[0]:.1f}, {spec.width[1]:.1f}, {spec.width[2]:.1f})")
+
+        # Generate voxel data (shared between all output formats)
+        voxel_data = generate_voxel_data(geometry, materials, spec)
+
+        # Always generate PNG
+        voxel_path = val_dir / "voxel_3d.png"
         create_voxel_plot(
             geometry=geometry,
             materials=materials,
             output_path=voxel_path,
-            width=width,
-            center=center,
-            pixels=(nx, ny, nz),
-            color_mapping=color_legend,
+            spec=spec,
         )
-        print(f"\n3D voxel plot: {voxel_path}")
+        print(f"\nPNG: {voxel_path}")
+
+        # Export VTI if requested
+        if save_vti:
+            vti_path = val_dir / "geometry.vti"
+            export_vti_file(voxel_data, vti_path)
+            print(f"VTI: {vti_path} (open in ParaView)")
+
+        # Launch interactive viewer if requested
+        if interactive:
+            print("\nLaunching interactive viewer...")
+            view_interactive(voxel_data)
 
 
 def run_cases(solver, cases, run_dir, template_dir, safety_limit):
@@ -515,7 +516,14 @@ Contact: [Your contact information]
 def run_experiment(experiment_path: Path, args):
     """Run an experiment."""
     experiment_path = experiment_path.resolve()
-    experiment_dir = experiment_path.parent
+
+    # Determine experiment root directory
+    # If YAML is in _config/, go up one level to the experiment root
+    parent = experiment_path.parent
+    if parent.name == "_config":
+        experiment_dir = parent.parent
+    else:
+        experiment_dir = parent
 
     # Load config
     config = ExperimentConfig.from_file(experiment_path)
@@ -547,8 +555,15 @@ Path:       {experiment_dir}
         return
 
     # Voxel mode (standalone 3D visualization)
-    if args.voxel:
-        generate_voxel(template_module, cases[0], experiment_dir)
+    if args.voxel or args.vti or args.interactive:
+        generate_voxel(
+            template_module,
+            template_class,
+            cases[0],
+            experiment_dir,
+            save_vti=args.vti,
+            interactive=args.interactive,
+        )
         return
 
     # Setup solvers (default: OpenMC only, use --solver flag to change)
@@ -616,7 +631,9 @@ def main():
     parser = argparse.ArgumentParser(description="Run criticality experiment")
     parser.add_argument("experiment", nargs="?", help="Path to experiment.yaml")
     parser.add_argument("--validate", action="store_true", help="Generate 2D geometry plots")
-    parser.add_argument("--voxel", action="store_true", help="Generate 3D voxel visualization")
+    parser.add_argument("--voxel", action="store_true", help="Generate 3D voxel PNG")
+    parser.add_argument("--vti", action="store_true", help="Export .vti file for ParaView")
+    parser.add_argument("--interactive", action="store_true", help="Launch PyVista interactive viewer")
     parser.add_argument("--case", help="Run specific case label")
     parser.add_argument("--solver", choices=["openmc", "mcnp", "all"], help="Override solver")
     parser.add_argument("--smoke", action="store_true", help="Quick smoke test")

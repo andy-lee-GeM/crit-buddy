@@ -157,6 +157,32 @@ class SingleCylinderTemplate(ProblemTemplate):
             "REFL_DENSITY": refl_density,
         }
 
+    def get_plot_spec(self, dims: dict):
+        """Custom PlotSpec for single cylinder visualization."""
+        from critbuddy.reporting.plot_spec import PlotSpec
+
+        r_outer = dims["r_outer"]
+        height = dims["height"]
+        refl = dims["refl_thickness"]
+
+        # Center at middle of cylinder
+        center = (0.0, 0.0, height / 2)
+
+        # Width includes full diameter plus some padding
+        padding = 1.1
+        width = (
+            r_outer * 2 * padding,
+            r_outer * 2 * padding,
+            (height + 2 * refl) * padding,
+        )
+
+        return PlotSpec(
+            center=center,
+            width=width,
+            up_axis="z",
+            exclude_materials=["Air", "Water"],  # Hide environment for cleaner visualization
+        )
+
 
 # Export the template class
 Template = SingleCylinderTemplate

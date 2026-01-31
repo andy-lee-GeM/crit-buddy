@@ -15,7 +15,7 @@ class CylinderArrayTemplate(ProblemTemplate):
     Geometry:
         - Multiple cylinders arranged in rows x cols grid
         - Each cylinder: UF6 core with steel wall
-        - Configurable pitch (center-to-center distance)
+        - Configurable gap between outer walls of adjacent cylinders
         - Surrounding environment: air or water
     """
 
@@ -72,7 +72,7 @@ class CylinderArrayTemplate(ProblemTemplate):
             unit="cm",
             description="Wall thickness",
         ),
-        "pitch_cm": ParameterSpec(
+        "gap_cm": ParameterSpec(
             type="float",
             required=True,
             min=0.0,
@@ -122,7 +122,7 @@ class CylinderArrayTemplate(ProblemTemplate):
         cols = p["cols"]
         radius = p["radius_cm"]
         wall = p["wall_thickness_cm"]
-        gap = p["pitch_cm"]  # Gap between outer walls
+        gap = p["gap_cm"]  # Gap between outer walls
         height = p["height_cm"]
         boundary = p["boundary_thickness_cm"]
 
