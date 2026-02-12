@@ -80,7 +80,6 @@ class ProcessPipeTemplate(ProblemTemplate):
             unit="g/cc",
             description="UF6 density",
         ),
-
         # Wall material
         "wall_material": ParameterSpec(
             type="enum",

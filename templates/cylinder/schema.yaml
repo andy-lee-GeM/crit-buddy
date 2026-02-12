@@ -1,8 +1,8 @@
-# Single Cylinder Template Schema
+# Cylinder Template Schema
 # Defines allowed parameters, defaults, and validation
 
-name: single_cylinder
-description: Single vertical cylinder filled with UF6
+name: cylinder
+description: Vertical cylinder filled with UF6 (user-specified dimensions)
 
 parameters:
   # Fissile Material

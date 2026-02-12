@@ -34,7 +34,7 @@ def build_model(p):
     # MATERIALS (from shared library)
     # ══════════════════════════════════════════════════════════════════════════
 
-    m_uf6 = create_uf6(p["ENRICHMENT"], p["UF6_DENSITY"])
+    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["UF6_DENSITY"])
 
     # Wall material
     wall_mat = p.get("WALL_MATERIAL", "steel")

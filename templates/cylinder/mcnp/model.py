@@ -20,7 +20,7 @@ def build_materials(p: dict) -> str:
     materials = []
 
     # Material 1: UF6
-    materials.append(mcnp_uf6(1, p["ENRICHMENT"], p["UF6_DENSITY"]))
+    materials.append(mcnp_uf6(1, p["ENRICHMENT"], density=p["UF6_DENSITY"]))
 
     # Material 2: Wall (from registry if available)
     wall_mat = p.get("WALL_MATERIAL", "aluminum")

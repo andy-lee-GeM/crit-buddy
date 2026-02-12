@@ -1,142 +1,171 @@
 """
 3D Cylinder Array Problem Template.
 
-A three-dimensional array of UF6 shipping cylinders arranged in rows × cols × layers.
-Uses the cylinder registry for standard shipping cylinder dimensions (30B, 48Y, etc.).
-Includes floor/pad modeling for realistic warehouse storage scenarios.
+A 3D array of vertical cylinders filled with UF6, arranged in rows x cols x layers.
+Used for studying interaction effects in stacked storage configurations.
 
-Use cases:
-- Stacked shipping cylinders (2-high, 3-high)
-- Arrays of stacked cylinders in warehouse storage
-- Interaction studies for storage configurations
+Geometry:
+    - Cylinders arranged in a 3D grid (rows × cols × layers)
+    - X: rows direction
+    - Y: cols direction
+    - Z: layers direction (stacked vertically)
+    - Each cylinder: UF6 core with steel wall and end caps
+    - Water environment surrounding all cylinders
 """
 
 from critbuddy.core.template import ProblemTemplate, ParameterSpec
-from critbuddy.core.cylinders import CYLINDER_REGISTRY
 
 
 class CylinderArray3DTemplate(ProblemTemplate):
     """
-    3D array of UF6 shipping cylinders with floor modeling.
+    3D array of vertical cylinders with fissile material.
 
-    Geometry:
-        - Cylinders arranged in rows × cols × layers grid
-        - Cylinder dimensions from registry (30B, 48Y, etc.)
-        - Configurable gaps in X, Y, and Z directions
-        - Floor/pad below bottom layer
-        - Surrounding environment (air or water for flooding)
+    Coordinate system:
+        - X: row direction (up to 50 rows)
+        - Y: column direction (up to 10 cols)
+        - Z: layer direction (stacked, up to 10 layers)
+        - Origin at center of array
     """
 
     PARAMETERS = {
-        # Cylinder specification
-        "cylinder_type": ParameterSpec(
-            type="enum",
-            options=list(CYLINDER_REGISTRY.keys()),
-            required=True,
-            description="Cylinder type - dimensions loaded from ANSI N14.1 specs",
-        ),
         "enrichment": ParameterSpec(
             type="float",
-            required=True,
+            default=5.0,
             min=0.7,
             max=100.0,
             unit="wt%",
             description="U-235 enrichment (weight percent)",
         ),
-        "uf6_density": ParameterSpec(
-            type="float",
-            default=5.09,
-            min=1.0,
-            max=6.0,
-            unit="g/cc",
-            description="UF6 density",
-        ),
-
-        # Array configuration
         "rows": ParameterSpec(
             type="int",
             required=True,
             min=1,
-            max=10,
-            description="Number of rows (Y direction)",
+            max=50,
+            description="Number of rows (X direction)",
         ),
         "cols": ParameterSpec(
             type="int",
             required=True,
             min=1,
             max=10,
-            description="Number of columns (X direction)",
+            description="Number of columns (Y direction)",
         ),
         "layers": ParameterSpec(
             type="int",
             required=True,
             min=1,
-            max=5,
-            description="Number of vertical layers (Z direction, stack height)",
+            max=10,
+            description="Number of stacked layers (Z direction)",
         ),
-
-        # Spacing
-        "gap_x_cm": ParameterSpec(
+        "radius_cm": ParameterSpec(
             type="float",
-            default=10.0,
+            required=True,
+            min=1.0,
+            max=50.0,
+            unit="cm",
+            description="Inner cylinder radius",
+        ),
+        "height_cm": ParameterSpec(
+            type="float",
+            default=100.0,
+            min=1.0,
+            max=500.0,
+            unit="cm",
+            description="Cylinder height (UF6 region)",
+        ),
+        "wall_material": ParameterSpec(
+            type="enum",
+            options=["aluminum", "steel"],
+            default="steel",
+            description="Container wall material",
+        ),
+        "wall_thickness_cm": ParameterSpec(
+            type="float",
+            default=0.6,
+            min=0.0,
+            max=5.0,
+            unit="cm",
+            description="Wall thickness",
+        ),
+        "gap_xy_cm": ParameterSpec(
+            type="float",
+            required=True,
             min=0.0,
             max=200.0,
             unit="cm",
-            description="Gap between outer walls in X direction",
-        ),
-        "gap_y_cm": ParameterSpec(
-            type="float",
-            default=10.0,
-            min=0.0,
-            max=200.0,
-            unit="cm",
-            description="Gap between outer walls in Y direction",
+            description="Horizontal gap between cylinder outer walls (X and Y)",
         ),
         "gap_z_cm": ParameterSpec(
             type="float",
-            default=5.0,
+            required=True,
             min=0.0,
-            max=50.0,
+            max=200.0,
             unit="cm",
-            description="Gap between top of lower cylinder and bottom of upper cylinder",
+            description="Vertical gap between stacked layers",
         ),
-
-        # Floor
-        "floor_material": ParameterSpec(
+        "fissile_material": ParameterSpec(
             type="enum",
-            options=["concrete", "steel", "none"],
-            default="concrete",
-            description="Floor/pad material below the array",
+            options=["uf6", "uo2f2"],
+            default="uf6",
+            description="Fissile material type (uf6 or uo2f2)",
         ),
-        "floor_thickness_cm": ParameterSpec(
+        "fissile_density": ParameterSpec(
             type="float",
-            default=30.0,
+            default=5.09,
+            min=1.0,
+            max=7.0,
+            unit="g/cc",
+            description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
+        ),
+        "h_to_u_ratio": ParameterSpec(
+            type="float",
+            required=False,
+            default=0.0,
             min=0.0,
-            max=100.0,
-            unit="cm",
-            description="Floor thickness (for moderation effects)",
+            max=500.0,
+            unit="",
+            description="H/U atomic ratio for wet UO2F2 (0 = dry, higher = more water)",
         ),
-
-        # Environment
-        "environment": ParameterSpec(
+        "environment_material": ParameterSpec(
             type="enum",
-            options=["air", "water"],
-            default="air",
-            description="Environment material (water for flooding scenario)",
+            options=["water", "humid_air", "air"],
+            default="water",
+            description="Material between units and as reflector",
         ),
-        "boundary_thickness_cm": ParameterSpec(
+        "environment_density": ParameterSpec(
+            type="float",
+            default=1.0,
+            min=0.0001,
+            max=1.0,
+            unit="g/cc",
+            description="Environment density (water: 0.001-1.0, air/humid_air: use default)",
+        ),
+        "void_material": ParameterSpec(
+            type="enum",
+            options=["void", "air", "humid_air"],
+            default="void",
+            description="Material in headspace above partial fill",
+        ),
+        "reflector_thickness_cm": ParameterSpec(
             type="float",
             default=30.0,
             min=5.0,
             max=100.0,
             unit="cm",
-            description="Environment thickness around and above array",
+            description="Reflector thickness around array",
+        ),
+        "fill_fraction": ParameterSpec(
+            type="float",
+            default=1.0,
+            min=0.1,
+            max=1.0,
+            description="Fill fraction (1.0 = 100%, 0.8 = 80%)",
         ),
     }
 
     SIMULATION = {
         "PARTICLES": 10000,
-        "BATCHES": 200,
+        "BATCHES": 150,
         "INACTIVE": 50,
     }
 
@@ -144,131 +173,107 @@ class CylinderArray3DTemplate(ProblemTemplate):
 
     def derive_params(self, p: dict) -> dict:
         """
-        Compute geometry parameters from user inputs and cylinder registry.
-
-        Coordinate system:
-        - Origin at center of array (XY) and at floor surface (Z=0)
-        - Cylinders sit on floor starting at Z=0
-        - Floor extends below Z=0
+        Compute geometry parameters from user inputs.
         """
-        from critbuddy.core.cylinders import get_cylinder, get_inner_radius
         from critbuddy.core.materials import get_density
 
-        # Get cylinder specs from registry
-        spec = get_cylinder(p["cylinder_type"])
-        r_inner = get_inner_radius(p["cylinder_type"])
-        wall_t = spec.wall_thickness_cm
-        wall_material = spec.wall_material
-        cyl_internal_height = spec.internal_height_cm
-
-        # Total cylinder height (internal + top/bottom caps)
-        cyl_total_height = cyl_internal_height + 2 * wall_t
-        r_outer = r_inner + wall_t
-
-        # Array dimensions
         rows = p["rows"]
         cols = p["cols"]
         layers = p["layers"]
-        gap_x = p["gap_x_cm"]
-        gap_y = p["gap_y_cm"]
+        radius = p["radius_cm"]
+        wall = p["wall_thickness_cm"]
+        gap_xy = p["gap_xy_cm"]
         gap_z = p["gap_z_cm"]
-        boundary = p["boundary_thickness_cm"]
+        height = p["height_cm"]
+        reflector_thickness = p["reflector_thickness_cm"]
+        fill_fraction = p.get("fill_fraction", 1.0)
 
-        # Center-to-center spacing
-        pitch_x = gap_x + 2 * r_outer
-        pitch_y = gap_y + 2 * r_outer
-        pitch_z = cyl_total_height + gap_z
+        # Material selections
+        fissile_material = p["fissile_material"]
+        fissile_density = p["fissile_density"]
+        h_to_u_ratio = p.get("h_to_u_ratio", 0.0)
+        environment_material = p["environment_material"]
+        environment_density = p["environment_density"]
+        void_material = p["void_material"]
 
-        # Array extents (outer walls of cylinders)
-        array_x = (cols - 1) * pitch_x + 2 * r_outer
-        array_y = (rows - 1) * pitch_y + 2 * r_outer
-        array_z = layers * cyl_total_height + (layers - 1) * gap_z
+        # Apply fill fraction to UF6 height
+        uf6_height = height * fill_fraction
 
-        # Total bounding box (including environment)
-        total_x = array_x + 2 * boundary
-        total_y = array_y + 2 * boundary
-        total_z = array_z + boundary  # Only boundary above, floor below
+        # Outer radius of each cylinder (with wall)
+        outer_radius = radius + wall
 
-        # Offsets for centering array in XY plane
-        x_offset = -(cols - 1) * pitch_x / 2
-        y_offset = -(rows - 1) * pitch_y / 2
+        # Total height of one cylinder (UF6 + top/bottom caps)
+        total_cyl_height = height + 2 * wall
 
-        # Floor parameters
-        floor_t = p["floor_thickness_cm"]
-        if p["floor_material"] == "none":
-            floor_t = 0.0
+        # Spacing (center-to-center, derived from gap)
+        spacing_xy = gap_xy + 2 * outer_radius  # Horizontal (X and Y)
+        spacing_z = gap_z + total_cyl_height     # Vertical (Z)
 
-        # Z coordinates
-        # Floor surface is at Z=0, cylinders sit on top
-        z_floor_bottom = -floor_t
-        z_floor_top = 0.0
-        z_array_bottom = 0.0
-        z_array_top = array_z
-        z_env_top = array_z + boundary
+        # Array dimensions (from outermost walls)
+        array_x = (rows - 1) * spacing_xy + 2 * outer_radius
+        array_y = (cols - 1) * spacing_xy + 2 * outer_radius
+        array_z = (layers - 1) * spacing_z + total_cyl_height
+
+        # Total bounding box (including reflector)
+        total_x = array_x + 2 * reflector_thickness
+        total_y = array_y + 2 * reflector_thickness
+        total_z = array_z + 2 * reflector_thickness
+
+        # Offsets to center array at origin
+        x_offset = -(rows - 1) * spacing_xy / 2
+        y_offset = -(cols - 1) * spacing_xy / 2
+        z_offset = -(layers - 1) * spacing_z / 2
 
         # Material densities
-        wall_density = get_density(wall_material)
-        env_density = get_density(p["environment"])
-        floor_density = get_density(p["floor_material"]) if p["floor_material"] != "none" else 0.0
+        wall_density = get_density(p["wall_material"])
+        water_density = p.get("water_density", 1.0)
 
         return {
-            # Cylinder info
-            "CYLINDER_TYPE": p["cylinder_type"].upper(),
-            "CYLINDER_NAME": spec.name,
-            "ENRICHMENT": p["enrichment"],
-            "UF6_DENSITY": p["uf6_density"],
-
-            # Cylinder geometry
-            "R_INNER": r_inner,
-            "R_OUTER": r_outer,
-            "CYL_INTERNAL_HEIGHT": cyl_internal_height,
-            "CYL_TOTAL_HEIGHT": cyl_total_height,
-            "WALL_THICKNESS": wall_t,
-            "WALL_MATERIAL": wall_material,
-            "WALL_DENSITY": wall_density,
-
             # Array configuration
             "ROWS": rows,
             "COLS": cols,
             "LAYERS": layers,
-            "GAP_X": gap_x,
-            "GAP_Y": gap_y,
+            "TOTAL_CYLINDERS": rows * cols * layers,
+            # Spacing (gap = wall-to-wall distance)
+            "GAP_XY": gap_xy,
             "GAP_Z": gap_z,
-            "PITCH_X": pitch_x,
-            "PITCH_Y": pitch_y,
-            "PITCH_Z": pitch_z,
-
-            # Array extents
+            "SPACING_XY": spacing_xy,  # center-to-center = gap + 2*outer_radius
+            "SPACING_Z": spacing_z,    # center-to-center = gap + total_cyl_height
+            # Cylinder geometry
+            "INNER_RADIUS": radius,
+            "OUTER_RADIUS": outer_radius,
+            "HEIGHT": height,
+            "WALL_THICKNESS": wall,
+            "TOTAL_CYL_HEIGHT": total_cyl_height,
+            # Offsets for centering
+            "X_OFFSET": x_offset,
+            "Y_OFFSET": y_offset,
+            "Z_OFFSET": z_offset,
+            # Bounding box
             "ARRAY_X": array_x,
             "ARRAY_Y": array_y,
             "ARRAY_Z": array_z,
-            "X_OFFSET": x_offset,
-            "Y_OFFSET": y_offset,
-
-            # Bounding box
             "TOTAL_X": total_x,
             "TOTAL_Y": total_y,
             "TOTAL_Z": total_z,
-            "BOUNDARY": boundary,
-
-            # Floor
-            "FLOOR_MATERIAL": p["floor_material"],
-            "FLOOR_THICKNESS": floor_t,
-            "FLOOR_DENSITY": floor_density,
-            "Z_FLOOR_BOTTOM": z_floor_bottom,
-            "Z_FLOOR_TOP": z_floor_top,
-
-            # Z coordinates
-            "Z_ARRAY_BOTTOM": z_array_bottom,
-            "Z_ARRAY_TOP": z_array_top,
-            "Z_ENV_TOP": z_env_top,
-
-            # Environment
-            "ENVIRONMENT": p["environment"],
-            "ENV_DENSITY": env_density,
-
-            # Source (center of middle layer)
-            "KSRC_Z": (layers - 1) * pitch_z / 2 + cyl_total_height / 2,
+            "REFLECTOR_THICKNESS": reflector_thickness,
+            # Source position (center of array)
+            "KSRC_X": 0.0,
+            "KSRC_Y": 0.0,
+            "KSRC_Z": 0.0,
+            # Materials
+            "ENRICHMENT": p["enrichment"],
+            "FISSILE_MATERIAL": fissile_material,
+            "FISSILE_DENSITY": fissile_density,
+            "H_TO_U_RATIO": h_to_u_ratio,
+            "WALL_MATERIAL": p["wall_material"],
+            "WALL_DENSITY": wall_density,
+            "ENVIRONMENT_MATERIAL": environment_material,
+            "ENVIRONMENT_DENSITY": environment_density,
+            "VOID_MATERIAL": void_material,
+            # Fill fraction
+            "FILL_FRACTION": fill_fraction,
+            "FISSILE_HEIGHT": uf6_height,  # Actual fissile height (height * fill_fraction)
         }
 
 

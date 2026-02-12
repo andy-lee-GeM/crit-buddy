@@ -87,10 +87,25 @@ def create_steel() -> openmc.Material:
     return steel
 
 
-def create_water() -> openmc.Material:
-    """Create water with thermal scattering for OpenMC."""
-    water = openmc.Material(name="Water")
-    water.set_density("g/cm3", 1.0)
+def create_water(density: float = 1.0) -> openmc.Material:
+    """
+    Create water with thermal scattering for OpenMC.
+
+    Args:
+        density: Water density in g/cm3 (default 1.0, range 0.001 to 1.0)
+                 Use lower densities to model mist/fog/steam conditions.
+
+    Returns:
+        OpenMC Material object for water at specified density.
+    """
+    # Name reflects density for clarity in outputs
+    if density < 0.99:
+        name = f"Water_{density:.3f}"
+    else:
+        name = "Water"
+
+    water = openmc.Material(name=name)
+    water.set_density("g/cm3", density)
     water.add_nuclide("H1", 2.0)
     water.add_nuclide("O16", 1.0)
     water.add_s_alpha_beta("c_H_in_H2O")
@@ -115,9 +130,142 @@ def create_air() -> openmc.Material:
     air = openmc.Material(name="Air")
     air.set_density("g/cm3", 0.001225)
     air.add_nuclide("N14", 0.78)
-    air.add_nuclide("O16", 1.0)
+    air.add_nuclide("O16", 0.21)
     air.add_nuclide("Ar40", 0.01)
     return air
+
+
+def create_humid_air() -> openmc.Material:
+    """
+    Create 100% relative humidity air at 40°C for OpenMC.
+
+    Conservative case: higher temperature = more water vapor.
+
+    At 40°C and 1 atm:
+    - Saturation vapor pressure: 7.38 kPa (Antoine equation)
+    - Water vapor fraction: 7.3% by volume
+    - Density: ~0.0011 g/cc
+
+    Composition calculation:
+    - Mole fraction H2O: 7.38/101.325 = 0.0728
+    - Mole fraction dry air: 0.9272
+    - Dry air: N2 (78.08%), O2 (20.95%), Ar (0.93%)
+
+    Atom fractions (normalized):
+    - N14: 0.702 (from N2)
+    - O16: 0.223 (from O2 + H2O)
+    - Ar40: 0.004
+    - H1:  0.071 (from H2O)
+    """
+    humid = openmc.Material(name="Humid_Air")
+    humid.set_density("g/cm3", 0.0011)
+    humid.add_nuclide("N14", 0.702)
+    humid.add_nuclide("O16", 0.223)
+    humid.add_nuclide("Ar40", 0.004)
+    humid.add_nuclide("H1", 0.071)
+    return humid
+
+
+def create_void() -> openmc.Material:
+    """
+    Create near-vacuum void material for OpenMC.
+
+    Used for headspace above partial fill in cylinders.
+    Modeled as very low density air (essentially no interaction).
+    """
+    void = openmc.Material(name="Void")
+    void.set_density("g/cm3", 0.0001)  # Near-vacuum
+    void.add_nuclide("N14", 0.78)
+    void.add_nuclide("O16", 0.21)
+    void.add_nuclide("Ar40", 0.01)
+    return void
+
+
+def uo2f2_density(h_to_u: float = 0.0) -> float:
+    """
+    Calculate UO2F2 mixture density from H/U ratio.
+
+    Assumes ideal mixing of crystalline UO2F2 (6.37 g/cc) with water (1.0 g/cc).
+
+    Args:
+        h_to_u: Hydrogen atoms per uranium atom (0 = dry, higher = wetter)
+
+    Returns:
+        Mixture density in g/cc
+
+    Examples:
+        H/U=0:   6.37 g/cc (dry crystal)
+        H/U=2:   4.91 g/cc (monohydrate)
+        H/U=10:  2.88 g/cc (wet slurry)
+        H/U=100: 1.27 g/cc (dilute solution)
+    """
+    mw_uo2f2 = 308.02  # g/mol (U: 238.03, O: 32, F: 38)
+    mw_h2o = 18.015    # g/mol
+
+    v_uo2f2 = mw_uo2f2 / 6.37   # 48.35 cm³/mol
+    v_h2o = mw_h2o / 1.0        # 18.015 cm³/mol
+
+    n_water = h_to_u / 2.0  # moles H2O per mole UO2F2
+
+    total_mass = mw_uo2f2 + n_water * mw_h2o
+    total_volume = v_uo2f2 + n_water * v_h2o
+
+    return total_mass / total_volume
+
+
+def create_uo2f2(enrichment_pct: float, h_to_u: float = 0.0,
+                 density: float = None) -> openmc.Material:
+    """
+    Create uranyl fluoride (UO2F2) for OpenMC - dry or wet.
+
+    Reaction: UF6 + 2H2O → UO2F2 + 4HF
+
+    The H/U ratio specifies the degree of hydration:
+      H/U = 0:   Dry UO2F2 (crystal, 6.37 g/cc)
+      H/U = 2:   Monohydrate UO2F2·H2O
+      H/U = 10:  Wet slurry
+      H/U = 100: Dilute solution
+
+    Density is auto-calculated from H/U assuming ideal mixing, unless
+    explicitly overridden.
+
+    IMPORTANT: UO2F2 contains oxygen which provides internal moderation,
+    potentially making it MORE reactive than pure UF6. Adding water (H/U > 0)
+    further increases moderation.
+
+    Args:
+        enrichment_pct: U-235 weight percent
+        h_to_u: H/U atomic ratio (0 = dry, >0 = wet with water)
+        density: Override density (if None, calculated from H/U)
+
+    Returns:
+        OpenMC Material
+    """
+    u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
+
+    if density is None:
+        density = uo2f2_density(h_to_u)
+
+    # Composition per U atom:
+    #   U: 1 (split between U-235 and U-238)
+    #   O: 2 (from UO2F2) + h_to_u/2 (from water)
+    #   F: 2 (from UO2F2)
+    #   H: h_to_u (from water)
+    o_atoms = 2.0 + h_to_u / 2.0
+    f_atoms = 2.0
+    h_atoms = h_to_u
+
+    name = f"UO2F2_H{h_to_u}" if h_to_u > 0 else "UO2F2"
+    mat = openmc.Material(name=name)
+    mat.set_density("g/cm3", density)
+    mat.add_nuclide("U235", u235_frac, percent_type="ao")
+    mat.add_nuclide("U238", u238_frac, percent_type="ao")
+    mat.add_nuclide("O16", o_atoms, percent_type="ao")
+    mat.add_nuclide("F19", f_atoms, percent_type="ao")
+    if h_atoms > 0:
+        mat.add_nuclide("H1", h_atoms, percent_type="ao")
+
+    return mat
 
 
 def create_monel() -> openmc.Material:
@@ -283,6 +431,64 @@ m{mat_num}   7014.80c   0.78   $ N-14
 """
 
 
+def mcnp_humid_air(mat_num: int) -> str:
+    """Generate MCNP material card for 100% RH air at 40°C (conservative)."""
+    return f"""c Material {mat_num}: Humid Air (100% RH, 40C), 0.0011 g/cm3
+m{mat_num}   7014.80c   0.702   $ N-14
+     8016.80c   0.223   $ O-16 (dry air + H2O)
+     18040.80c  0.004   $ Ar-40
+     1001.80c   0.071   $ H-1 (from water vapor)
+"""
+
+
+def mcnp_void(mat_num: int) -> str:
+    """Generate MCNP material card for near-vacuum void."""
+    return f"""c Material {mat_num}: Void (near-vacuum), 0.0001 g/cm3
+m{mat_num}   7014.80c   0.78   $ N-14
+     8016.80c   0.21   $ O-16
+     18040.80c  0.01   $ Ar-40
+"""
+
+
+def mcnp_uo2f2(mat_num: int, enrichment_pct: float, h_to_u: float = 0.0,
+               density: float = None) -> str:
+    """
+    Generate MCNP material card for uranyl fluoride (UO2F2) - dry or wet.
+
+    Args:
+        mat_num: MCNP material number
+        enrichment_pct: U-235 weight percent
+        h_to_u: H/U atomic ratio (0 = dry, >0 = wet with water)
+        density: Override density (if None, calculated from H/U)
+
+    Returns:
+        MCNP material card string
+    """
+    u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
+
+    if density is None:
+        density = uo2f2_density(h_to_u)
+
+    # Composition per U atom
+    o_atoms = 2.0 + h_to_u / 2.0
+    f_atoms = 2.0
+    h_atoms = h_to_u
+
+    # Total atoms for normalization
+    total = u235_frac + u238_frac + o_atoms + f_atoms + h_atoms
+
+    label = f"UO2F2 (H/U={h_to_u})" if h_to_u > 0 else "UO2F2"
+    lines = [f"c Material {mat_num}: {label} at {enrichment_pct:.2f} wt% U-235, {density:.4f} g/cm3"]
+    lines.append(f"m{mat_num}   92235.80c  {u235_frac/total:.6e}   $ U-235")
+    lines.append(f"     92238.80c  {u238_frac/total:.6e}   $ U-238")
+    lines.append(f"     8016.80c   {o_atoms/total:.6e}    $ O-16")
+    lines.append(f"     9019.80c   {f_atoms/total:.6e}    $ F-19")
+    if h_atoms > 0:
+        lines.append(f"     1001.80c   {h_atoms/total:.6e}    $ H-1")
+
+    return "\n".join(lines) + "\n"
+
+
 def mcnp_monel(mat_num: int) -> str:
     """Generate MCNP material card for Monel 400 alloy (5A/5B cylinders)."""
     return f"""c Material {mat_num}: Monel 400, 8.80 g/cm3
@@ -342,6 +548,16 @@ MATERIAL_REGISTRY = {
         "mcnp": mcnp_air,
         "density": 0.001225,
     },
+    "humid_air": {
+        "openmc": create_humid_air,
+        "mcnp": mcnp_humid_air,
+        "density": 0.0011,
+    },
+    "void": {
+        "openmc": create_void,
+        "mcnp": mcnp_void,
+        "density": 0.0001,
+    },
     "carbon_steel": {
         "openmc": create_carbon_steel,
         "mcnp": mcnp_carbon_steel,
@@ -365,29 +581,38 @@ MATERIAL_REGISTRY = {
 # =============================================================================
 
 MATERIAL_COLORS = {
-    # Fissile materials - green tones
-    "UF6": (127, 255, 0),           # Chartreuse green
-    "UF6_HF": (127, 255, 0),        # Same as UF6
+    # Fissile materials - bright green (high visibility)
+    "UF6": (0, 200, 0),             # Bright green
+    "UF6_HF": (0, 200, 0),          # Same as UF6
+    "UO2F2": (0, 180, 0),           # Slightly darker green (uranyl fluoride)
     "HUR_Heel": (50, 205, 50),      # Lime green
 
-    # Structural materials - gray/brown tones
+    # Structural materials - dark for visibility
     "Aluminum": (147, 112, 219),    # Medium purple
-    "Steel": (105, 105, 105),       # Dim gray
-    "Carbon_Steel": (139, 69, 19),  # Saddle brown
-    "SS304": (169, 169, 169),       # Dark gray
-    "Monel": (184, 115, 51),        # Copper-ish (Ni-Cu alloy)
+    "Steel": (50, 50, 50),          # Dark gray (near black for visibility)
+    "Carbon_Steel": (60, 60, 60),   # Dark gray
+    "SS304": (70, 70, 70),          # Dark gray
+    "Monel": (80, 60, 40),          # Dark copper-ish (Ni-Cu alloy)
 
     # Moderators/reflectors - blue tones
-    "Water": (30, 144, 255),        # Dodger blue
+    "Water": (135, 206, 250),       # Light sky blue
     "Concrete": (188, 143, 143),    # Rosy brown
 
     # Environment
     "Air": (135, 206, 250),         # Light sky blue
+    "Humid_Air": (173, 216, 230),   # Light blue (slightly different from dry air)
+    "Void": (255, 255, 255),        # White
 }
 
 
 def get_material_color(name: str) -> tuple[int, int, int]:
     """Get RGB color tuple for a material by name."""
+    # Handle water at any density (e.g., "Water_0.500")
+    if name.startswith("Water"):
+        return MATERIAL_COLORS["Water"]
+    # Handle UO2F2 with H/U ratio suffix (e.g., "UO2F2_H10", "UO2F2_H30")
+    if name.startswith("UO2F2"):
+        return MATERIAL_COLORS["UO2F2"]
     return MATERIAL_COLORS.get(name, (200, 200, 200))
 
 

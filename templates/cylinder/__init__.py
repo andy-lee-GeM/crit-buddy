@@ -1,17 +1,17 @@
 """
-Single Cylinder Problem Template.
+Cylinder Problem Template.
 
 A vertical cylinder filled with UF6, surrounded by a wall and reflector.
-Engineers specify physical parameters; this template handles all geometry
-derivation and simulation settings.
+User specifies physical dimensions (radius, height). For standard shipping
+cylinder dimensions, use the shipping_cylinder template instead.
 """
 
 from critbuddy.core.template import ProblemTemplate, ParameterSpec
 
 
-class SingleCylinderTemplate(ProblemTemplate):
+class CylinderTemplate(ProblemTemplate):
     """
-    Single vertical cylinder with fissile material, wall, and reflector.
+    Vertical cylinder with fissile material, wall, and reflector.
 
     Geometry:
         - Inner cylinder: UF6 (fissile material)
@@ -185,4 +185,4 @@ class SingleCylinderTemplate(ProblemTemplate):
 
 
 # Export the template class
-Template = SingleCylinderTemplate
+Template = CylinderTemplate

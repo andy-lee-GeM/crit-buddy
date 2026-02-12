@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
 ================================================================================
-SINGLE CYLINDER CRITICALITY MODEL - OpenMC
+CYLINDER CRITICALITY MODEL - OpenMC
 ================================================================================
-Template:   single_cylinder
-Problem:    Single vertical cylinder filled with UF6
+Template:   cylinder
+Problem:    Single vertical cylinder filled with UF6 (user-specified dimensions)
 Geometry:   Cylinder with aluminum wall and water reflector
 ================================================================================
 """
@@ -26,7 +26,7 @@ def build_model(p):
     # MATERIALS (from shared library)
     # ══════════════════════════════════════════════════════════════════════════
 
-    m1 = create_uf6(p["ENRICHMENT"], p["UF6_DENSITY"])
+    m1 = create_uf6(p["ENRICHMENT"], density=p["UF6_DENSITY"])
 
     # Wall material (from registry if available, else default to aluminum)
     wall_mat = p.get("WALL_MATERIAL", "aluminum")

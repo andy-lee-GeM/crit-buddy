@@ -10,7 +10,7 @@ Geometry:   Multiple cylinders in rectangular array with environment
 """
 
 import openmc
-from critbuddy.core.materials import create_uf6, get_material
+from critbuddy.core.materials import create_uf6, create_water, get_material
 
 
 def build_model(p):
@@ -18,18 +18,21 @@ def build_model(p):
     Build OpenMC model for cylinder array.
 
     Creates a rectangular array of cylinders, each with UF6 core and wall,
-    surrounded by an environment (air or water).
+    surrounded by water at specified density.
     """
 
     # ══════════════════════════════════════════════════════════════════════════
     # MATERIALS
     # ══════════════════════════════════════════════════════════════════════════
 
-    m_uf6 = create_uf6(p["ENRICHMENT"], p["UF6_DENSITY"])
+    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["UF6_DENSITY"])
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
-    m_env = get_material(p["ENVIRONMENT"], solver="openmc")
 
-    materials = openmc.Materials([m_uf6, m_wall, m_env])
+    # Water environment (variable density for mist/fog/flooded scenarios)
+    water_density = p.get("WATER_DENSITY", 1.0)
+    m_water = create_water(density=water_density)
+
+    materials = openmc.Materials([m_uf6, m_wall, m_water])
 
     # ══════════════════════════════════════════════════════════════════════════
     # GEOMETRY - Create unit cell and replicate
@@ -41,7 +44,7 @@ def build_model(p):
     inner_r = p["INNER_RADIUS"]
     outer_r = p["OUTER_RADIUS"]
     height = p["HEIGHT"]
-    boundary = p["BOUNDARY"]
+    water_thickness = p["WATER_THICKNESS"]
 
     cells = []
     cell_id = 1
@@ -62,7 +65,7 @@ def build_model(p):
     z_max = openmc.ZPlane(z0=p["Z_ENV_TOP"], boundary_type="vacuum", name="z_max")
 
     # Create cylinders at each grid position
-    cylinder_regions = []  # Track all cylinder regions for environment cell
+    cylinder_regions = []  # Track all cylinder regions for water cell
 
     for row in range(rows):
         for col in range(cols):
@@ -100,20 +103,19 @@ def build_model(p):
             cells.append(c_cap_top)
             cell_id += 1
 
-            # Track full cylinder region (including caps) for environment exclusion
+            # Track full cylinder region (including caps) for water exclusion
             cylinder_regions.append(-outer_cyl & +z_cap_bottom & -z_cap_top)
 
-    # Environment cell (everything outside cylinders, inside bounding box)
-    # We need to exclude all cylinder regions from the environment
-    env_region = +x_min & -x_max & +y_min & -y_max & +z_min & -z_max
+    # Water cell (everything outside cylinders, inside bounding box)
+    water_region = +x_min & -x_max & +y_min & -y_max & +z_min & -z_max
 
-    # Exclude all cylinder regions from environment
+    # Exclude all cylinder regions from water
     for cyl_region in cylinder_regions:
-        env_region = env_region & ~cyl_region
+        water_region = water_region & ~cyl_region
 
-    c_env = openmc.Cell(cell_id=cell_id, name="Environment", fill=m_env)
-    c_env.region = env_region
-    cells.append(c_env)
+    c_water = openmc.Cell(cell_id=cell_id, name="Water", fill=m_water)
+    c_water.region = water_region
+    cells.append(c_water)
 
     # ══════════════════════════════════════════════════════════════════════════
     # GEOMETRY
@@ -133,9 +135,10 @@ def build_model(p):
         "height": height,
         "total_x": p["TOTAL_X"],
         "total_y": p["TOTAL_Y"],
-        "boundary": boundary,
+        "water_thickness": water_thickness,
         "x_offset": p["X_OFFSET"],
         "y_offset": p["Y_OFFSET"],
+        "water_density": water_density,
     }
 
     return materials, geometry, dims
@@ -194,10 +197,8 @@ def create_plots(dims, materials):
     total_x = dims["total_x"]
     total_y = dims["total_y"]
     height = dims["height"]
-    boundary = dims["boundary"]
+    water_thickness = dims["water_thickness"]
     y_offset = dims["y_offset"]
-    pitch = dims["pitch"]
-    rows = dims["rows"]
 
     # XY slice (top-down view at mid-height)
     p1 = openmc.Plot(name="xy")
@@ -210,12 +211,12 @@ def create_plots(dims, materials):
     plots.append(p1)
 
     # XZ slice (side view through first row of cylinders)
-    # Position y at the first row to slice through cylinders, not air
+    # Position y at the first row to slice through cylinders, not water
     first_row_y = y_offset  # y-coordinate of first row of cylinders
     p2 = openmc.Plot(name="xz")
     p2.basis = "xz"
     p2.origin = (0, first_row_y, height / 2)
-    p2.width = (total_x * 1.1, (height + 2 * boundary) * 1.1)
+    p2.width = (total_x * 1.1, (height + 2 * water_thickness) * 1.1)
     p2.pixels = (800, 600)
     p2.color_by = "material"
     p2.colors = color_mapping
@@ -248,9 +249,9 @@ FISSILE MATERIAL
   Enrichment:         {p['ENRICHMENT']:>8.2f} wt% U-235
   Density:            {p['UF6_DENSITY']:>8.3f} g/cc
 
-ENVIRONMENT
-  Material:           {p['ENVIRONMENT']}
-  Boundary:           {dims['boundary']:>8.2f} cm
+WATER
+  Density:            {dims['water_density']:>8.3f} g/cc
+  Thickness:          {dims['water_thickness']:>8.2f} cm
 
 TOTAL DIMENSIONS
   X:                  {dims['total_x']:>8.2f} cm

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 ================================================================================
-STACKED HORIZONTAL CYLINDERS CRITICALITY MODEL - OpenMC
+SHIPPING CYLINDER STACKED CRITICALITY MODEL - OpenMC
 ================================================================================
-Template:   stacked_cylinders_horizontal
+Template:   shipping_cylinder_stacked
 Problem:    Horizontal UF6 shipping cylinders in pyramid/rectangular stacks
 Geometry:   Cylinders lying on side, stacked with optional pyramid pattern
 Applications: Warehouse storage, shipping cylinder stacking studies
@@ -29,7 +29,7 @@ def build_model(p):
     # MATERIALS
     # ══════════════════════════════════════════════════════════════════════════
 
-    m_uf6 = create_uf6(p["ENRICHMENT"], p["UF6_DENSITY"])
+    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["UF6_DENSITY"])
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
     m_env = get_material(p["ENVIRONMENT"], solver="openmc")
 

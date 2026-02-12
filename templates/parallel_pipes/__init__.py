@@ -97,7 +97,6 @@ class ParallelPipesTemplate(ProblemTemplate):
             unit="g/cc",
             description="UF6 density",
         ),
-
         # Wall material
         "wall_material": ParameterSpec(
             type="enum",
@@ -106,20 +105,22 @@ class ParallelPipesTemplate(ProblemTemplate):
             description="Pipe wall material",
         ),
 
-        # Reflector
-        "reflector_material": ParameterSpec(
-            type="enum",
-            options=["water", "concrete", "air", "none"],
-            default="water",
-            description="Reflector material",
+        # Water environment
+        "water_density": ParameterSpec(
+            type="float",
+            default=1.0,
+            min=0.001,
+            max=1.0,
+            unit="g/cc",
+            description="Water density (0.001=mist, 1.0=flooded)",
         ),
-        "reflector_thickness_cm": ParameterSpec(
+        "water_thickness_cm": ParameterSpec(
             type="float",
             default=30.0,
             min=0.0,
             max=100.0,
             unit="cm",
-            description="Reflector thickness (all sides)",
+            description="Water thickness (all sides)",
         ),
     }
 
@@ -167,31 +168,29 @@ class ParallelPipesTemplate(ProblemTemplate):
         else:  # 3 pipes
             pipe_y_positions = [-pitch, 0.0, pitch]
 
-        # Reflector
-        refl_t = p["reflector_thickness_cm"]
-        if p["reflector_material"] == "none":
-            refl_t = 0.0
+        # Water thickness
+        water_t = p["water_thickness_cm"]
 
         # Array extents
         y_extent = max(abs(y) for y in pipe_y_positions) + r_outer
-        y_refl = y_extent + refl_t
+        y_total = y_extent + water_t
 
         # X boundaries
         x_inner = length / 2
-        x_refl = x_inner + refl_t
+        x_total = x_inner + water_t
 
         # Z boundaries (pipe centered at Z=0)
         z_extent = r_outer
-        z_refl = z_extent + refl_t
+        z_total = z_extent + water_t
 
         # Material densities
         wall_density = get_density(p["wall_material"])
-        refl_density = get_density(p["reflector_material"]) if p["reflector_material"] != "none" else 0.0
+        water_density = p.get("water_density", 1.0)
 
         # Total bounding box
-        total_x = 2 * x_refl
-        total_y = 2 * y_refl
-        total_z = 2 * z_refl
+        total_x = 2 * x_total
+        total_y = 2 * y_total
+        total_z = 2 * z_total
 
         return {
             # Fissile material
@@ -213,20 +212,19 @@ class ParallelPipesTemplate(ProblemTemplate):
 
             # Boundaries
             "X_INNER": x_inner,
-            "X_REFL": x_refl,
+            "X_TOTAL": x_total,
             "Y_EXTENT": y_extent,
-            "Y_REFL": y_refl,
+            "Y_TOTAL": y_total,
             "Z_EXTENT": z_extent,
-            "Z_REFL": z_refl,
+            "Z_TOTAL": z_total,
 
             # Wall
             "WALL_MATERIAL": p["wall_material"],
             "WALL_DENSITY": wall_density,
 
-            # Reflector
-            "REFLECTOR_MATERIAL": p["reflector_material"],
-            "REFL_THICKNESS": refl_t,
-            "REFL_DENSITY": refl_density,
+            # Water
+            "WATER_DENSITY": water_density,
+            "WATER_THICKNESS": water_t,
 
             # Bounding box
             "TOTAL_X": total_x,

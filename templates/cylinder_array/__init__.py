@@ -80,19 +80,21 @@ class CylinderArrayTemplate(ProblemTemplate):
             unit="cm",
             description="Gap between outer walls of adjacent cylinders",
         ),
-        "environment": ParameterSpec(
-            type="enum",
-            options=["air", "water"],
-            default="air",
-            description="Surrounding environment material",
+        "water_density": ParameterSpec(
+            type="float",
+            default=1.0,
+            min=0.001,
+            max=1.0,
+            unit="g/cc",
+            description="Water density (0.001=mist, 1.0=flooded)",
         ),
-        "boundary_thickness_cm": ParameterSpec(
+        "water_thickness_cm": ParameterSpec(
             type="float",
             default=30.0,
             min=5.0,
             max=100.0,
             unit="cm",
-            description="Thickness of environment around array",
+            description="Water thickness around array",
         ),
         "uf6_density": ParameterSpec(
             type="float",
@@ -124,7 +126,7 @@ class CylinderArrayTemplate(ProblemTemplate):
         wall = p["wall_thickness_cm"]
         gap = p["gap_cm"]  # Gap between outer walls
         height = p["height_cm"]
-        boundary = p["boundary_thickness_cm"]
+        water_thickness = p["water_thickness_cm"]
 
         # Outer radius of each cylinder (with wall)
         outer_radius = radius + wall
@@ -136,18 +138,18 @@ class CylinderArrayTemplate(ProblemTemplate):
         array_width_x = (cols - 1) * center_to_center + 2 * outer_radius
         array_width_y = (rows - 1) * center_to_center + 2 * outer_radius
 
-        # Total bounding box (including environment)
-        total_x = array_width_x + 2 * boundary
-        total_y = array_width_y + 2 * boundary
-        total_z = height + 2 * boundary
+        # Total bounding box (including water)
+        total_x = array_width_x + 2 * water_thickness
+        total_y = array_width_y + 2 * water_thickness
+        total_z = height + 2 * water_thickness
 
-        # Array center offset (so cylinders are centered in environment)
+        # Array center offset (so cylinders are centered)
         x_offset = -(cols - 1) * center_to_center / 2
         y_offset = -(rows - 1) * center_to_center / 2
 
         # Material densities
         wall_density = get_density(p["wall_material"])
-        env_density = get_density(p["environment"])
+        water_density = p.get("water_density", 1.0)
 
         return {
             # Array configuration
@@ -167,14 +169,14 @@ class CylinderArrayTemplate(ProblemTemplate):
             "TOTAL_X": total_x,
             "TOTAL_Y": total_y,
             "TOTAL_Z": total_z,
-            "BOUNDARY": boundary,
+            "WATER_THICKNESS": water_thickness,
             # Z coordinates (caps extend wall thickness above/below UF6)
             "Z_BOTTOM": 0.0,
             "Z_TOP": height,
             "Z_CAP_BOTTOM": -wall,
             "Z_CAP_TOP": height + wall,
-            "Z_ENV_BOTTOM": -boundary,
-            "Z_ENV_TOP": height + boundary,
+            "Z_ENV_BOTTOM": -water_thickness,
+            "Z_ENV_TOP": height + water_thickness,
             # Source position
             "KSRC_Z": height / 2.0,
             # Materials
@@ -182,8 +184,7 @@ class CylinderArrayTemplate(ProblemTemplate):
             "UF6_DENSITY": p["uf6_density"],
             "WALL_MATERIAL": p["wall_material"],
             "WALL_DENSITY": wall_density,
-            "ENVIRONMENT": p["environment"],
-            "ENV_DENSITY": env_density,
+            "WATER_DENSITY": water_density,
         }
 
 

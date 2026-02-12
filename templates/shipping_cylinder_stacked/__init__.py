@@ -1,8 +1,8 @@
 """
-Stacked Horizontal Cylinders Template.
+Shipping Cylinder Stacked Template.
 
 Horizontal UF6 shipping cylinders stacked in pyramid or rectangular configurations.
-Supports standard shipping cylinder dimensions (30B, 48Y, etc.) from ANSI N14.1.
+Uses ANSI N14.1 cylinder registry for standard dimensions (30B, 48Y, etc.).
 
 Geometry:
     - Cylinders lying horizontal (axis along X direction)
@@ -20,7 +20,7 @@ from critbuddy.core.template import ProblemTemplate, ParameterSpec
 from critbuddy.core.cylinders import CYLINDER_REGISTRY
 
 
-class StackedCylindersHorizontalTemplate(ProblemTemplate):
+class ShippingCylinderStackedTemplate(ProblemTemplate):
     """
     Stacked horizontal UF6 shipping cylinders with pyramid support.
 
@@ -55,7 +55,6 @@ class StackedCylindersHorizontalTemplate(ProblemTemplate):
             unit="g/cc",
             description="UF6 density",
         ),
-
         # Stacking configuration
         "stacking_pattern": ParameterSpec(
             type="string",
@@ -286,4 +285,4 @@ class StackedCylindersHorizontalTemplate(ProblemTemplate):
 
 
 # Export the template class
-Template = StackedCylindersHorizontalTemplate
+Template = ShippingCylinderStackedTemplate

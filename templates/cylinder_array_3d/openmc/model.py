@@ -4,49 +4,67 @@
 3D CYLINDER ARRAY CRITICALITY MODEL - OpenMC
 ================================================================================
 Template:   cylinder_array_3d
-Problem:    3D array of UF6 shipping cylinders with floor modeling
-Geometry:   rows × cols × layers array with configurable gaps and floor
+Problem:    3D array of vertical cylinders filled with UF6
+Geometry:   Cylinders arranged in rows × cols × layers grid
+Applications: Stacked storage configurations, warehouse layouts
 ================================================================================
 """
 
 import openmc
-from critbuddy.core.materials import create_uf6, get_material
+from critbuddy.core.materials import (
+    create_uf6, create_uo2f2, create_water, get_material, get_density
+)
 
 
 def build_model(p):
     """
     Build OpenMC model for 3D cylinder array.
 
-    Creates a 3D array of shipping cylinders (rows × cols × layers),
-    each with UF6 core and wall, sitting on a floor/pad and surrounded
-    by environment (air or water).
+    Creates a 3D grid of cylinders, each with UF6 core, wall, and end caps,
+    surrounded by water at specified density.
 
     Coordinate system:
-    - Origin at center of array (XY) and floor surface (Z=0)
-    - Cylinders sit on floor, stacking upward in Z
+        - X: row direction
+        - Y: column direction
+        - Z: layer direction (vertical stacking)
+        - Origin at center of array
     """
 
     # ══════════════════════════════════════════════════════════════════════════
     # MATERIALS
     # ══════════════════════════════════════════════════════════════════════════
 
-    materials_list = []
+    # Fissile material (UF6 or UO2F2)
+    fissile_material = p["FISSILE_MATERIAL"]
+    fissile_density = p["FISSILE_DENSITY"]
+    h_to_u = p.get("H_TO_U_RATIO", 0.0)
 
-    m_uf6 = create_uf6(p["ENRICHMENT"], p["UF6_DENSITY"])
-    materials_list.append(m_uf6)
+    if fissile_material == "uo2f2":
+        # UO2F2: use H/U ratio for wet modeling (density auto-calculated)
+        m_fissile = create_uo2f2(p["ENRICHMENT"], h_to_u=h_to_u)
+    else:
+        # UF6: use specified density
+        m_fissile = create_uf6(p["ENRICHMENT"], density=fissile_density)
 
+    # Wall material
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
-    materials_list.append(m_wall)
 
-    m_env = get_material(p["ENVIRONMENT"], solver="openmc")
-    materials_list.append(m_env)
+    # Environment material (between units and as reflector)
+    env_material = p["ENVIRONMENT_MATERIAL"]
+    env_density = p["ENVIRONMENT_DENSITY"]
+    if env_material == "water":
+        m_env = create_water(density=env_density)
+    else:
+        m_env = get_material(env_material, solver="openmc")
 
-    m_floor = None
-    if p["FLOOR_MATERIAL"] != "none" and p["FLOOR_THICKNESS"] > 0:
-        m_floor = get_material(p["FLOOR_MATERIAL"], solver="openmc")
-        materials_list.append(m_floor)
-
-    materials = openmc.Materials(materials_list)
+    # Void material for unfilled portion of cylinder (if fill_fraction < 1.0)
+    fill_fraction = p["FILL_FRACTION"]
+    m_void = None
+    if fill_fraction < 1.0:
+        m_void = get_material(p["VOID_MATERIAL"], solver="openmc")
+        materials = openmc.Materials([m_fissile, m_wall, m_env, m_void])
+    else:
+        materials = openmc.Materials([m_fissile, m_wall, m_env])
 
     # ══════════════════════════════════════════════════════════════════════════
     # GEOMETRY
@@ -55,175 +73,170 @@ def build_model(p):
     rows = p["ROWS"]
     cols = p["COLS"]
     layers = p["LAYERS"]
-    pitch_x = p["PITCH_X"]
-    pitch_y = p["PITCH_Y"]
-    pitch_z = p["PITCH_Z"]
-    r_inner = p["R_INNER"]
-    r_outer = p["R_OUTER"]
-    cyl_total_height = p["CYL_TOTAL_HEIGHT"]
-    cyl_internal_height = p["CYL_INTERNAL_HEIGHT"]
+    gap_xy = p["GAP_XY"]
+    gap_z = p["GAP_Z"]
+    spacing_xy = p["SPACING_XY"]  # center-to-center
+    spacing_z = p["SPACING_Z"]    # center-to-center
+    inner_r = p["INNER_RADIUS"]
+    outer_r = p["OUTER_RADIUS"]
+    height = p["HEIGHT"]
+    uf6_height = p["FISSILE_HEIGHT"]  # Fissile fill height (may be < height)
+    fill_fraction = p.get("FILL_FRACTION", 1.0)
     wall_t = p["WALL_THICKNESS"]
-    x_offset = p["X_OFFSET"]
-    y_offset = p["Y_OFFSET"]
+    total_cyl_h = p["TOTAL_CYL_HEIGHT"]
 
     cells = []
     cell_id = 1
+    cylinder_regions = []  # Track all cylinder regions for water exclusion
+
+    # Create cylinders at each grid position
+    for layer in range(layers):
+        for row in range(rows):
+            for col in range(cols):
+                # Calculate center position
+                x_center = p["X_OFFSET"] + row * spacing_xy
+                y_center = p["Y_OFFSET"] + col * spacing_xy
+                z_center = p["Z_OFFSET"] + layer * spacing_z
+
+                # Z bounds for this cylinder
+                z_bot_cap = z_center - total_cyl_h / 2
+                z_bot_uf6 = z_bot_cap + wall_t
+                z_top_uf6 = z_bot_uf6 + height
+                z_top_cap = z_top_uf6 + wall_t
+
+                # Create cylinder surfaces at this position
+                inner_cyl = openmc.ZCylinder(x0=x_center, y0=y_center, r=inner_r,
+                                             name=f"inner_{layer}_{row}_{col}")
+                outer_cyl = openmc.ZCylinder(x0=x_center, y0=y_center, r=outer_r,
+                                             name=f"outer_{layer}_{row}_{col}")
+
+                # Z planes for this cylinder
+                z_bot_cap_plane = openmc.ZPlane(z0=z_bot_cap, name=f"z_bot_cap_{layer}_{row}_{col}")
+                z_bot_uf6_plane = openmc.ZPlane(z0=z_bot_uf6, name=f"z_bot_uf6_{layer}_{row}_{col}")
+                z_top_uf6_plane = openmc.ZPlane(z0=z_top_uf6, name=f"z_top_uf6_{layer}_{row}_{col}")
+                z_top_cap_plane = openmc.ZPlane(z0=z_top_cap, name=f"z_top_cap_{layer}_{row}_{col}")
+
+                # Handle partial fill: UF6 at bottom, void above
+                if fill_fraction < 1.0:
+                    z_uf6_top_actual = z_bot_uf6 + uf6_height
+                    z_uf6_top_plane_actual = openmc.ZPlane(z0=z_uf6_top_actual, name=f"z_uf6_top_actual_{layer}_{row}_{col}")
+
+                    # UF6 core cell (partial fill)
+                    c_uf6 = openmc.Cell(cell_id=cell_id, name=f"UF6_{layer}_{row}_{col}", fill=m_fissile)
+                    c_uf6.region = -inner_cyl & +z_bot_uf6_plane & -z_uf6_top_plane_actual
+                    cells.append(c_uf6)
+                    cell_id += 1
+
+                    # Void cell above UF6
+                    c_void = openmc.Cell(cell_id=cell_id, name=f"Void_{layer}_{row}_{col}", fill=m_void)
+                    c_void.region = -inner_cyl & +z_uf6_top_plane_actual & -z_top_uf6_plane
+                    cells.append(c_void)
+                    cell_id += 1
+                else:
+                    # UF6 core cell (full fill)
+                    c_uf6 = openmc.Cell(cell_id=cell_id, name=f"UF6_{layer}_{row}_{col}", fill=m_fissile)
+                    c_uf6.region = -inner_cyl & +z_bot_uf6_plane & -z_top_uf6_plane
+                    cells.append(c_uf6)
+                    cell_id += 1
+
+                # Wall cell (cylindrical shell)
+                c_wall = openmc.Cell(cell_id=cell_id, name=f"Wall_{layer}_{row}_{col}", fill=m_wall)
+                c_wall.region = +inner_cyl & -outer_cyl & +z_bot_uf6_plane & -z_top_uf6_plane
+                cells.append(c_wall)
+                cell_id += 1
+
+                # Bottom cap
+                c_cap_bot = openmc.Cell(cell_id=cell_id, name=f"CapBot_{layer}_{row}_{col}", fill=m_wall)
+                c_cap_bot.region = -outer_cyl & +z_bot_cap_plane & -z_bot_uf6_plane
+                cells.append(c_cap_bot)
+                cell_id += 1
+
+                # Top cap
+                c_cap_top = openmc.Cell(cell_id=cell_id, name=f"CapTop_{layer}_{row}_{col}", fill=m_wall)
+                c_cap_top.region = -outer_cyl & +z_top_uf6_plane & -z_top_cap_plane
+                cells.append(c_cap_top)
+                cell_id += 1
+
+                # Track full cylinder region for water exclusion
+                cylinder_regions.append(-outer_cyl & +z_bot_cap_plane & -z_top_cap_plane)
 
     # Bounding box surfaces
     x_min = openmc.XPlane(x0=-p["TOTAL_X"]/2, boundary_type="vacuum", name="x_min")
     x_max = openmc.XPlane(x0=p["TOTAL_X"]/2, boundary_type="vacuum", name="x_max")
     y_min = openmc.YPlane(y0=-p["TOTAL_Y"]/2, boundary_type="vacuum", name="y_min")
     y_max = openmc.YPlane(y0=p["TOTAL_Y"]/2, boundary_type="vacuum", name="y_max")
-    z_min = openmc.ZPlane(z0=p["Z_FLOOR_BOTTOM"], boundary_type="vacuum", name="z_min")
-    z_max = openmc.ZPlane(z0=p["Z_ENV_TOP"], boundary_type="vacuum", name="z_max")
+    z_min = openmc.ZPlane(z0=-p["TOTAL_Z"]/2, boundary_type="vacuum", name="z_min")
+    z_max = openmc.ZPlane(z0=p["TOTAL_Z"]/2, boundary_type="vacuum", name="z_max")
 
-    # Floor surface (top of floor / bottom of array)
-    z_floor_top = openmc.ZPlane(z0=p["Z_FLOOR_TOP"], name="z_floor_top")
+    # Water cell (everything outside cylinders, inside bounding box)
+    water_region = +x_min & -x_max & +y_min & -y_max & +z_min & -z_max
 
-    # Track all cylinder regions for environment cell exclusion
-    cylinder_regions = []
-
-    # Create cylinders at each grid position
-    for layer in range(layers):
-        # Z position for this layer (bottom of cylinder)
-        z_cyl_bottom = layer * pitch_z
-
-        # Z planes for this layer
-        z_bot = openmc.ZPlane(z0=z_cyl_bottom, name=f"z_bot_L{layer}")
-        z_uf6_bot = openmc.ZPlane(z0=z_cyl_bottom + wall_t, name=f"z_uf6_bot_L{layer}")
-        z_uf6_top = openmc.ZPlane(z0=z_cyl_bottom + wall_t + cyl_internal_height, name=f"z_uf6_top_L{layer}")
-        z_top = openmc.ZPlane(z0=z_cyl_bottom + cyl_total_height, name=f"z_top_L{layer}")
-
-        for row in range(rows):
-            for col in range(cols):
-                # XY position for this cylinder
-                x_center = x_offset + col * pitch_x
-                y_center = y_offset + row * pitch_y
-
-                # Create cylinder surfaces
-                inner_cyl = openmc.ZCylinder(
-                    x0=x_center, y0=y_center, r=r_inner,
-                    name=f"inner_L{layer}_R{row}_C{col}"
-                )
-                outer_cyl = openmc.ZCylinder(
-                    x0=x_center, y0=y_center, r=r_outer,
-                    name=f"outer_L{layer}_R{row}_C{col}"
-                )
-
-                # UF6 core
-                c_uf6 = openmc.Cell(
-                    cell_id=cell_id,
-                    name=f"UF6_L{layer}_R{row}_C{col}",
-                    fill=m_uf6
-                )
-                c_uf6.region = -inner_cyl & +z_uf6_bot & -z_uf6_top
-                cells.append(c_uf6)
-                cell_id += 1
-
-                # Wall (radial)
-                c_wall = openmc.Cell(
-                    cell_id=cell_id,
-                    name=f"Wall_L{layer}_R{row}_C{col}",
-                    fill=m_wall
-                )
-                c_wall.region = +inner_cyl & -outer_cyl & +z_bot & -z_top
-                cells.append(c_wall)
-                cell_id += 1
-
-                # Bottom cap
-                c_cap_bot = openmc.Cell(
-                    cell_id=cell_id,
-                    name=f"CapBot_L{layer}_R{row}_C{col}",
-                    fill=m_wall
-                )
-                c_cap_bot.region = -inner_cyl & +z_bot & -z_uf6_bot
-                cells.append(c_cap_bot)
-                cell_id += 1
-
-                # Top cap
-                c_cap_top = openmc.Cell(
-                    cell_id=cell_id,
-                    name=f"CapTop_L{layer}_R{row}_C{col}",
-                    fill=m_wall
-                )
-                c_cap_top.region = -inner_cyl & +z_uf6_top & -z_top
-                cells.append(c_cap_top)
-                cell_id += 1
-
-                # Track full cylinder region for environment exclusion
-                cylinder_regions.append(-outer_cyl & +z_bot & -z_top)
-
-    # Floor cell (if present)
-    floor_region = None
-    if m_floor is not None:
-        c_floor = openmc.Cell(cell_id=cell_id, name="Floor", fill=m_floor)
-        floor_region = +x_min & -x_max & +y_min & -y_max & +z_min & -z_floor_top
-        c_floor.region = floor_region
-        cells.append(c_floor)
-        cell_id += 1
-
-    # Environment cell (everything outside cylinders and floor, inside bounding box)
-    env_region = +x_min & -x_max & +y_min & -y_max & +z_floor_top & -z_max
-
-    # Exclude all cylinder regions
+    # Exclude all cylinder regions from water
     for cyl_region in cylinder_regions:
-        env_region = env_region & ~cyl_region
+        water_region = water_region & ~cyl_region
 
     c_env = openmc.Cell(cell_id=cell_id, name="Environment", fill=m_env)
-    c_env.region = env_region
+    c_env.region = water_region
     cells.append(c_env)
 
     # ══════════════════════════════════════════════════════════════════════════
-    # ASSEMBLE GEOMETRY
+    # GEOMETRY ASSEMBLY
     # ══════════════════════════════════════════════════════════════════════════
 
     universe = openmc.Universe(cells=cells)
     geometry = openmc.Geometry(universe)
 
-    # Dimensions for plotting
+    # Return dimensions for plotting
+    # Get actual density from material (may be auto-calculated from H/U)
+    actual_fissile_density = m_fissile.density
+
     dims = {
         "rows": rows,
         "cols": cols,
         "layers": layers,
-        "pitch_x": pitch_x,
-        "pitch_y": pitch_y,
-        "pitch_z": pitch_z,
-        "gap_x": p["GAP_X"],
-        "gap_y": p["GAP_Y"],
+        "total_cylinders": p["TOTAL_CYLINDERS"],
+        "spacing_xy": spacing_xy,
+        "spacing_z": spacing_z,
+        "gap_xy": p["GAP_XY"],
         "gap_z": p["GAP_Z"],
-        "r_inner": r_inner,
-        "r_outer": r_outer,
-        "cyl_height": cyl_total_height,
-        "array_x": p["ARRAY_X"],
-        "array_y": p["ARRAY_Y"],
-        "array_z": p["ARRAY_Z"],
+        "inner_r": inner_r,
+        "outer_r": outer_r,
+        "height": height,
+        "fissile_height": uf6_height,
+        "fill_fraction": fill_fraction,
+        "total_cyl_height": total_cyl_h,
         "total_x": p["TOTAL_X"],
         "total_y": p["TOTAL_Y"],
         "total_z": p["TOTAL_Z"],
-        "floor_thickness": p["FLOOR_THICKNESS"],
-        "boundary": p["BOUNDARY"],
-        "x_offset": x_offset,
-        "y_offset": y_offset,
+        "reflector_thickness": p["REFLECTOR_THICKNESS"],
+        "fissile_material": fissile_material,
+        "fissile_density": actual_fissile_density,
+        "h_to_u_ratio": h_to_u,
+        "environment_material": env_material,
+        "environment_density": env_density,
+        "x_offset": p["X_OFFSET"],
+        "y_offset": p["Y_OFFSET"],
+        "z_offset": p["Z_OFFSET"],
     }
 
     return materials, geometry, dims
 
 
 def create_settings(p, dims):
-    """Create OpenMC settings with source distributed across all cylinders."""
+    """Create OpenMC settings with distributed source."""
     settings = openmc.Settings()
     settings.run_mode = "eigenvalue"
     settings.particles = int(p["PARTICLES"])
     settings.batches = int(p["BATCHES"])
     settings.inactive = int(p["INACTIVE"])
 
-    # Box source encompassing all UF6 regions
-    x_min = dims["x_offset"] - dims["r_inner"] * 0.5
-    x_max = dims["x_offset"] + (dims["cols"] - 1) * dims["pitch_x"] + dims["r_inner"] * 0.5
-    y_min = dims["y_offset"] - dims["r_inner"] * 0.5
-    y_max = dims["y_offset"] + (dims["rows"] - 1) * dims["pitch_y"] + dims["r_inner"] * 0.5
-    z_min = p["WALL_THICKNESS"]
-    z_max = (dims["layers"] - 1) * dims["pitch_z"] + p["CYL_TOTAL_HEIGHT"] - p["WALL_THICKNESS"]
+    # Box source encompassing all cylinders
+    x_min = dims["x_offset"] - dims["inner_r"] * 0.5
+    x_max = dims["x_offset"] + (dims["rows"] - 1) * dims["spacing_xy"] + dims["inner_r"] * 0.5
+    y_min = dims["y_offset"] - dims["inner_r"] * 0.5
+    y_max = dims["y_offset"] + (dims["cols"] - 1) * dims["spacing_xy"] + dims["inner_r"] * 0.5
+    z_min = dims["z_offset"] - dims["height"] * 0.25
+    z_max = dims["z_offset"] + (dims["layers"] - 1) * dims["spacing_z"] + dims["height"] * 0.25
 
     settings.source = openmc.IndependentSource(
         space=openmc.stats.Box(
@@ -236,58 +249,52 @@ def create_settings(p, dims):
 
 
 def create_plots(dims, materials):
-    """
-    Create visualization plots for the 3D array.
-
-    Returns:
-        plots: openmc.Plots object
-        color_legend: dict mapping material name -> RGB tuple
-    """
+    """Create visualization plots for the 3D array."""
     from critbuddy.core.materials import get_color_mapping, get_color_legend
 
     color_mapping = get_color_mapping(materials)
+
     plots = openmc.Plots()
 
     total_x = dims["total_x"]
     total_y = dims["total_y"]
-    array_z = dims["array_z"]
-    floor_t = dims["floor_thickness"]
-    boundary = dims["boundary"]
-    y_offset = dims["y_offset"]
-    cyl_height = dims["cyl_height"]
-    layers = dims["layers"]
-    pitch_z = dims["pitch_z"]
+    total_z = dims["total_z"]
 
-    # XY slice (top-down view at mid-height of first layer)
-    z_mid = cyl_height / 2
-    p1 = openmc.Plot(name="xy_layer1")
+    # Calculate z-position to slice through fissile material (not headspace)
+    # For partial fill, fissile material is at bottom of cylinder
+    # z_offset is center of first layer cylinder
+    # fissile region bottom = z_offset - total_cyl_height/2 + wall_thickness (approx)
+    # slice through middle of fissile region
+    wall_t = dims["outer_r"] - dims["inner_r"]  # wall thickness
+    z_cyl_bottom = dims["z_offset"] - dims["total_cyl_height"] / 2 + wall_t
+    z_fissile_center = z_cyl_bottom + dims["fissile_height"] / 2
+
+    # XY slice (top-down view through fissile material in first layer)
+    p1 = openmc.Plot(name="xy")
     p1.basis = "xy"
-    p1.origin = (0, 0, z_mid)
-    p1.width = (total_x * 1.05, total_y * 1.05)
+    p1.origin = (0, 0, z_fissile_center)  # Slice through fissile region, not headspace
+    p1.width = (total_x * 1.1, total_y * 1.1)
     p1.pixels = (800, 800)
     p1.color_by = "material"
     p1.colors = color_mapping
     plots.append(p1)
 
-    # XZ slice (side view through first row)
-    total_height = array_z + boundary + floor_t
-    z_center = (array_z - floor_t) / 2
+    # XZ slice (side view through first column)
     p2 = openmc.Plot(name="xz")
     p2.basis = "xz"
-    p2.origin = (0, y_offset, z_center)
-    p2.width = (total_x * 1.05, total_height * 1.05)
-    p2.pixels = (800, 1000)
+    p2.origin = (0, dims["y_offset"], 0)  # Slice through first column, not y=0
+    p2.width = (total_x * 1.1, total_z * 1.1)
+    p2.pixels = (800, 600)
     p2.color_by = "material"
     p2.colors = color_mapping
     plots.append(p2)
 
-    # YZ slice (side view through first column)
-    x_offset = dims["x_offset"]
+    # YZ slice (end view through first row)
     p3 = openmc.Plot(name="yz")
     p3.basis = "yz"
-    p3.origin = (x_offset, 0, z_center)
-    p3.width = (total_y * 1.05, total_height * 1.05)
-    p3.pixels = (800, 1000)
+    p3.origin = (dims["x_offset"], 0, 0)  # Slice through first row, not x=0
+    p3.width = (total_y * 1.1, total_z * 1.1)
+    p3.pixels = (800, 600)
     p3.color_by = "material"
     p3.colors = color_mapping
     plots.append(p3)
@@ -297,46 +304,42 @@ def create_plots(dims, materials):
 
 def print_summary(p, dims):
     """Print case summary."""
-    n_cylinders = dims["rows"] * dims["cols"] * dims["layers"]
     print(f"""
 ================================================================================
-              3D CYLINDER ARRAY - {p['CYLINDER_NAME']}
+                      3D CYLINDER ARRAY SUMMARY
 ================================================================================
-CYLINDER TYPE
-  Type:               {p['CYLINDER_TYPE']}
-  Wall material:      {p['WALL_MATERIAL']}
-
 ARRAY CONFIGURATION
   Layout:             {dims['rows']} rows x {dims['cols']} cols x {dims['layers']} layers
-  Total cylinders:    {n_cylinders}
-
-SPACING
-  Gap X:              {dims['gap_x']:>8.2f} cm (between outer walls)
-  Gap Y:              {dims['gap_y']:>8.2f} cm (between outer walls)
-  Gap Z:              {dims['gap_z']:>8.2f} cm (between stacked cylinders)
+  Total cylinders:    {dims['total_cylinders']}
+  Gap (horizontal):   {dims['gap_xy']:>8.2f} cm
+  Gap (vertical):     {dims['gap_z']:>8.2f} cm
+  Spacing (XY):       {dims['spacing_xy']:>8.2f} cm  (center-to-center)
+  Spacing (Z):        {dims['spacing_z']:>8.2f} cm  (center-to-center)
 
 CYLINDER GEOMETRY
-  Inner radius:       {dims['r_inner']:>8.4f} cm
-  Outer radius:       {dims['r_outer']:>8.4f} cm
-  Total height:       {dims['cyl_height']:>8.2f} cm (with caps)
-  Wall thickness:     {p['WALL_THICKNESS']:>8.4f} cm
+  Inner radius:       {dims['inner_r']:>8.2f} cm
+  Outer radius:       {dims['outer_r']:>8.2f} cm
+  Wall thickness:     {p['WALL_THICKNESS']:>8.2f} cm
+  Height (interior):  {dims['height']:>8.2f} cm
+  Total height:       {dims['total_cyl_height']:>8.2f} cm (with caps)
 
 FISSILE MATERIAL
+  Material:           {dims.get('fissile_material', 'uf6').upper()}
+  H/U ratio:          {dims.get('h_to_u_ratio', 0.0):>8.1f}
   Enrichment:         {p['ENRICHMENT']:>8.2f} wt% U-235
-  Density:            {p['UF6_DENSITY']:>8.3f} g/cc
-
-FLOOR
-  Material:           {p['FLOOR_MATERIAL']}
-  Thickness:          {dims['floor_thickness']:>8.2f} cm
+  Density:            {dims.get('fissile_density', 5.09):>8.3f} g/cc
+  Fill fraction:      {dims.get('fill_fraction', 1.0):>8.1%}
+  Fissile height:     {dims.get('fissile_height', dims['height']):>8.2f} cm
 
 ENVIRONMENT
-  Material:           {p['ENVIRONMENT']}
-  Boundary:           {dims['boundary']:>8.2f} cm
+  Material:           {dims.get('environment_material', 'water')}
+  Density:            {dims.get('environment_density', 1.0):>8.4f} g/cc
+  Thickness:          {dims['reflector_thickness']:>8.2f} cm
 
 TOTAL DIMENSIONS
   X:                  {dims['total_x']:>8.2f} cm
   Y:                  {dims['total_y']:>8.2f} cm
-  Z:                  {dims['total_z']:>8.2f} cm (including floor)
+  Z:                  {dims['total_z']:>8.2f} cm
 
 SIMULATION
   {int(p['PARTICLES'])} particles x {int(p['BATCHES'])} batches ({int(p['INACTIVE'])} inactive)

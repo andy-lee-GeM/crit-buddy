@@ -1,21 +1,19 @@
 """
-UF6 Shipping Cylinder Problem Template.
+Shipping Cylinder Problem Template.
 
-A unified template for UF6 shipping/storage cylinders (5A, 5B, 30B, 48X, 48Y, etc.).
-Cylinder dimensions are automatically loaded from the cylinder registry based on
-the cylinder_type parameter.
+UF6 shipping/storage cylinders (5A, 5B, 30B, 48X, 48Y, etc.) with dimensions
+automatically loaded from the ANSI N14.1 cylinder registry.
 
-This replaces separate templates for each cylinder type with a single parametric
-template that handles all standard cylinder configurations.
+For user-specified dimensions, use the cylinder template instead.
 """
 
 from critbuddy.core.template import ProblemTemplate, ParameterSpec
 from critbuddy.core.cylinders import CYLINDER_REGISTRY
 
 
-class UF6CylinderTemplate(ProblemTemplate):
+class ShippingCylinderTemplate(ProblemTemplate):
     """
-    Generic UF6 shipping/storage cylinder.
+    UF6 shipping/storage cylinder with registry-based dimensions.
 
     Dimensions are automatically populated from the cylinder registry based on
     the selected cylinder_type. Wall material is also determined by the registry.
@@ -180,4 +178,4 @@ class UF6CylinderTemplate(ProblemTemplate):
 
 
 # Export the template class
-Template = UF6CylinderTemplate
+Template = ShippingCylinderTemplate

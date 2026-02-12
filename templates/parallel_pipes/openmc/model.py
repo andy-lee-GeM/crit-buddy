@@ -11,7 +11,7 @@ Applications: Process piping runs, cascade line spacing studies
 """
 
 import openmc
-from critbuddy.core.materials import create_uf6, get_material
+from critbuddy.core.materials import create_uf6, create_water, get_material
 
 
 def build_model(p):
@@ -29,16 +29,14 @@ def build_model(p):
     # MATERIALS
     # ══════════════════════════════════════════════════════════════════════════
 
-    m_uf6 = create_uf6(p["ENRICHMENT"], p["UF6_DENSITY"])
+    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["UF6_DENSITY"])
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
 
-    refl_mat = p.get("REFLECTOR_MATERIAL", "water")
-    if refl_mat != "none":
-        m_refl = get_material(refl_mat, solver="openmc")
-        materials = openmc.Materials([m_uf6, m_wall, m_refl])
-    else:
-        m_refl = None
-        materials = openmc.Materials([m_uf6, m_wall])
+    # Water environment (variable density for mist/fog/flooded scenarios)
+    water_density = p.get("WATER_DENSITY", 1.0)
+    m_water = create_water(density=water_density)
+
+    materials = openmc.Materials([m_uf6, m_wall, m_water])
 
     # ══════════════════════════════════════════════════════════════════════════
     # SURFACES
@@ -61,20 +59,12 @@ def build_model(p):
         cyl_outer.append(openmc.XCylinder(r=r_outer, y0=y_pos, z0=0.0, name=f"cyl_outer_{i}"))
 
     # Outer boundary surfaces
-    if refl_mat == "none":
-        y_neg_bound = openmc.YPlane(y0=-p["Y_EXTENT"], name="y_neg_bound", boundary_type="vacuum")
-        y_pos_bound = openmc.YPlane(y0=p["Y_EXTENT"], name="y_pos_bound", boundary_type="vacuum")
-        z_neg_bound = openmc.ZPlane(z0=-p["Z_EXTENT"], name="z_neg_bound", boundary_type="vacuum")
-        z_pos_bound = openmc.ZPlane(z0=p["Z_EXTENT"], name="z_pos_bound", boundary_type="vacuum")
-        x_neg_bound = openmc.XPlane(x0=-p["X_INNER"], name="x_neg_bound", boundary_type="vacuum")
-        x_pos_bound = openmc.XPlane(x0=p["X_INNER"], name="x_pos_bound", boundary_type="vacuum")
-    else:
-        y_neg_bound = openmc.YPlane(y0=-p["Y_REFL"], name="y_neg_bound", boundary_type="vacuum")
-        y_pos_bound = openmc.YPlane(y0=p["Y_REFL"], name="y_pos_bound", boundary_type="vacuum")
-        z_neg_bound = openmc.ZPlane(z0=-p["Z_REFL"], name="z_neg_bound", boundary_type="vacuum")
-        z_pos_bound = openmc.ZPlane(z0=p["Z_REFL"], name="z_pos_bound", boundary_type="vacuum")
-        x_neg_bound = openmc.XPlane(x0=-p["X_REFL"], name="x_neg_bound", boundary_type="vacuum")
-        x_pos_bound = openmc.XPlane(x0=p["X_REFL"], name="x_pos_bound", boundary_type="vacuum")
+    x_neg_bound = openmc.XPlane(x0=-p["X_TOTAL"], name="x_neg_bound", boundary_type="vacuum")
+    x_pos_bound = openmc.XPlane(x0=p["X_TOTAL"], name="x_pos_bound", boundary_type="vacuum")
+    y_neg_bound = openmc.YPlane(y0=-p["Y_TOTAL"], name="y_neg_bound", boundary_type="vacuum")
+    y_pos_bound = openmc.YPlane(y0=p["Y_TOTAL"], name="y_pos_bound", boundary_type="vacuum")
+    z_neg_bound = openmc.ZPlane(z0=-p["Z_TOTAL"], name="z_neg_bound", boundary_type="vacuum")
+    z_pos_bound = openmc.ZPlane(z0=p["Z_TOTAL"], name="z_pos_bound", boundary_type="vacuum")
 
     # ══════════════════════════════════════════════════════════════════════════
     # CELLS
@@ -84,6 +74,7 @@ def build_model(p):
     cell_id = 1
 
     # Create UF6 and wall cells for each pipe
+    pipe_regions = []  # Track all pipe regions for water exclusion
     for i in range(num_pipes):
         # UF6 cell
         c_uf6 = openmc.Cell(cell_id=cell_id, name=f"UF6_{i}", fill=m_uf6)
@@ -97,44 +88,22 @@ def build_model(p):
         cells.append(c_wall)
         cell_id += 1
 
-    # Reflector (if present)
-    if refl_mat != "none":
-        # Build region that is outside all pipe walls
-        outside_all_pipes = +x_neg & -x_pos
-        for i in range(num_pipes):
-            outside_all_pipes = outside_all_pipes & +cyl_outer[i]
+        # Track pipe region for water exclusion
+        pipe_regions.append(-cyl_outer[i] & +x_neg & -x_pos)
 
-        # Reflector around pipes (main body)
-        refl_main_region = (
-            +y_neg_bound & -y_pos_bound &
-            +z_neg_bound & -z_pos_bound &
-            outside_all_pipes
-        )
-        c_refl_main = openmc.Cell(cell_id=cell_id, name="Refl_main", fill=m_refl)
-        c_refl_main.region = refl_main_region
-        cells.append(c_refl_main)
-        cell_id += 1
+    # Water cell (everything outside pipes, inside bounding box)
+    water_region = (
+        +x_neg_bound & -x_pos_bound &
+        +y_neg_bound & -y_pos_bound &
+        +z_neg_bound & -z_pos_bound
+    )
+    # Exclude all pipe regions from water
+    for pipe_region in pipe_regions:
+        water_region = water_region & ~pipe_region
 
-        # Reflector end caps
-        # Left end cap
-        c_refl_left = openmc.Cell(cell_id=cell_id, name="Refl_left", fill=m_refl)
-        c_refl_left.region = (
-            +x_neg_bound & -x_neg &
-            +y_neg_bound & -y_pos_bound &
-            +z_neg_bound & -z_pos_bound
-        )
-        cells.append(c_refl_left)
-        cell_id += 1
-
-        # Right end cap
-        c_refl_right = openmc.Cell(cell_id=cell_id, name="Refl_right", fill=m_refl)
-        c_refl_right.region = (
-            +x_pos & -x_pos_bound &
-            +y_neg_bound & -y_pos_bound &
-            +z_neg_bound & -z_pos_bound
-        )
-        cells.append(c_refl_right)
-        cell_id += 1
+    c_water = openmc.Cell(cell_id=cell_id, name="Water", fill=m_water)
+    c_water.region = water_region
+    cells.append(c_water)
 
     # ══════════════════════════════════════════════════════════════════════════
     # GEOMETRY
@@ -154,7 +123,8 @@ def build_model(p):
         "total_x": p["TOTAL_X"],
         "total_y": p["TOTAL_Y"],
         "total_z": p["TOTAL_Z"],
-        "refl_thickness": p["REFL_THICKNESS"],
+        "water_thickness": p["WATER_THICKNESS"],
+        "water_density": water_density,
     }
     return materials, geometry, dims
 
@@ -225,9 +195,9 @@ GEOMETRY (cm)
   Gap (edge-to-edge): {dims['gap']:>8.2f}
   Pitch (center-ctr): {dims['pitch']:>8.4f}
 
-MATERIALS
-  Wall:               {p['WALL_MATERIAL']}
-  Reflector:          {p['REFLECTOR_MATERIAL']} ({p['REFL_THICKNESS']} cm)
+WATER
+  Density:            {dims['water_density']:>8.3f} g/cc
+  Thickness:          {dims['water_thickness']:>8.2f} cm
 
 SIMULATION
   {int(p['PARTICLES'])} particles x {int(p['BATCHES'])} batches ({int(p['INACTIVE'])} inactive)

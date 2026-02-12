@@ -29,7 +29,7 @@ def build_model(p):
     # MATERIALS
     # ══════════════════════════════════════════════════════════════════════════
 
-    m_uf6 = create_uf6(p["ENRICHMENT"], p["UF6_DENSITY"])
+    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["UF6_DENSITY"])
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
 
     refl_mat = p.get("REFLECTOR_MATERIAL", "water")

@@ -15,6 +15,7 @@ import importlib.util
 import os
 import shutil
 import sys
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from datetime import datetime
 from pathlib import Path
 
@@ -26,6 +27,8 @@ from critbuddy.utils import Status, working_directory, setup_logging, get_logger
 from critbuddy.reporting import (
     create_geometry_plot,
     plot_keff,
+    plot_heatmap,
+    generate_report,
     create_voxel_plot,
     get_plot_spec,
     generate_voxel_data,
@@ -270,8 +273,60 @@ def generate_voxel(
             view_interactive(voxel_data)
 
 
+def _run_single_case(args):
+    """
+    Run a single case (for parallel execution).
+
+    Args must be a tuple to work with ProcessPoolExecutor.map():
+        (solver_name, case_data, run_dir, template_dir, safety_limit, omp_threads)
+
+    Returns:
+        dict with case results
+    """
+    solver_name, case_data, run_dir, template_dir, safety_limit, omp_threads = args
+
+    # Set OpenMP threads for this worker
+    if omp_threads:
+        os.environ["OMP_NUM_THREADS"] = str(omp_threads)
+
+    # Recreate solver in this process (avoids pickling issues)
+    if solver_name == "openmc":
+        solver = OpenMCSolver()
+    else:
+        solver = MCNPSolver()
+
+    # Unpack case data
+    case_label = case_data["label"]
+    all_params = case_data["all_params"]
+    user_params = case_data["user_params"]
+
+    params = {**all_params, "CASE_LABEL": case_label}
+    case_name = case_label.replace(" ", "_").replace("-", "")
+    case_dir = Path(run_dir) / "cases" / case_name / solver.name
+    case_dir.mkdir(parents=True, exist_ok=True)
+
+    result = solver.run(
+        params=params,
+        case_label=case_label,
+        case_dir=case_dir,
+        template_dir=Path(template_dir),
+        safety_limit=safety_limit,
+    )
+
+    return {
+        "case": case_label,
+        "solver": solver.name,
+        "keff": result.keff,
+        "std": result.uncertainty,
+        "k2s": result.k2sigma,
+        "status": result.status,
+        "execution_time": result.execution_time,
+        "user_params": user_params,
+    }
+
+
 def run_cases(solver, cases, run_dir, template_dir, safety_limit):
-    """Run all cases with a solver."""
+    """Run all cases with a solver (sequential)."""
     results = []
     original_dir = Path.cwd()
     total_cases = len(cases)
@@ -313,6 +368,70 @@ def run_cases(solver, cases, run_dir, template_dir, safety_limit):
             "user_params": case.user_params,  # Store for CSV output
         })
 
+    return results
+
+
+def run_cases_parallel(solver, cases, run_dir, template_dir, safety_limit, max_workers):
+    """Run all cases with a solver in parallel."""
+    import multiprocessing
+
+    total_cases = len(cases)
+    print(f"\n  Running {solver.name.upper()} solver ({max_workers} workers)...")
+
+    # Calculate OMP threads per worker to avoid oversubscription
+    total_cores = multiprocessing.cpu_count()
+    omp_threads = max(1, total_cores // max_workers)
+    print(f"  OMP_NUM_THREADS={omp_threads} per worker ({total_cores} cores available)")
+
+    # Prepare case data (serializable)
+    case_args = [
+        (
+            solver.name,
+            {"label": c.label, "all_params": c.all_params, "user_params": c.user_params},
+            str(run_dir),
+            str(template_dir),
+            safety_limit,
+            omp_threads,
+        )
+        for c in cases
+    ]
+
+    results = []
+    completed = 0
+
+    with ProcessPoolExecutor(max_workers=max_workers) as executor:
+        futures = {executor.submit(_run_single_case, args): args[1]["label"] for args in case_args}
+
+        for future in as_completed(futures):
+            case_label = futures[future]
+            completed += 1
+
+            try:
+                result = future.result()
+                results.append(result)
+
+                # Print progress
+                if result["status"] in (Status.FAILED, Status.SKIPPED):
+                    status_msg = f"[{result['status'].value}]"
+                else:
+                    status_msg = f"k-eff = {result['keff']:.5f} ± {result['std']:.5f} [{result['status'].value}]"
+                print(f"  [{completed}/{total_cases}] {case_label}: {status_msg}")
+
+            except Exception as e:
+                print(f"  [{completed}/{total_cases}] {case_label}: [ERROR] {e}")
+                results.append({
+                    "case": case_label,
+                    "solver": solver.name,
+                    "keff": 0.0,
+                    "std": 0.0,
+                    "k2s": 0.0,
+                    "status": Status.FAILED,
+                    "execution_time": 0.0,
+                    "user_params": {},
+                })
+
+    # Sort results by case label to maintain consistent ordering
+    results.sort(key=lambda r: r["case"])
     return results
 
 
@@ -597,7 +716,13 @@ Path:       {experiment_dir}
     all_results = {}
 
     for solver in solvers:
-        results = run_cases(solver, cases, run_dir, template_dir, template_class.SAFETY_LIMIT)
+        if args.parallel and args.parallel > 1:
+            results = run_cases_parallel(
+                solver, cases, run_dir, template_dir,
+                template_class.SAFETY_LIMIT, max_workers=args.parallel
+            )
+        else:
+            results = run_cases(solver, cases, run_dir, template_dir, template_class.SAFETY_LIMIT)
         all_results[solver.name] = results
         os.chdir(original_dir)
 
@@ -614,8 +739,22 @@ Path:       {experiment_dir}
                 output_dir=run_dir / "plots",
                 safety_limit=template_class.SAFETY_LIMIT,
             )
+            # Generate heatmaps for 2D sweeps
+            heatmap_paths = plot_heatmap(
+                results_csv,
+                output_dir=run_dir / "plots",
+                safety_limit=template_class.SAFETY_LIMIT,
+            )
+            plot_paths.extend(heatmap_paths)
             if plot_paths:
                 print(f"\nPlots: {run_dir / 'plots'}")
+
+            # Generate report
+            try:
+                report_path = generate_report(run_dir, experiment_path)
+                print(f"Report: {report_path}")
+            except Exception as e:
+                print(f"Warning: Could not generate report: {e}")
 
     # Generate consultant package if requested
     if args.package:
@@ -637,6 +776,7 @@ def main():
     parser.add_argument("--case", help="Run specific case label")
     parser.add_argument("--solver", choices=["openmc", "mcnp", "all"], help="Override solver")
     parser.add_argument("--smoke", action="store_true", help="Quick smoke test")
+    parser.add_argument("--parallel", type=int, metavar="N", help="Run N cases in parallel")
     parser.add_argument("--name", help="Custom name for this run (default: YAML filename)")
     parser.add_argument("--no-report", action="store_true", help="Skip plot generation")
     parser.add_argument("--package", action="store_true", help="Generate consultant verification package")

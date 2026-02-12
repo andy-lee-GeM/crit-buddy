@@ -1,6 +1,6 @@
 Single Cylinder UF6 Criticality - {{CASE_LABEL}}
 c ================================================================================
-c TEMPLATE: single_cylinder
+c TEMPLATE: cylinder
 c PROBLEM:  Vertical cylinder filled with UF6, wall, and reflector
 c ================================================================================
 c CELL CARDS

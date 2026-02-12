@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """
 ================================================================================
-UF6 SHIPPING CYLINDER CRITICALITY MODEL - OpenMC
+SHIPPING CYLINDER CRITICALITY MODEL - OpenMC
 ================================================================================
-Template:   uf6_cylinder
+Template:   shipping_cylinder
 Problem:    Generic UF6 shipping/storage cylinder (5A, 5B, 30B, 48X, 48Y, etc.)
 Geometry:   Cylinder with wall (Monel or carbon steel) and optional reflector
 ================================================================================
@@ -30,7 +30,7 @@ def build_model(p):
     materials_list = []
 
     # UF6 fissile material
-    m_uf6 = create_uf6(p["ENRICHMENT"], p["UF6_DENSITY"])
+    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["UF6_DENSITY"])
     materials_list.append(m_uf6)
 
     # Wall material (from cylinder registry via template)

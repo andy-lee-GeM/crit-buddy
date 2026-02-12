@@ -42,7 +42,6 @@ class RectangularBoxTemplate(ProblemTemplate):
             unit="g/cc",
             description="UF6 density",
         ),
-
         # Box dimensions (internal cavity)
         "length_cm": ParameterSpec(
             type="float",
