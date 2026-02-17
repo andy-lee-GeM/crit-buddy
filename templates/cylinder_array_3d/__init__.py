@@ -21,7 +21,7 @@ class CylinderArray3DTemplate(ProblemTemplate):
     3D array of vertical cylinders with fissile material.
 
     Coordinate system:
-        - X: row direction (up to 50 rows)
+        - X: row direction (up to 150 rows)
         - Y: column direction (up to 10 cols)
         - Z: layer direction (stacked, up to 10 layers)
         - Origin at center of array
@@ -40,7 +40,7 @@ class CylinderArray3DTemplate(ProblemTemplate):
             type="int",
             required=True,
             min=1,
-            max=50,
+            max=150,
             description="Number of rows (X direction)",
         ),
         "cols": ParameterSpec(
@@ -128,17 +128,9 @@ class CylinderArray3DTemplate(ProblemTemplate):
         ),
         "environment_material": ParameterSpec(
             type="enum",
-            options=["water", "humid_air", "air"],
-            default="water",
-            description="Material between units and as reflector",
-        ),
-        "environment_density": ParameterSpec(
-            type="float",
-            default=1.0,
-            min=0.0001,
-            max=1.0,
-            unit="g/cc",
-            description="Environment density (water: 0.001-1.0, air/humid_air: use default)",
+            options=["humid_air", "air"],
+            default="humid_air",
+            description="Material between units and surrounding array",
         ),
         "void_material": ParameterSpec(
             type="enum",
@@ -157,9 +149,15 @@ class CylinderArray3DTemplate(ProblemTemplate):
         "fill_fraction": ParameterSpec(
             type="float",
             default=1.0,
-            min=0.1,
+            min=0.01,
             max=1.0,
-            description="Fill fraction (1.0 = 100%, 0.8 = 80%)",
+            description="Fill fraction (1.0 = 100%, 0.01 = 1%)",
+        ),
+        "boundary_type": ParameterSpec(
+            type="enum",
+            options=["vacuum", "reflective"],
+            default="vacuum",
+            description="Boundary condition type (vacuum=finite, reflective=infinite array)",
         ),
     }
 
@@ -193,7 +191,6 @@ class CylinderArray3DTemplate(ProblemTemplate):
         fissile_density = p["fissile_density"]
         h_to_u_ratio = p.get("h_to_u_ratio", 0.0)
         environment_material = p["environment_material"]
-        environment_density = p["environment_density"]
         void_material = p["void_material"]
 
         # Apply fill fraction to UF6 height
@@ -269,11 +266,12 @@ class CylinderArray3DTemplate(ProblemTemplate):
             "WALL_MATERIAL": p["wall_material"],
             "WALL_DENSITY": wall_density,
             "ENVIRONMENT_MATERIAL": environment_material,
-            "ENVIRONMENT_DENSITY": environment_density,
             "VOID_MATERIAL": void_material,
             # Fill fraction
             "FILL_FRACTION": fill_fraction,
             "FISSILE_HEIGHT": uf6_height,  # Actual fissile height (height * fill_fraction)
+            # Boundary condition
+            "BOUNDARY_TYPE": p.get("boundary_type", "vacuum"),
         }
 
 

@@ -12,7 +12,7 @@ Applications: Stacked storage configurations, warehouse layouts
 
 import openmc
 from critbuddy.core.materials import (
-    create_uf6, create_uo2f2, create_water, get_material, get_density
+    create_uf6, create_uo2f2, get_material, get_density
 )
 
 
@@ -49,13 +49,9 @@ def build_model(p):
     # Wall material
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
 
-    # Environment material (between units and as reflector)
+    # Environment material (between units and surrounding array)
     env_material = p["ENVIRONMENT_MATERIAL"]
-    env_density = p["ENVIRONMENT_DENSITY"]
-    if env_material == "water":
-        m_env = create_water(density=env_density)
-    else:
-        m_env = get_material(env_material, solver="openmc")
+    m_env = get_material(env_material, solver="openmc")
 
     # Void material for unfilled portion of cylinder (if fill_fraction < 1.0)
     fill_fraction = p["FILL_FRACTION"]
@@ -161,12 +157,13 @@ def build_model(p):
                 cylinder_regions.append(-outer_cyl & +z_bot_cap_plane & -z_top_cap_plane)
 
     # Bounding box surfaces
-    x_min = openmc.XPlane(x0=-p["TOTAL_X"]/2, boundary_type="vacuum", name="x_min")
-    x_max = openmc.XPlane(x0=p["TOTAL_X"]/2, boundary_type="vacuum", name="x_max")
-    y_min = openmc.YPlane(y0=-p["TOTAL_Y"]/2, boundary_type="vacuum", name="y_min")
-    y_max = openmc.YPlane(y0=p["TOTAL_Y"]/2, boundary_type="vacuum", name="y_max")
-    z_min = openmc.ZPlane(z0=-p["TOTAL_Z"]/2, boundary_type="vacuum", name="z_min")
-    z_max = openmc.ZPlane(z0=p["TOTAL_Z"]/2, boundary_type="vacuum", name="z_max")
+    boundary_type = p.get("BOUNDARY_TYPE", "vacuum")
+    x_min = openmc.XPlane(x0=-p["TOTAL_X"]/2, boundary_type=boundary_type, name="x_min")
+    x_max = openmc.XPlane(x0=p["TOTAL_X"]/2, boundary_type=boundary_type, name="x_max")
+    y_min = openmc.YPlane(y0=-p["TOTAL_Y"]/2, boundary_type=boundary_type, name="y_min")
+    y_max = openmc.YPlane(y0=p["TOTAL_Y"]/2, boundary_type=boundary_type, name="y_max")
+    z_min = openmc.ZPlane(z0=-p["TOTAL_Z"]/2, boundary_type=boundary_type, name="z_min")
+    z_max = openmc.ZPlane(z0=p["TOTAL_Z"]/2, boundary_type=boundary_type, name="z_max")
 
     # Water cell (everything outside cylinders, inside bounding box)
     water_region = +x_min & -x_max & +y_min & -y_max & +z_min & -z_max
@@ -213,10 +210,10 @@ def build_model(p):
         "fissile_density": actual_fissile_density,
         "h_to_u_ratio": h_to_u,
         "environment_material": env_material,
-        "environment_density": env_density,
         "x_offset": p["X_OFFSET"],
         "y_offset": p["Y_OFFSET"],
         "z_offset": p["Z_OFFSET"],
+        "boundary_type": boundary_type,
     }
 
     return materials, geometry, dims
@@ -332,9 +329,9 @@ FISSILE MATERIAL
   Fissile height:     {dims.get('fissile_height', dims['height']):>8.2f} cm
 
 ENVIRONMENT
-  Material:           {dims.get('environment_material', 'water')}
-  Density:            {dims.get('environment_density', 1.0):>8.4f} g/cc
+  Material:           {dims.get('environment_material', 'humid_air')}
   Thickness:          {dims['reflector_thickness']:>8.2f} cm
+  Boundary:           {dims.get('boundary_type', 'vacuum')}
 
 TOTAL DIMENSIONS
   X:                  {dims['total_x']:>8.2f} cm
