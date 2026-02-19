@@ -94,12 +94,16 @@ def create_water(density: float = 1.0) -> openmc.Material:
     Args:
         density: Water density in g/cm3 (default 1.0, range 0.001 to 1.0)
                  Use lower densities to model mist/fog/steam conditions.
+                 Density ~0.001 represents humid air conditions.
 
     Returns:
         OpenMC Material object for water at specified density.
     """
     # Name reflects density for clarity in outputs
-    if density < 0.99:
+    if density <= 0.01:
+        # Very low density water vapor - effectively humid air environment
+        name = f"Humid_Air_{density:.3f}"
+    elif density < 0.99:
         name = f"Water_{density:.3f}"
     else:
         name = "Water"
@@ -133,6 +137,19 @@ def create_air() -> openmc.Material:
     air.add_nuclide("O16", 0.21)
     air.add_nuclide("Ar40", 0.01)
     return air
+
+
+def create_vacuum() -> openmc.Material:
+    """
+    Create vacuum material for OpenMC.
+
+    Represents evacuated space (e.g., above liquid in partially filled pipes).
+    Uses near-zero density air for visualization in geometry plots.
+    """
+    vacuum = openmc.Material(name="Vacuum")
+    vacuum.set_density("g/cm3", 1e-10)
+    vacuum.add_nuclide("N14", 1.0)
+    return vacuum
 
 
 def create_humid_air() -> openmc.Material:
@@ -599,9 +616,10 @@ MATERIAL_COLORS = {
     "Concrete": (188, 143, 143),    # Rosy brown
 
     # Environment
-    "Air": (135, 206, 250),         # Light sky blue
-    "Humid_Air": (173, 216, 230),   # Light blue (slightly different from dry air)
+    "Air": (173, 216, 230),         # Light blue
+    "Humid_Air": (173, 216, 230),   # Light blue
     "Void": (255, 255, 255),        # White
+    "Vacuum": (255, 230, 230),      # Light pink (distinct from humid air)
 }
 
 
@@ -613,6 +631,9 @@ def get_material_color(name: str) -> tuple[int, int, int]:
     # Handle UO2F2 with H/U ratio suffix (e.g., "UO2F2_H10", "UO2F2_H30")
     if name.startswith("UO2F2"):
         return MATERIAL_COLORS["UO2F2"]
+    # Handle Humid_Air with density suffix (e.g., "Humid_Air_0.001")
+    if name.startswith("Humid_Air"):
+        return MATERIAL_COLORS["Humid_Air"]
     return MATERIAL_COLORS.get(name, (200, 200, 200))
 
 

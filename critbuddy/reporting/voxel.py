@@ -52,13 +52,16 @@ def generate_voxel_data(
     if spec is None:
         spec = auto_plot_spec(geometry)
 
+    # Use spec's max_resolution if available, otherwise use parameter
+    effective_resolution = getattr(spec, 'max_resolution', max_resolution)
+
     # Calculate resolution (proportional to dimensions, capped)
     max_dim = max(spec.width)
-    scale = max_resolution / max_dim if max_dim > 0 else 1.0
+    scale = effective_resolution / max_dim if max_dim > 0 else 1.0
     pixels = (
-        max(min(int(spec.width[0] * scale), max_resolution), 20),
-        max(min(int(spec.width[1] * scale), max_resolution), 20),
-        max(min(int(spec.width[2] * scale * 0.5), max_resolution // 2), 10),
+        max(min(int(spec.width[0] * scale), effective_resolution), 20),
+        max(min(int(spec.width[1] * scale), effective_resolution), 20),
+        max(min(int(spec.width[2] * scale), effective_resolution), 20),
     )
 
     print(f"  Voxel resolution: {pixels[0]} x {pixels[1]} x {pixels[2]}")

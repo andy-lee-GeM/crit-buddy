@@ -1,0 +1,26 @@
+# =============================================================================
+# UO2F2 WET - PIPE ARRAY AT PEAK H/U
+# =============================================================================
+problem: pipe
+name: "Pipe Array - UO2F2 Wet (peak H/U)"
+
+# Array: 2 pipes × 3 rows = 6 pipes total
+cols: 2
+rows: 3
+length_cm: 900
+
+# Sweep parameters
+pipe_size: ["4", "6"]
+gap_cm: [1, 2, 6]
+
+# Material at peak H/U (updated based on H/U sweep - peak at H/U>=50)
+enrichment: 21
+fissile_material: uo2f2
+h_to_u: 50
+
+# Wall
+wall_material: ss304
+
+# Environment
+environment_material: humid_air
+reflector_thickness_cm: 30

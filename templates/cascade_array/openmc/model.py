@@ -55,7 +55,7 @@ def build_model(p):
 
     # Fissile material (UF6 or UO2F2)
     if fissile_type == "uo2f2":
-        h_to_u = p.get("H_TO_U_RATIO", 0.0)
+        h_to_u = p.get("H_TO_U", 0.0)
         m_fissile = create_uo2f2(enrichment, h_to_u=h_to_u)
     else:
         density = p.get("FISSILE_DENSITY", 5.09)
@@ -65,7 +65,7 @@ def build_model(p):
     m_steel = get_material(p["WALL_MATERIAL"], solver="openmc")
 
     # Environment between units (humid air or dry air only - no water)
-    environment = p["ENVIRONMENT_MATERIAL"]
+    environment = p["ENVIRONMENT"]
     if environment == "air":
         m_moderator = create_air()
     else:
@@ -297,9 +297,9 @@ def build_model(p):
         # Materials
         "fissile_material": fissile_type,
         "fissile_density": m_fissile.density,
-        "h_to_u_ratio": p.get("H_TO_U_RATIO", 0.0),
+        "h_to_u": p.get("H_TO_U", 0.0),
         "enrichment": enrichment,
-        "environment_material": environment,
+        "environment": environment,
         "total_cylinders": p["TOTAL_CYLINDERS"],
         "total_cassettes": p["TOTAL_CASSETTES"],
         "cylinders_per_cassette": p["CYLINDERS_PER_CASSETTE"],
@@ -469,10 +469,10 @@ FISSILE MATERIAL
   Type:                 {dims['fissile_material'].upper()}
   Enrichment:           {dims['enrichment']:>8.2f} wt% U-235
   Density:              {dims['fissile_density']:>8.3f} g/cc
-  H/U ratio:            {dims['h_to_u_ratio']:>8.1f}
+  H/U ratio:            {dims['h_to_u']:>8.1f}
 
 ENVIRONMENT
-  Material:             {dims['environment_material']}
+  Material:             {dims['environment']}
 
 SIMULATION
   {int(p['PARTICLES'])} particles x {int(p['BATCHES'])} batches ({int(p['INACTIVE'])} inactive)

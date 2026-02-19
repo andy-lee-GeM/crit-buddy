@@ -1,0 +1,20 @@
+# Cylinder Array (RUTS NaF Traps 1x3) - 24% Enrichment (HALEU Max)
+# 1-D Sweep: Gap between cylinders
+
+problem: cylinder
+name: "RUTS NaF Traps (1x3) - 24% Enrichment"
+
+rows: 1
+cols: 3
+radius_cm: 35.56
+height_cm: 126.5
+
+enrichment: 24
+
+gap_cm: [0, 2, 5, 10, 20]
+
+uf6_density: 5.09
+wall_material: steel
+wall_thickness_cm: 0.6
+water_density: 0.5  # Peak reactivity from Phase 0
+water_thickness_cm: 30

@@ -13,6 +13,8 @@ from .voxel import (
     create_isometric_slices,
 )
 from .excel import generate_lookup_xlsx, generate_cascade_array_xlsx
+from .ticket_report import generate_ticket_report
+from .summary_plots import generate_summary_plots
 
 __all__ = [
     "create_geometry_plot",
@@ -31,4 +33,6 @@ __all__ = [
     "view_interactive",
     "create_voxel_plot",
     "create_isometric_slices",
+    "generate_ticket_report",
+    "generate_summary_plots",
 ]

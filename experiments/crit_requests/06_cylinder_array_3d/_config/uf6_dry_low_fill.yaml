@@ -1,0 +1,45 @@
+# =============================================================================
+# UF6 DRY - LOW FILL SWEEP (0-25%)
+# =============================================================================
+# Purpose: Find critical fill threshold for solid UF6
+# Key Result: Identify fill fraction where k-eff < 0.95
+# =============================================================================
+
+problem: cylinder
+name: "UF6 Dry - Low Fill Sweep"
+
+# -----------------------------------------------------------------------------
+# GEOMETRY - 10-inch diameter vessels in infinite array
+# -----------------------------------------------------------------------------
+rows: 3                         # Unit cell rows (X)
+cols: 4                         # Unit cell cols (Y)
+layers: 5                       # Unit cell layers (Z)
+
+radius_cm: 12.70                # 5-inch inner radius
+height_cm: 100.0                # 1 meter internal height
+wall_material: steel
+wall_thickness_cm: 0.3175       # 1/8 inch wall
+
+gap_xy_cm: 12.70                # 5-inch horizontal gap (wall-to-wall)
+gap_z_cm: 7.62                  # 3-inch vertical gap
+
+# -----------------------------------------------------------------------------
+# MATERIAL - Solid UF6 at theoretical density
+# -----------------------------------------------------------------------------
+enrichment: 21                  # Bounding HALEU (wt% U-235)
+
+fissile_material: uf6
+fissile_density: 5.09           # Solid UF6 theoretical density (g/cc)
+fill_fraction: [0.01, 0.02, 0.05, 0.10, 0.15, 0.20]  # Low fill sweep
+
+# -----------------------------------------------------------------------------
+# ENVIRONMENT - Humid air between units
+# -----------------------------------------------------------------------------
+environment_material: humid_air
+void_material: humid_air
+
+# -----------------------------------------------------------------------------
+# BOUNDARY - Reflective (infinite array)
+# -----------------------------------------------------------------------------
+boundary_type: reflective
+reflector_thickness_cm: 6.35    # = gap_xy/2 for proper unit cell

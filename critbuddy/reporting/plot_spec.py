@@ -28,6 +28,9 @@ class PlotSpec:
     exclude_materials: List[str] = field(default_factory=lambda: ["Air", "Water"])
     """Materials to hide (so you can see inside)."""
 
+    max_resolution: int = 100
+    """Maximum voxels per axis (higher = more detail but slower)."""
+
 
 def auto_plot_spec(geometry: "openmc.Geometry", padding: float = 1.1) -> PlotSpec:
     """

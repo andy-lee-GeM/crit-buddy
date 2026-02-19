@@ -30,7 +30,7 @@ def build_model(p):
     materials_list = []
 
     # UF6 fissile material
-    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["UF6_DENSITY"])
+    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["FISSILE_DENSITY"])
     materials_list.append(m_uf6)
 
     # Wall material (from cylinder registry via template)
@@ -39,8 +39,8 @@ def build_model(p):
 
     # External reflector (if present)
     m_refl = None
-    if p["REFLECTOR_MATERIAL"] != "none" and p["REFL_THICKNESS"] > 0:
-        m_refl = get_material(p["REFLECTOR_MATERIAL"], solver="openmc")
+    if p["ENVIRONMENT"] != "none" and p["REFL_THICKNESS"] > 0:
+        m_refl = get_material(p["ENVIRONMENT"], solver="openmc")
         materials_list.append(m_refl)
 
     materials = openmc.Materials(materials_list)
@@ -65,8 +65,8 @@ def build_model(p):
     # Axial surfaces (z-planes)
     s_z_bottom = openmc.ZPlane(z0=p["Z_BOTTOM"], name="s_z_bottom")
     s_z_top = openmc.ZPlane(z0=p["Z_TOP"], name="s_z_top")
-    s_z_uf6_bottom = openmc.ZPlane(z0=p["Z_UF6_BOTTOM"], name="s_z_uf6_bottom")
-    s_z_uf6_top = openmc.ZPlane(z0=p["Z_UF6_TOP"], name="s_z_uf6_top")
+    s_z_uf6_bottom = openmc.ZPlane(z0=p["Z_FISSILE_BOTTOM"], name="s_z_uf6_bottom")
+    s_z_uf6_top = openmc.ZPlane(z0=p["Z_FISSILE_TOP"], name="s_z_uf6_top")
 
     # Reflector z-boundaries
     if p["REFL_THICKNESS"] > 0:
@@ -219,7 +219,7 @@ CYLINDER TYPE
 
 FISSILE MATERIAL
   Enrichment:         {p['ENRICHMENT']:>8.2f} wt% U-235
-  UF6 Density:        {p['UF6_DENSITY']:>8.3f} g/cc
+  Fissile Density:    {p['FISSILE_DENSITY']:>8.3f} g/cc
   Fill fraction:      {p['FILL_FRACTION']:>8.2f}
 
 CYLINDER GEOMETRY (cm)
@@ -229,8 +229,8 @@ CYLINDER GEOMETRY (cm)
   UF6 height:         {dims['uf6_height']:>8.2f}
   Wall thickness:     {p['WALL_THICKNESS']:>8.4f}
 
-REFLECTOR
-  Material:           {p['REFLECTOR_MATERIAL']}
+ENVIRONMENT
+  Material:           {p['ENVIRONMENT']}
   Thickness:          {dims['refl_thickness']:>8.2f} cm
 
 SIMULATION

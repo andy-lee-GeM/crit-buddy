@@ -34,13 +34,33 @@ class RectangularBoxTemplate(ProblemTemplate):
             unit="wt%",
             description="U-235 enrichment (weight percent)",
         ),
-        "uf6_density": ParameterSpec(
+        "fissile_material": ParameterSpec(
+            type="enum",
+            options=["uf6", "uo2f2"],
+            default="uf6",
+            description="Fissile material type",
+        ),
+        "fissile_density": ParameterSpec(
             type="float",
             default=5.09,
             min=1.0,
-            max=6.0,
+            max=7.0,
             unit="g/cc",
-            description="UF6 density",
+            description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
+        ),
+        "h_to_u": ParameterSpec(
+            type="float",
+            default=0.0,
+            min=0.0,
+            max=500.0,
+            description="H/U atomic ratio for UO2F2 (0 = dry)",
+        ),
+        "fill_fraction": ParameterSpec(
+            type="float",
+            default=1.0,
+            min=0.01,
+            max=1.0,
+            description="Fill fraction (1.0 = full)",
         ),
         # Box dimensions (internal cavity)
         "length_cm": ParameterSpec(
@@ -67,11 +87,10 @@ class RectangularBoxTemplate(ProblemTemplate):
             unit="cm",
             description="Internal height (Z direction)",
         ),
-
         # Wall
         "wall_material": ParameterSpec(
             type="enum",
-            options=["steel", "aluminum", "carbon_steel", "ss304"],
+            options=["steel", "aluminum", "ss304", "monel"],
             default="steel",
             description="Container wall material",
         ),
@@ -83,13 +102,12 @@ class RectangularBoxTemplate(ProblemTemplate):
             unit="cm",
             description="Wall thickness (all 6 faces)",
         ),
-
-        # Reflector
-        "reflector_material": ParameterSpec(
+        # Environment
+        "environment": ParameterSpec(
             type="enum",
             options=["water", "concrete", "air", "none"],
             default="water",
-            description="Reflector material",
+            description="Environment/reflector material",
         ),
         "reflector_thickness_cm": ParameterSpec(
             type="float",
@@ -119,7 +137,7 @@ class RectangularBoxTemplate(ProblemTemplate):
         - Wall extends below Z=0 by wall_thickness
 
         Layers (inside to outside):
-        1. UF6 region
+        1. Fissile region
         2. Wall (6 faces)
         3. Reflector (optional)
         """
@@ -130,10 +148,12 @@ class RectangularBoxTemplate(ProblemTemplate):
         width = p["width_cm"]
         height = p["height_cm"]
         wall_t = p["wall_thickness_cm"]
+        fill_fraction = p.get("fill_fraction", 1.0)
 
-        # Reflector
+        # Environment/Reflector
+        environment = p.get("environment", "water")
         refl_t = p["reflector_thickness_cm"]
-        if p["reflector_material"] == "none":
+        if environment == "none":
             refl_t = 0.0
 
         # X coordinates (centered at 0)
@@ -146,22 +166,27 @@ class RectangularBoxTemplate(ProblemTemplate):
         y_wall = y_inner + wall_t
         y_refl = y_wall + refl_t
 
-        # Z coordinates (bottom of UF6 at Z=0, wall below)
-        z_uf6_bottom = 0.0
-        z_uf6_top = height
+        # Z coordinates (bottom of fissile at Z=0, wall below)
+        z_fissile_bottom = 0.0
+        z_fissile_top = height * fill_fraction
         z_wall_bottom = -wall_t
         z_wall_top = height + wall_t
         z_refl_bottom = z_wall_bottom - refl_t
         z_refl_top = z_wall_top + refl_t
 
-        # Source position (center of UF6 region)
+        # Source position (center of fissile region)
         ksrc_x = 0.0
         ksrc_y = 0.0
-        ksrc_z = height / 2
+        ksrc_z = z_fissile_top / 2
 
         # Material densities
         wall_density = get_density(p["wall_material"])
-        refl_density = get_density(p["reflector_material"]) if p["reflector_material"] != "none" else 0.0
+        env_density = get_density(environment) if environment != "none" else 0.0
+
+        # Fissile material
+        fissile_material = p.get("fissile_material", "uf6")
+        fissile_density = p.get("fissile_density", 5.09)
+        h_to_u = p.get("h_to_u", 0.0)
 
         # Total bounding box dimensions
         total_x = 2 * x_refl
@@ -171,7 +196,10 @@ class RectangularBoxTemplate(ProblemTemplate):
         return {
             # Fissile material
             "ENRICHMENT": p["enrichment"],
-            "UF6_DENSITY": p["uf6_density"],
+            "FISSILE_MATERIAL": fissile_material,
+            "FISSILE_DENSITY": fissile_density,
+            "H_TO_U": h_to_u,
+            "FILL_FRACTION": fill_fraction,
 
             # Internal dimensions
             "LENGTH": length,
@@ -189,8 +217,8 @@ class RectangularBoxTemplate(ProblemTemplate):
             "Y_REFL": y_refl,
 
             # Z bounds
-            "Z_UF6_BOTTOM": z_uf6_bottom,
-            "Z_UF6_TOP": z_uf6_top,
+            "Z_FISSILE_BOTTOM": z_fissile_bottom,
+            "Z_FISSILE_TOP": z_fissile_top,
             "Z_WALL_BOTTOM": z_wall_bottom,
             "Z_WALL_TOP": z_wall_top,
             "Z_REFL_BOTTOM": z_refl_bottom,
@@ -201,10 +229,10 @@ class RectangularBoxTemplate(ProblemTemplate):
             "WALL_THICKNESS": wall_t,
             "WALL_DENSITY": wall_density,
 
-            # Reflector
-            "REFLECTOR_MATERIAL": p["reflector_material"],
+            # Environment
+            "ENVIRONMENT": environment,
+            "ENV_DENSITY": env_density,
             "REFL_THICKNESS": refl_t,
-            "REFL_DENSITY": refl_density,
 
             # Total bounding box
             "TOTAL_X": total_x,

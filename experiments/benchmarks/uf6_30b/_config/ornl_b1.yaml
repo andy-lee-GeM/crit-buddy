@@ -1,7 +1,7 @@
 # ORNL 30B Benchmark - Single Cylinder Parametric Study
 # Based on ORNL/TM-2021/2043
 # Sweep: enrichment and UF6 density
-problem: uf6_30b
+problem: shipping_cylinder
 name: "ORNL 30B Single Cylinder Sweep"
 
 # Sweep parameters

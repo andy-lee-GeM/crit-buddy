@@ -1,0 +1,8 @@
+case,solver,keff,std,keff_2sigma,status,execution_time,enrichment,gap_cm,length_cm,num_pipes,pipe_size,uf6_density,wall_material,water_density,water_thickness_cm
+case_1,openmc,0.42365,0.00081,0.42527,SAFE,234.7,5,0,200,3,4,5.09,ss304,0.5,30
+case_2,openmc,0.43810,0.00075,0.43960,SAFE,227.1,5,1,200,3,4,5.09,ss304,0.5,30
+case_3,openmc,0.44613,0.00075,0.44762,SAFE,220.5,5,2,200,3,4,5.09,ss304,0.5,30
+case_4,openmc,0.45193,0.00084,0.45362,SAFE,108.8,5,5,200,3,4,5.09,ss304,0.5,30
+case_5,openmc,0.41204,0.00085,0.41374,SAFE,91.1,5,10,200,3,4,5.09,ss304,0.5,30
+case_6,openmc,0.33154,0.00069,0.33292,SAFE,74.8,5,20,200,3,4,5.09,ss304,0.5,30
+case_7,openmc,0.30071,0.00083,0.30238,SAFE,65.5,5,30,200,3,4,5.09,ss304,0.5,30

@@ -1,0 +1,33 @@
+# CB-7: GMPEF Phase 1 Mobile Rig Chemical Trap Array - Fill Sweep
+# Step 3: Find critical threshold at worst-case geometry + peak H/U
+#
+# IMPORTANT: Update geometry and h_to_u values after Steps 1 and 2 complete
+
+problem: cylinder
+name: "CB-7 - Fill Sweep"
+
+# Geometry - UPDATE AFTER STEP 1 with worst-case values
+rows: 10           # TODO: Update with worst-case from Step 1
+cols: 10
+layers: 1
+gap_horizontal_cm: 0  # TODO: Update with worst-case from Step 1
+gap_vertical_cm: 0
+radius_cm: 7.62
+height_cm: 121.92
+
+# Material from ticket
+wall_material: steel
+wall_thickness_cm: 0.3175
+
+# H/U - UPDATE AFTER STEP 2 with peak value
+h_to_u: 20  # TODO: Update with peak H/U from Step 2
+
+# Sweep fill fraction (0.1 to 1.0 in 0.1 increments)
+fill_fraction: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+# Fixed for UO2F2 scenario
+enrichment: 20
+fissile_material: uo2f2
+fissile_density: 6.37
+environment: humid_air
+reflector_thickness_cm: 30

@@ -25,12 +25,7 @@ class ShippingCylinderTemplate(ProblemTemplate):
     """
 
     PARAMETERS = {
-        "cylinder_type": ParameterSpec(
-            type="enum",
-            options=list(CYLINDER_REGISTRY.keys()),
-            required=True,
-            description="Cylinder type - dimensions loaded from ANSI N14.1 specs",
-        ),
+        # Fissile material
         "enrichment": ParameterSpec(
             type="float",
             required=True,
@@ -39,26 +34,47 @@ class ShippingCylinderTemplate(ProblemTemplate):
             unit="wt%",
             description="U-235 enrichment (weight percent)",
         ),
-        "uf6_density": ParameterSpec(
+        "fissile_material": ParameterSpec(
+            type="enum",
+            options=["uf6", "uo2f2"],
+            default="uf6",
+            description="Fissile material type",
+        ),
+        "fissile_density": ParameterSpec(
             type="float",
             default=5.09,
             min=1.0,
-            max=6.0,
+            max=7.0,
             unit="g/cc",
-            description="UF6 density",
+            description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
+        ),
+        "h_to_u": ParameterSpec(
+            type="float",
+            default=0.0,
+            min=0.0,
+            max=500.0,
+            description="H/U atomic ratio for UO2F2 (0 = dry)",
         ),
         "fill_fraction": ParameterSpec(
             type="float",
             default=1.0,
-            min=0.1,
+            min=0.01,
             max=1.5,
-            description="Fill fraction (1.0 = full height, >1.0 = over-fill)",
+            description="Fill fraction (1.0 = full, >1.0 = over-fill)",
         ),
-        "reflector_material": ParameterSpec(
+        # Cylinder type (dimensions from registry)
+        "cylinder_type": ParameterSpec(
+            type="enum",
+            options=list(CYLINDER_REGISTRY.keys()),
+            required=True,
+            description="Cylinder type - dimensions from ANSI N14.1 specs",
+        ),
+        # Environment
+        "environment": ParameterSpec(
             type="enum",
             options=["water", "air", "none"],
             default="water",
-            description="External reflector material",
+            description="Environment/reflector material",
         ),
         "reflector_thickness_cm": ParameterSpec(
             type="float",
@@ -66,7 +82,7 @@ class ShippingCylinderTemplate(ProblemTemplate):
             min=0.0,
             max=100.0,
             unit="cm",
-            description="External reflector thickness (30 cm = full reflection)",
+            description="Reflector thickness (30 cm = full reflection)",
         ),
     }
 
@@ -110,9 +126,10 @@ class ShippingCylinderTemplate(ProblemTemplate):
         # Build up radii from inside out
         r_wall_outer = r_inner + wall_t
 
-        # External reflector
+        # Environment/Reflector
+        environment = p.get("environment", "water")
         refl_t = p["reflector_thickness_cm"]
-        if p["reflector_material"] == "none":
+        if environment == "none":
             refl_t = 0.0
         r_refl_outer = r_wall_outer + refl_t
 
@@ -133,7 +150,12 @@ class ShippingCylinderTemplate(ProblemTemplate):
 
         # Material densities
         wall_density = get_density(wall_material)
-        refl_density = get_density(p["reflector_material"]) if p["reflector_material"] != "none" else 0.0
+        env_density = get_density(environment) if environment != "none" else 0.0
+
+        # Fissile material
+        fissile_material = p.get("fissile_material", "uf6")
+        fissile_density = p.get("fissile_density", 5.09)
+        h_to_u = p.get("h_to_u", 0.0)
 
         return {
             # Cylinder type info (for reporting)
@@ -142,7 +164,9 @@ class ShippingCylinderTemplate(ProblemTemplate):
 
             # Fissile material
             "ENRICHMENT": p["enrichment"],
-            "UF6_DENSITY": p["uf6_density"],
+            "FISSILE_MATERIAL": fissile_material,
+            "FISSILE_DENSITY": fissile_density,
+            "H_TO_U": h_to_u,
             "FILL_FRACTION": fill_fraction,
 
             # Cylinder radii
@@ -163,10 +187,10 @@ class ShippingCylinderTemplate(ProblemTemplate):
             "WALL_THICKNESS": wall_t,
             "WALL_DENSITY": wall_density,
 
-            # Reflector
-            "REFLECTOR_MATERIAL": p["reflector_material"],
+            # Environment
+            "ENVIRONMENT": environment,
+            "ENV_DENSITY": env_density,
             "REFL_THICKNESS": refl_t,
-            "REFL_DENSITY": refl_density,
 
             # Dimensions
             "HEIGHT_CM": h_internal,

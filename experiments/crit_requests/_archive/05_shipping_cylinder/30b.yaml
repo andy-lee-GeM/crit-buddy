@@ -1,0 +1,20 @@
+# 30B Product Cylinder - Enrichment Sweep
+# 1-D Sweep: Enrichment
+# Output: Line graph + table showing k-eff vs enrichment
+# Geometry: ANSI N14.1 30B cylinder from registry
+
+problem: shipping_cylinder
+name: "30B Product Cylinder"
+
+# Use standard 30B dimensions from cylinder registry
+cylinder_type: 30b
+
+# 1-D sweep: enrichment
+enrichment: [5, 10, 15, 20]
+
+# UF6 properties
+uf6_density: 3.5  # Typical product density
+
+# Full water reflection (conservative)
+reflector_material: water
+reflector_thickness_cm: 30

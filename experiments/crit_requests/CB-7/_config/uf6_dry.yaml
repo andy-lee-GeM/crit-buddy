@@ -1,0 +1,26 @@
+# CB-7: GMPEF Phase 1 Mobile Rig Chemical Trap Array - UF6 Dry
+# Step 1: Find worst-case geometry
+
+problem: cylinder
+name: "CB-7 - UF6 Dry"
+
+# Geometry sweep (from ticket)
+rows: [1, 5, 10]
+cols: 10
+layers: 1
+gap_horizontal_cm: [0, 2.54, 10.16]
+gap_vertical_cm: 0
+radius_cm: 7.62
+height_cm: 121.92
+
+# Material from ticket
+wall_material: steel
+wall_thickness_cm: 0.3175
+
+# Fixed for UF6 dry scenario
+enrichment: 20
+fissile_material: uf6
+fissile_density: 5.09
+fill_fraction: 1.0
+environment: humid_air
+reflector_thickness_cm: 30

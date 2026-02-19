@@ -1,0 +1,31 @@
+# CB-8: Parallel Pipe Sweep and Sensitivity Curves - H/U Sweep
+# Step 2: Find peak moderation at worst-case geometry
+#
+# IMPORTANT: Update geometry and enrichment values after Step 1 completes
+# Use the single worst-case values (highest k-eff from uf6_dry results)
+
+problem: pipe
+name: "CB-8 - H/U Sweep"
+
+# Geometry - UPDATE AFTER STEP 1 with worst-case values
+rows: 6            # TODO: Update with worst-case from Step 1
+cols: 6            # TODO: Update with worst-case from Step 1
+gap_cm: 0          # TODO: Update with worst-case from Step 1
+pipe_size: "6"       # TODO: Update with worst-case from Step 1
+length_cm: 1000
+
+# Material from ticket
+wall_material: aluminum
+
+# Enrichment - UPDATE AFTER STEP 1 (use highest if doing bounding case)
+enrichment: 100    # TODO: Update with worst-case from Step 1
+
+# Sweep H/U ratio
+h_to_u: [0, 10, 20, 30, 40, 50]
+
+# Fixed for UO2F2 scenario
+fissile_material: uo2f2
+fissile_density: 6.37
+fill_fraction: 1.0
+environment: humid_air
+reflector_thickness_cm: 30

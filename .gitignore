@@ -24,6 +24,9 @@ build/
 # Local config (contains machine-specific paths)
 config.yaml
 
+# Environment secrets
+.env
+
 # IDE
 .vscode/
 .idea/
@@ -31,3 +34,6 @@ config.yaml
 # OS
 .DS_Store
 Thumbs.db
+
+# Local docs (not tracked)
+docs/

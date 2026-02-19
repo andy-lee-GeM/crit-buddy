@@ -55,7 +55,7 @@ class CascadeArrayTemplate(ProblemTemplate):
             unit="g/cc",
             description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
         ),
-        "h_to_u_ratio": ParameterSpec(
+        "h_to_u": ParameterSpec(
             type="float",
             required=False,
             default=0.0,
@@ -161,7 +161,7 @@ class CascadeArrayTemplate(ProblemTemplate):
         # =====================================================================
         # ENVIRONMENT
         # =====================================================================
-        "environment_material": ParameterSpec(
+        "environment": ParameterSpec(
             type="enum",
             options=["humid_air", "air"],
             default="humid_air",
@@ -299,8 +299,8 @@ class CascadeArrayTemplate(ProblemTemplate):
             "ENRICHMENT": p["enrichment"],
             "FISSILE_MATERIAL": p["fissile_material"],
             "FISSILE_DENSITY": p["fissile_density"],
-            "H_TO_U_RATIO": p.get("h_to_u_ratio", 0.0),
-            "ENVIRONMENT_MATERIAL": p["environment_material"],
+            "H_TO_U": p.get("h_to_u", 0.0),
+            "ENVIRONMENT": p["environment"],
         }
 
 

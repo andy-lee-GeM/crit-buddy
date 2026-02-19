@@ -34,14 +34,14 @@ def build_model(p):
     # MATERIALS (from shared library)
     # ══════════════════════════════════════════════════════════════════════════
 
-    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["UF6_DENSITY"])
+    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["FISSILE_DENSITY"])
 
     # Wall material
     wall_mat = p.get("WALL_MATERIAL", "steel")
     m_wall = get_material(wall_mat, solver="openmc")
 
     # Reflector material
-    refl_mat = p.get("REFLECTOR_MATERIAL", "water")
+    refl_mat = p.get("ENVIRONMENT", "water")
     if refl_mat != "none":
         m_refl = get_material(refl_mat, solver="openmc")
         materials = openmc.Materials([m_uf6, m_wall, m_refl])
@@ -66,8 +66,8 @@ def build_model(p):
     y_wall_pos = openmc.YPlane(y0=p["Y_WALL"], name="y_wall_pos")
 
     # Z planes (bottom of UF6 at Z=0)
-    z_uf6_bottom = openmc.ZPlane(z0=p["Z_UF6_BOTTOM"], name="z_uf6_bottom")
-    z_uf6_top = openmc.ZPlane(z0=p["Z_UF6_TOP"], name="z_uf6_top")
+    z_uf6_bottom = openmc.ZPlane(z0=p["Z_FISSILE_BOTTOM"], name="z_uf6_bottom")
+    z_uf6_top = openmc.ZPlane(z0=p["Z_FISSILE_TOP"], name="z_uf6_top")
     z_wall_bottom = openmc.ZPlane(z0=p["Z_WALL_BOTTOM"], name="z_wall_bottom")
     z_wall_top = openmc.ZPlane(z0=p["Z_WALL_TOP"], name="z_wall_top")
 
@@ -214,7 +214,7 @@ def print_summary(p, dims):
 ================================================================================
 FISSILE MATERIAL
   Enrichment:         {p['ENRICHMENT']:>8.2f} wt% U-235
-  Density:            {p['UF6_DENSITY']:>8.3f} g/cc
+  Density:            {p['FISSILE_DENSITY']:>8.3f} g/cc
 
 GEOMETRY (cm)
   Internal L x W x H: {dims['length']:>6.2f} x {dims['width']:>6.2f} x {dims['height']:>6.2f}
@@ -224,7 +224,7 @@ GEOMETRY (cm)
 
 MATERIALS
   Wall:               {p['WALL_MATERIAL']}
-  Reflector:          {p['REFLECTOR_MATERIAL']}
+  Reflector:          {p['ENVIRONMENT']}
 
 SIMULATION
   {int(p['PARTICLES'])} particles x {int(p['BATCHES'])} batches ({int(p['INACTIVE'])} inactive)

@@ -1,0 +1,19 @@
+# Single Cylinder - 24% Enrichment (HALEU Max)
+# 2-D Heatmap: Radius vs Height
+# Output: Heatmap with safe/critical boundary contour
+
+problem: cylinder
+name: "Single Cylinder - 24% Enrichment"
+
+enrichment: 24
+
+# 2-D sweep: radius x height
+radius_cm: [10, 20, 30, 45, 60]
+height_cm: [30, 75, 125, 175, 200]
+
+# Fixed parameters
+uf6_density: 5.09
+wall_material: aluminum
+wall_thickness_cm: 0.32
+reflector_material: water
+reflector_thickness_cm: 30

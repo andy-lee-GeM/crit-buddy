@@ -1,0 +1,7 @@
+case,solver,keff,std,keff_2sigma,status,execution_time,enrichment,fissile_density,fissile_material,gap_cm,h_to_u,length_cm,num_pipes,pipe_size,rows,wall_material,water_density,water_thickness_cm
+case_1,openmc,1.34045,0.00104,1.34253,CRITICAL,10.5,21,5.09,uo2f2,1,25,900,2,4,3,ss304,0.001,30
+case_2,openmc,1.29811,0.00115,1.30040,CRITICAL,10.1,21,5.09,uo2f2,2,25,900,2,4,3,ss304,0.001,30
+case_3,openmc,1.19815,0.00099,1.20014,CRITICAL,8.9,21,5.09,uo2f2,6,25,900,2,4,3,ss304,0.001,30
+case_4,openmc,1.50482,0.00093,1.50668,CRITICAL,10.1,21,5.09,uo2f2,1,25,900,2,6,3,ss304,0.001,30
+case_5,openmc,1.48415,0.00102,1.48619,CRITICAL,9.2,21,5.09,uo2f2,2,25,900,2,6,3,ss304,0.001,30
+case_6,openmc,1.42295,0.00100,1.42495,CRITICAL,9.4,21,5.09,uo2f2,6,25,900,2,6,3,ss304,0.001,30

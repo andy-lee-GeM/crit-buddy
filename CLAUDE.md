@@ -37,14 +37,58 @@ All analyses use bounding (conservative) assumptions:
 - Registry materials: `create_aluminum()`, `create_steel()`, `create_water()`, etc.
 - MCNP equivalents: `mcnp_uf6()`, `mcnp_aluminum()`, etc.
 
-### Experiment Structure
+### Experiment Directory Structure
 
-Experiments organized by enrichment level:
-- `enr_05/` - 5% (LEU limit)
-- `enr_10/` - 10%
-- `enr_15/` - 15% (HALEU)
-- `enr_20/` - 20% (HALEU)
-- `enr_24/` - 24% (HALEU max for these studies)
+Each experiment follows this standard structure (ticket ID format: `CRIT-NNN`):
+
+```
+CRIT-001/
+├── _config/                    # Input YAML configs
+│   ├── uf6_dry.yaml
+│   ├── uo2f2_hu_sweep.yaml
+│   └── uo2f2_fill_sweep.yaml
+├── _validation/                # Geometry validation (from --validate)
+│   ├── geometry.png
+│   └── voxel_3d.png
+├── runs/                       # Raw run outputs (auto-generated)
+│   ├── uf6_dry/
+│   │   └── {timestamp}/
+│   │       ├── config.yaml
+│   │       ├── results.csv
+│   │       └── cases/
+│   └── uo2f2_hu_sweep/
+├── results/                    # Final deliverables
+│   ├── plots/
+│   ├── RESULTS_SUMMARY.md
+│   └── CALCULATION_REPORT.docx
+└── EXPERIMENT_PLAN.md          # Required: defines scope and methodology
+```
+
+**Key directories:**
+- `_config/` — Input YAML configs (config name → run folder name)
+- `_validation/` — Geometry checks before running
+- `runs/` — Raw outputs from each config run
+- `results/` — Final plots, tables, and reports
+
+### Experiment Planning
+
+**Always create `EXPERIMENT_PLAN.md` before running.** See `08_pipe_array_3d/experiment-plan.md` as a template.
+
+The plan must include:
+
+1. **Objective** — What question are we answering?
+2. **Configuration Summary** — Table of parameters and values
+3. **Scenarios** — List of configs with purpose and case counts
+4. **Sweep Matrix** — Detailed case breakdown per scenario
+5. **Phases** — Setup → Validate → Run → Analyze workflow
+6. **Success Criteria** — How do we know we're done?
+
+Example scenario naming:
+- `uf6_air.yaml` — UF6 with air environment
+- `uf6_water.yaml` — UF6 with water reflection
+- `uo2f2_dry_air.yaml` — Dry UO2F2 with air
+- `uo2f2_wet_water.yaml` — Wet UO2F2 with water reflection
+- `uo2f2_hu_sweep.yaml` — H/U ratio sweep to find peak
 
 ### Output Interpretation
 
@@ -115,17 +159,105 @@ Each template has:
 
 **Available templates:**
 
-*Generic (user-specified dimensions):*
-- `cylinder` - Vertical cylinder (traps, vessels, pumps)
-- `cylinder_array` - Rectangular array of vertical cylinders
-- `process_pipe` - Single horizontal pipe
-- `parallel_pipes` - 1-3 parallel horizontal pipes
-- `rectangular_box` - Rectangular parallelepiped (HEPA filters, chemical traps)
+| Template | Description | Use Case |
+|----------|-------------|----------|
+| `cylinder` | Single or 3D array of vertical cylinders | Traps, vessels, pumps, storage arrays |
+| `pipe` | Single or 2D array of horizontal pipes | Process piping, cascade lines |
+| `rectangular_box` | Rectangular parallelepiped | HEPA filters, chemical traps |
+| `shipping_cylinder` | Single ANSI N14.1 cylinder | Shipping/storage containers (30B, 48Y, etc.) |
+| `cascade_array` | Hierarchical cylinder array | Cascade enrichment plants |
 
-*Shipping cylinders (dimensions from ANSI N14.1 registry):*
-- `shipping_cylinder` - Single shipping cylinder (30B, 48Y, 5A, 5B, etc.)
-- `shipping_cylinder_array` - 3D array of stacked shipping cylinders
-- `shipping_cylinder_stacked` - Horizontal shipping cylinders in pyramid/rectangular stacks
+### Template Quick Reference
+
+#### `cylinder`
+
+Single or 3D array of vertical cylinders (rows × cols × layers).
+
+```yaml
+problem: cylinder
+name: "Cylinder Array Analysis"
+enrichment: 21              # wt% U-235 [REQUIRED]
+
+# Array (defaults to single cylinder)
+rows: 3                     # 1-150 (default: 1)
+cols: 4                     # 1-10 (default: 1)
+layers: 2                   # 1-10 (default: 1)
+gap_horizontal_cm: 12.7     # Horizontal gap between cylinder walls
+gap_vertical_cm: 7.62       # Vertical gap between layers
+# OR use gap_cm for uniform spacing in all directions
+
+# Cylinder geometry
+radius_cm: 12.7             # Inner radius [REQUIRED]
+height_cm: 100              # Cylinder height [REQUIRED]
+wall_material: steel        # steel, aluminum, ss304, monel
+wall_thickness_cm: 0.6      # Wall thickness
+
+# Environment
+environment: humid_air      # humid_air, air, water
+reflector_thickness_cm: 30  # 0-100 cm
+```
+
+#### `pipe`
+
+Single or 2D array of horizontal pipes (rows × cols).
+
+```yaml
+problem: pipe
+name: "Pipe Array Analysis"
+enrichment: 21              # wt% U-235 [REQUIRED]
+
+# Array (defaults to single pipe)
+rows: 2                     # 1-10 (default: 1) - vertical stacking
+cols: 3                     # 1-10 (default: 1) - side by side
+gap_cm: 5.0                 # 0-100 cm (default: 5.0)
+
+# Pipe geometry
+pipe_size: "2"              # NPS: 1/8, 1/4, ..., 8, or "custom"
+length_cm: 100              # 1-1000 cm [REQUIRED]
+
+# Environment
+wall_material: ss304        # ss304, steel, aluminum, monel
+environment: humid_air      # humid_air, air, water
+reflector_thickness_cm: 30  # 0-100 cm
+```
+
+#### `shipping_cylinder`
+
+Single ANSI N14.1 cylinder with dimensions from registry.
+
+```yaml
+problem: shipping_cylinder
+name: "30B Cylinder Analysis"
+enrichment: 5               # wt% U-235 [REQUIRED]
+cylinder_type: 30B          # 5A, 5B, 30B, 48X, 48Y, 48G, 48O [REQUIRED]
+
+# Environment
+environment: water          # water, air, none
+reflector_thickness_cm: 30  # 0-100 cm
+```
+
+#### Standard Safety Case Configs
+
+For any template, the standard 3-step analysis uses:
+
+```yaml
+# uf6_dry.yaml - Step 1
+fissile_material: uf6
+fissile_density: 5.09
+fill_fraction: 1.0
+
+# uo2f2_hu_sweep.yaml - Step 2
+fissile_material: uo2f2
+fissile_density: 6.37
+fill_fraction: 1.0
+h_to_u: [0, 10, 20, 30, 50]
+
+# uo2f2_fill_sweep.yaml - Step 3
+fissile_material: uo2f2
+fissile_density: 6.37
+h_to_u: {peak from step 2}
+fill_fraction: [0.1, 0.25, 0.5, 0.75, 1.0]
+```
 
 ### Experiments Directory
 
@@ -134,13 +266,9 @@ experiments/
 ├── benchmarks/           # Validation against published results
 │   └── uf6_30b/          # ORNL 30B cylinder benchmarks
 └── crit_requests/        # Current criticality analysis requests
-    ├── PLAN.md           # Execution plan and status
-    ├── 01_single_cylinder/   # Traps, vessels, pumps
-    ├── 02_process_pipe/      # Single pipes
-    ├── 03_parallel_pipes/    # Cascade lines
-    ├── 04_cylinder_array/    # Trap arrays
-    ├── 05_shipping_cylinder/ # 30B, 48Y cylinders
-    └── 06_cylinder_array_3d/ # 3D cylinder arrays
+    ├── CRIT-001/             # Ticket-based naming
+    ├── CRIT-002/
+    └── _archive/             # Old numbered experiments (reference)
 ```
 
 ### Experiment YAML Format
@@ -151,8 +279,8 @@ name: "My Analysis"               # Human-readable name
 enrichment: 20.0                  # Fixed parameter
 radius_cm: [10, 15, 20, 25, 30]   # Swept parameter (creates 5 cases)
 height_cm: [50, 100, 150, 200]    # Another sweep (creates 5×4 = 20 cases)
-reflector_material: water         # Fixed reflector
-uf6_density: 5.09                 # UF6 density (g/cc)
+environment: water                # Environment/reflector material
+fissile_density: 5.09             # Fissile material density (g/cc)
 ```
 
 Lists in parameters trigger cartesian product expansion into multiple cases.
@@ -200,37 +328,41 @@ Skills are reusable workflows for common tasks. Invoke with `/skill-name`.
 
 ### `/calculation-report` - Generate Formal Calculation Report
 
-Transforms experiment results into a formal calculation document following the standard template structure.
+Transforms experiment results into a formal Safe-by-Design calculation document.
 
 **Usage:**
 ```
-/calculation-report
+/calculation-report [experiment_directory]
 ```
 
 **What it does:**
-1. Finds completed experiment runs with `results.csv`
-2. Generates structured markdown report with:
-   - References, Purpose, Inputs, Assumptions, Methods, Results, Conclusions
-   - Geometry visualization
-   - k-eff tables and heatmaps
-   - Line plots (k-eff vs parameter by enrichment)
-3. Converts to formatted Word document (.docx)
+1. Gathers data from `runs/*/results.csv` and `EXPERIMENT_PLAN.md`
+2. Generates structured markdown report demonstrating safe-by-design:
+   - Executive Summary with key finding and margins table
+   - Critical threshold analysis (fill fraction where k-eff becomes critical)
+   - Accumulation analysis (max credible fissile buildup)
+   - Safety margin calculation (threshold / accumulation)
+3. Creates briefing slide outline for PPTX generation
+4. Converts to formatted Word document (.docx)
 
 **Report sections:**
-- **Section 2 (Purpose)**: Narrative explaining what question the analysis answers
-- **Section 3 (Inputs)**: Geometry image, configuration tables, parameter ranges
-- **Section 6 (Results)**: Tables + plots for each condition (worst-case moderation, flooded)
-- **Section 7 (Conclusions)**: Minimum safe values table, key findings
+- **Executive Summary**: Key finding, margins table, conclusion
+- **Section 6 (Results)**: k-eff vs fill fraction, critical thresholds
+- **Section 7 (Accumulation)**: Mechanism, inputs, calculation
+- **Section 8 (Safety Margin)**: Critical threshold vs max accumulation
+- **Appendices**: Geometry, density calcs, accumulation derivation, raw data
 
-**Key terminology used:**
-- "Worst-Case Moderation" (0.5 g/cc) - not "optimal moderation"
-- Water as both "moderator" (between units) and "reflector" (surrounding array)
+**Key terminology:**
+- **Safe-by-Design**: Critical threshold >> max accumulation (no controls needed)
+- **Critical Threshold**: Fill fraction or mass where k-eff + 2σ ≥ 0.95
+- **Safety Margin**: Expressed as "X×" multiplier (e.g., "8.6×")
 - SAFE/MARGINAL/CRITICAL status based on k-eff + 2σ
 
 **Output files:**
-- `{EXPERIMENT}_CALCULATION.md` - Markdown report
-- `{EXPERIMENT}_CALCULATION.docx` - Formatted Word document
-- `plots/` - Generated visualizations
+- `results/{NAME}_CALCULATION.md` - Full calculation report
+- `results/{NAME}_CALCULATION.docx` - Formatted Word document
+- `results/{NAME}_BRIEFING.md` - Slide outline for PPTX
+- `results/plots/` - Generated visualizations
 
 ### `/review-experiment` - Review Experiment Before Running
 

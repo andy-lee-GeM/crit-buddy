@@ -1,0 +1,28 @@
+# CB-8: Parallel Pipe Sweep and Sensitivity Curves - UF6 Dry
+# Step 1: Find worst-case geometry
+#
+# NOTE: This is a large sweep. Using representative values to keep case count manageable.
+# Full sweep would be: enrichment x rows x cols x gap x pipe_size
+
+problem: pipe
+name: "CB-8 - UF6 Dry"
+
+# Geometry sweep (from ticket, using representative values)
+rows: [1, 2, 3, 4, 5, 6]
+cols: [1, 2, 3, 4, 5, 6]
+gap_cm: [0, 10, 20, 30, 40, 50]
+pipe_size: ["3", "4", "6"]
+length_cm: 1000
+
+# Material from ticket
+wall_material: aluminum
+
+# Enrichment sweep for sensitivity curves
+enrichment: [75, 85, 95, 100]
+
+# Fixed for UF6 dry scenario
+fissile_material: uf6
+fissile_density: 5.09
+fill_fraction: 1.0
+environment: humid_air
+reflector_thickness_cm: 30
