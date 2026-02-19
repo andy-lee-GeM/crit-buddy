@@ -37,3 +37,6 @@ Thumbs.db
 
 # Local docs (not tracked)
 docs/
+
+# Experiments (local only)
+experiments/
