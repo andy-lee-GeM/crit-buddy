@@ -71,8 +71,61 @@ python run_study.py experiments/crit_requests/CB-7/_config/uf6_dry.yaml --valida
 python run_study.py config.yaml --case "rows=5, gap=10"
 ```
 
+## Requirements
+
+- Python 3.9+
+- OpenMC with Python bindings
+- Nuclear data library (ENDF/B-VII.1 or similar)
+
 ## Setup
 
-1. Install OpenMC with Python bindings
-2. Copy `config.yaml.example` to `config.yaml` and set paths
-3. Run studies with `python run_study.py`
+### 1. Install OpenMC
+
+Follow the [OpenMC installation guide](https://docs.openmc.org/en/stable/usersguide/install.html) or use conda:
+
+```bash
+conda create -n openmc-env python=3.11
+conda activate openmc-env
+conda install -c conda-forge openmc
+```
+
+### 2. Install Python dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+### 3. Download nuclear data
+
+```bash
+# Download ENDF/B-VII.1 cross-sections (~1.5 GB)
+python -c "import openmc.data; openmc.data.download_nndc_data('endfb71')"
+```
+
+### 4. Create config.yaml
+
+```bash
+cp config.yaml.example config.yaml
+```
+
+Edit `config.yaml` with your paths:
+
+```yaml
+# Conda environment name
+conda_env: openmc-env
+
+# Path to cross-sections XML
+openmc_cross_sections: /path/to/cross_sections.xml
+
+# Optional: MCNP configuration
+mcnp:
+  executable: /path/to/mcnp6
+  tasks: 4
+  timeout: 3600
+```
+
+### 5. Verify installation
+
+```bash
+python run_study.py --help
+```

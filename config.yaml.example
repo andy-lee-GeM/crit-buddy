@@ -1,0 +1,18 @@
+# ================================================================================
+# CRIT-BUDDY CONFIGURATION
+# ================================================================================
+# Copy this file to config.yaml and edit paths for your system
+# config.yaml is not tracked in git
+
+# Conda environment name for OpenMC
+conda_env: openmc-env
+
+# OpenMC cross-sections path
+# Download with: python -c "import openmc.data; openmc.data.download_nndc_data('endfb71')"
+openmc_cross_sections: /path/to/endfb-vii.1-hdf5/cross_sections.xml
+
+# MCNP configuration (optional - only needed if using MCNP solver)
+mcnp:
+  executable: /path/to/mcnp6
+  tasks: 4
+  timeout: 3600
