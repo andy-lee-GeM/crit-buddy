@@ -1,7 +1,0 @@
-case,solver,keff,std,keff_2sigma,status,execution_time,boundary_type,cols,enrichment,environment_material,fill_fraction,fissile_density,fissile_material,gap_xy_cm,gap_z_cm,h_to_u_ratio,height_cm,layers,radius_cm,reflector_thickness_cm,rows,void_material,wall_material,wall_thickness_cm
-case_1,openmc,0.77053,0.00061,0.77175,SAFE,1066.1,reflective,4,21,humid_air,0.01,5.09,uf6,12.7,7.62,0.0,100.0,5,12.7,6.35,3,humid_air,steel,0.3175
-case_2,openmc,0.95867,0.00066,0.95998,MARGINAL,683.2,reflective,4,21,humid_air,0.02,5.09,uf6,12.7,7.62,0.0,100.0,5,12.7,6.35,3,humid_air,steel,0.3175
-case_3,openmc,1.13800,0.00063,1.13925,CRITICAL,507.4,reflective,4,21,humid_air,0.05,5.09,uf6,12.7,7.62,0.0,100.0,5,12.7,6.35,3,humid_air,steel,0.3175
-case_4,openmc,1.21823,0.00074,1.21971,CRITICAL,218.3,reflective,4,21,humid_air,0.1,5.09,uf6,12.7,7.62,0.0,100.0,5,12.7,6.35,3,humid_air,steel,0.3175
-case_5,openmc,1.24928,0.00070,1.25068,CRITICAL,168.4,reflective,4,21,humid_air,0.15,5.09,uf6,12.7,7.62,0.0,100.0,5,12.7,6.35,3,humid_air,steel,0.3175
-case_6,openmc,1.26414,0.00076,1.26567,CRITICAL,78.2,reflective,4,21,humid_air,0.2,5.09,uf6,12.7,7.62,0.0,100.0,5,12.7,6.35,3,humid_air,steel,0.3175
