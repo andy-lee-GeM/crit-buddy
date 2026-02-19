@@ -1,0 +1,42 @@
+# OpenMC output files
+statepoint.*.h5
+summary.h5
+tallies.out
+*.xml
+
+# Experiment run outputs
+experiments/*/runs/
+
+# MCNP output files
+runtpe*
+srctp*
+outp*
+meshtal*
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Local config (contains machine-specific paths)
+config.yaml
+
+# Environment secrets
+.env
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Local docs (not tracked)
+docs/
+
+# Experiments (local only)
+experiments/

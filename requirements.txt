@@ -1,0 +1,10 @@
+# Core dependencies
+openmc
+numpy
+pandas
+matplotlib
+h5py
+pyyaml
+
+# Optional (for MCNP support)
+# mcnp must be installed separately
