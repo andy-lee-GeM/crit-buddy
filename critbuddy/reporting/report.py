@@ -16,6 +16,8 @@ Also generates calculation reports following formal template structure:
 - Methods
 - Results
 - Conclusions
+
+Template-based reports use: docs/templates/cb-final-report-template.md
 """
 
 from pathlib import Path
@@ -23,6 +25,12 @@ from typing import Optional, List, Dict, Union
 from datetime import datetime
 import pandas as pd
 import shutil
+import csv
+
+
+# Project root for accessing templates
+PROJECT_ROOT = Path(__file__).parent.parent.parent
+TEMPLATE_PATH = PROJECT_ROOT / "docs" / "templates" / "cb-final-report-template.md"
 
 
 def generate_report(
@@ -792,3 +800,236 @@ def generate_calculation_report(
         f.write("\n".join(lines))
 
     return output_path
+
+
+def generate_template_report(
+    experiment_dir: Union[str, Path],
+    ticket_id: str,
+    title: Optional[str] = None,
+) -> Path:
+    """
+    Generate a report using the standard template (docs/templates/cb-final-report-template.md).
+
+    This function collects results from all runs in an experiment directory and
+    fills in the template placeholders.
+
+    Args:
+        experiment_dir: Path to experiment directory (e.g., experiments/crit_requests/CB-10)
+        ticket_id: Ticket ID (e.g., "CB-10")
+        title: Report title (default: derived from directory name)
+
+    Returns:
+        Path to generated report file (results/REPORT.md)
+    """
+    experiment_dir = Path(experiment_dir)
+    runs_dir = experiment_dir / "runs"
+    results_dir = experiment_dir / "results"
+    results_dir.mkdir(parents=True, exist_ok=True)
+
+    # Load template
+    if not TEMPLATE_PATH.exists():
+        raise FileNotFoundError(f"Template not found: {TEMPLATE_PATH}")
+    template = TEMPLATE_PATH.read_text()
+
+    # Collect results from all runs
+    uf6_results = _load_latest_results(runs_dir / "uf6_dry")
+    hu_results = _load_latest_results(runs_dir / "uo2f2_hu_sweep")
+
+    # Collect fill sweep results (may be in uo2f2_fill_sweeps/ or uo2f2_fill_sweep/)
+    fill_results = []
+    fill_sweeps_dir = runs_dir / "uo2f2_fill_sweeps"
+    single_fill_dir = runs_dir / "uo2f2_fill_sweep"
+
+    if fill_sweeps_dir.exists():
+        # Multiple fill sweep cases
+        for case_dir in sorted(fill_sweeps_dir.iterdir()):
+            if case_dir.is_dir():
+                case_results = _load_latest_results(case_dir)
+                if case_results:
+                    fill_results.extend(case_results)
+    elif single_fill_dir.exists():
+        fill_results = _load_latest_results(single_fill_dir)
+
+    # Extract key metrics
+    uf6_max_keff = max((float(r['keff_2sigma']) for r in uf6_results), default=0)
+    uf6_max_row = max(uf6_results, key=lambda r: float(r['keff'])) if uf6_results else {}
+
+    # Find peak H/U
+    peak_hu = 0
+    if hu_results:
+        peak_row = max(hu_results, key=lambda r: float(r['keff']))
+        peak_hu = int(float(peak_row.get('h_to_u', 0)))
+
+    # Find critical threshold from fill results
+    critical_threshold = "N/A"
+    if fill_results:
+        sorted_fill = sorted(fill_results, key=lambda r: float(r.get('fill_fraction', 0)))
+        for i in range(len(sorted_fill) - 1):
+            k1 = float(sorted_fill[i]['keff_2sigma'])
+            k2 = float(sorted_fill[i + 1]['keff_2sigma'])
+            f1 = float(sorted_fill[i]['fill_fraction']) * 100
+            f2 = float(sorted_fill[i + 1]['fill_fraction']) * 100
+            if k1 < 0.95 <= k2:
+                # Linear interpolation
+                crit = f1 + (f2 - f1) * (0.95 - k1) / (k2 - k1)
+                critical_threshold = f"~{crit:.0f}%"
+                break
+
+    # Build geometry table
+    geometry_table = ""
+    if uf6_results:
+        r = uf6_results[0]
+        for key in ['rows', 'cols', 'layers', 'radius_cm', 'height_cm', 'pipe_size',
+                    'length_cm', 'gap_cm', 'gap_horizontal_cm', 'gap_vertical_cm']:
+            if key in r:
+                geometry_table += f"| {key} | {r[key]} |\n"
+
+    # Build UF6 results table
+    uf6_table = _format_results_table(uf6_results, ['keff', 'keff_2sigma', 'status'])
+
+    # Build H/U results table
+    hu_table = _format_results_table(hu_results, ['h_to_u', 'keff', 'keff_2sigma', 'status'])
+
+    # Build fill results table
+    fill_table = _format_results_table(fill_results, ['fill_fraction', 'keff', 'keff_2sigma', 'status'])
+
+    # Extract other values
+    enrichment = uf6_results[0].get('enrichment', '?') if uf6_results else '?'
+    fissile_density = uf6_results[0].get('fissile_density', '5.09') if uf6_results else '5.09'
+
+    # Worst-case geometry description
+    worst_geom = []
+    for key in ['rows', 'cols', 'pipe_size', 'gap_cm', 'gap_horizontal_cm']:
+        if key in uf6_max_row:
+            worst_geom.append(f"{key}={uf6_max_row[key]}")
+    worst_case_geometry = ", ".join(worst_geom) if worst_geom else "See results table"
+
+    # UO2F2 max k-eff (from fill results at 100%)
+    uo2f2_max = 0
+    for r in fill_results:
+        if float(r.get('fill_fraction', 0)) >= 0.99:
+            k2s = float(r['keff_2sigma'])
+            if k2s > uo2f2_max:
+                uo2f2_max = k2s
+
+    # Status determination
+    uf6_status = "SAFE" if uf6_max_keff < 0.95 else ("MARGINAL" if uf6_max_keff < 1.0 else "CRITICAL")
+    uo2f2_status = "SAFE" if uo2f2_max < 0.95 else ("MARGINAL" if uo2f2_max < 1.0 else "CRITICAL")
+
+    # Takeaways
+    takeaways = []
+    if uf6_status == "SAFE":
+        takeaways.append(f"- UF6 dry scenario is **subcritical** (k+2σ = {uf6_max_keff:.3f})")
+    if critical_threshold != "N/A":
+        takeaways.append(f"- UO2F2 wet critical threshold: **{critical_threshold} fill**")
+    takeaways_str = "\n".join(takeaways) if takeaways else "See detailed results above."
+
+    # Additional plots (list any found)
+    plots_dir = experiment_dir / "summary_plots"
+    additional_plots = ""
+    if plots_dir.exists():
+        for plot in sorted(plots_dir.glob("*.png")):
+            if plot.name not in ['geometry.png', 'keff_vs_fill_fraction.png', 'keff_vs_h_to_u.png']:
+                additional_plots += f"\n### {plot.stem.replace('_', ' ').title()}\n\n![{plot.stem}](plots/{plot.name})\n"
+
+    # Total cases
+    total_cases = len(uf6_results) + len(hu_results) + len(fill_results)
+
+    # Fill template
+    report = template.format(
+        TICKET_ID=ticket_id,
+        TITLE=title or experiment_dir.name,
+        DATE=datetime.now().strftime('%Y-%m-%d'),
+        DESCRIPTION=f"Criticality safety analysis for {ticket_id}",
+        OBJECTIVE="Determine safe operating envelope and critical thresholds",
+        GEOMETRY_SUMMARY=worst_case_geometry,
+        GEOMETRY_TABLE=geometry_table,
+        FISSILE_DENSITY=fissile_density,
+        ENRICHMENT=enrichment,
+        WORST_CASE_GEOMETRY=worst_case_geometry,
+        UF6_RESULTS_TABLE=uf6_table,
+        PEAK_HU=peak_hu,
+        HU_RESULTS_TABLE=hu_table,
+        CRITICAL_THRESHOLD=critical_threshold.replace("~", "").replace("%", ""),
+        FILL_RESULTS_TABLE=fill_table,
+        UF6_KEFF_MAX=f"{uf6_max_keff:.4f}",
+        UF6_K2SIGMA=f"{uf6_max_keff:.4f}",
+        UF6_STATUS=uf6_status,
+        UO2F2_KEFF_MAX=f"{uo2f2_max:.4f}",
+        UO2F2_K2SIGMA=f"{uo2f2_max:.4f}",
+        UO2F2_STATUS=uo2f2_status,
+        TAKEAWAYS=takeaways_str,
+        ADDITIONAL_PLOTS=additional_plots,
+        TOTAL_CASES=total_cases,
+    )
+
+    # Write report
+    output_path = results_dir / "REPORT.md"
+    output_path.write_text(report)
+
+    print(f"Generated: {output_path}")
+    return output_path
+
+
+def _load_latest_results(run_dir: Path) -> List[Dict]:
+    """Load results from the latest run in a directory."""
+    if not run_dir.exists():
+        return []
+
+    # Find latest
+    latest_link = run_dir / "latest"
+    if latest_link.exists():
+        latest = latest_link
+    else:
+        dirs = [d for d in run_dir.iterdir() if d.is_dir() and d.name[0].isdigit()]
+        if not dirs:
+            return []
+        latest = max(dirs, key=lambda d: d.name)
+
+    results_csv = latest / "results.csv"
+    if not results_csv.exists():
+        return []
+
+    with open(results_csv, 'r') as f:
+        reader = csv.DictReader(f)
+        return list(reader)
+
+
+def _format_results_table(results: List[Dict], display_cols: List[str]) -> str:
+    """Format results as markdown table."""
+    if not results:
+        return "No results available."
+
+    # Get all columns
+    all_cols = list(results[0].keys())
+    cols = [c for c in display_cols if c in all_cols]
+
+    if not cols:
+        return "No matching columns."
+
+    lines = []
+    lines.append("| " + " | ".join(cols) + " |")
+    lines.append("|" + "|".join(["---"] * len(cols)) + "|")
+
+    for r in results[:20]:  # Limit to 20 rows
+        row_vals = []
+        for col in cols:
+            val = r.get(col, '')
+            if col in ['keff', 'keff_2sigma', 'std']:
+                try:
+                    row_vals.append(f"{float(val):.4f}")
+                except ValueError:
+                    row_vals.append(str(val))
+            elif col == 'fill_fraction':
+                try:
+                    row_vals.append(f"{float(val)*100:.0f}%")
+                except ValueError:
+                    row_vals.append(str(val))
+            else:
+                row_vals.append(str(val))
+        lines.append("| " + " | ".join(row_vals) + " |")
+
+    if len(results) > 20:
+        lines.append(f"\n*... and {len(results) - 20} more rows (see all_results.csv)*")
+
+    return "\n".join(lines)

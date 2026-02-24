@@ -62,7 +62,7 @@ class PipeTemplate(ProblemTemplate):
             default=1.0,
             min=0.01,
             max=1.0,
-            description="Fill fraction (1.0 = full)",
+            description="Fill fraction by HEIGHT (0=empty, 0.5=half, 1.0=full). Note: not volume fraction.",
         ),
         # Array configuration
         "rows": ParameterSpec(
@@ -223,9 +223,11 @@ class PipeTemplate(ProblemTemplate):
 
         # Fill fraction (for partial fill)
         fill_fraction = p.get("fill_fraction", 1.0)
-        # For horizontal pipe, fill_height is the Z-coordinate of liquid surface
-        # relative to pipe center. Goes from -r_inner (empty) to +r_inner (full)
-        fill_height = (fill_fraction * 2 - 1) * r_inner  # Linear approximation
+        # Height-based fill: fill_fraction maps linearly to z-coordinate
+        # 0.0 = empty (z = -r), 0.5 = half height (z = 0), 1.0 = full (z = +r)
+        # Note: This is HEIGHT fraction, not volume fraction.
+        # At 50% height, volume is 50%. At 25% height, volume is ~20%.
+        fill_height = (fill_fraction * 2 - 1) * r_inner
 
         # Total bounding box
         total_x = 2 * x_total

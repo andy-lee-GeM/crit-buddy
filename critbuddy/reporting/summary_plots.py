@@ -329,11 +329,197 @@ def generate_summary_plots(
     return generated
 
 
+def plot_fill_sweep_overlay(
+    results_by_geometry: Dict[str, List[Dict]],
+    output_path: Path,
+    title: str = "Fill Fraction Sweep - All Geometries"
+) -> None:
+    """
+    Create overlay plot with one fill% curve per geometry.
+
+    Each line represents a different geometry configuration, allowing
+    comparison of critical thresholds across all geometries.
+
+    Args:
+        results_by_geometry: Dict mapping geometry label to results list
+                            e.g. {"3\" pipe, gap=0": [...], "4\" pipe, gap=10": [...]}
+        output_path: Path to save the plot
+        title: Plot title
+    """
+    if not results_by_geometry:
+        return
+
+    fig, ax = plt.subplots(figsize=(12, 8))
+
+    # Color palette for different geometries
+    n_geometries = len(results_by_geometry)
+    colors = plt.cm.viridis(np.linspace(0.1, 0.9, n_geometries))
+
+    # Track critical thresholds for annotation
+    critical_thresholds = {}
+
+    for i, (label, results) in enumerate(results_by_geometry.items()):
+        if not results:
+            continue
+
+        fill_fractions = [float(r['fill_fraction']) * 100 for r in results]
+        keff_2sigma = [float(r['keff_2sigma']) for r in results]
+
+        # Sort by fill fraction
+        sorted_data = sorted(zip(fill_fractions, keff_2sigma))
+        fill_fractions, keff_2sigma = zip(*sorted_data)
+
+        # Plot line
+        ax.plot(fill_fractions, keff_2sigma, 'o-',
+                color=colors[i], label=label, linewidth=2, markersize=6)
+
+        # Find critical threshold (where k+2σ crosses 0.95)
+        for j in range(len(fill_fractions) - 1):
+            if keff_2sigma[j] < 0.95 <= keff_2sigma[j + 1]:
+                # Linear interpolation
+                crit_fill = fill_fractions[j] + (fill_fractions[j + 1] - fill_fractions[j]) * \
+                           (0.95 - keff_2sigma[j]) / (keff_2sigma[j + 1] - keff_2sigma[j])
+                critical_thresholds[label] = crit_fill
+                break
+
+    # Safety lines
+    ax.axhline(y=0.95, color='orange', linestyle='--', linewidth=2,
+               label='Safe limit (k+2σ = 0.95)')
+    ax.axhline(y=1.0, color='red', linestyle='--', linewidth=2,
+               label='Critical (k+2σ = 1.0)')
+
+    # Shade regions
+    ymin, ymax = ax.get_ylim()
+    ax.axhspan(0, 0.95, alpha=0.05, color=SAFE_COLOR)
+    ax.axhspan(0.95, 1.0, alpha=0.05, color=MARGINAL_COLOR)
+    ax.axhspan(1.0, max(ymax, 1.5), alpha=0.05, color=CRITICAL_COLOR)
+
+    ax.set_xlabel('Fill Fraction (%)', fontsize=12)
+    ax.set_ylabel('k-eff + 2σ', fontsize=12)
+    ax.set_title(title, fontsize=14, fontweight='bold')
+
+    # Position legend outside plot if many geometries
+    if n_geometries > 6:
+        ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), fontsize=9)
+    else:
+        ax.legend(loc='best', fontsize=9)
+
+    ax.grid(True, alpha=0.3)
+    ax.set_xlim(0, 105)
+
+    # Set y-axis limits
+    all_keff = []
+    for results in results_by_geometry.values():
+        all_keff.extend([float(r['keff_2sigma']) for r in results])
+    if all_keff:
+        ymin = max(0.3, min(all_keff) - 0.1)
+        ymax = min(1.8, max(all_keff) + 0.1)
+        ax.set_ylim(ymin, ymax)
+
+    plt.tight_layout()
+    plt.savefig(output_path, dpi=150, bbox_inches='tight')
+    plt.close()
+    print(f"Saved: {output_path}")
+
+    # Print critical thresholds summary
+    if critical_thresholds:
+        print("\nCritical thresholds (k+2σ = 0.95):")
+        for label, threshold in sorted(critical_thresholds.items(), key=lambda x: x[1]):
+            print(f"  {label}: ~{threshold:.0f}% fill")
+
+
+def generate_fill_overlay_from_runs(
+    experiment_dir: str,
+    output_path: Optional[Path] = None,
+    title: str = "Fill Fraction Sweep - All Geometries",
+) -> Optional[Path]:
+    """
+    Generate overlay fill% plot from multiple fill sweep runs.
+
+    Looks for fill sweep results in runs/uo2f2_fill_sweep_*/ directories
+    and creates an overlay plot with one curve per geometry.
+
+    Args:
+        experiment_dir: Path to experiment directory
+        output_path: Output path for plot (default: summary_plots/fill_overlay.png)
+        title: Plot title
+
+    Returns:
+        Path to generated plot, or None if no data found
+    """
+    exp_path = Path(experiment_dir)
+    runs_dir = exp_path / "runs"
+
+    if not runs_dir.exists():
+        print(f"No runs directory found: {runs_dir}")
+        return None
+
+    # Find all fill sweep runs
+    fill_runs = list(runs_dir.glob("uo2f2_fill_sweep_*"))
+
+    # Also check for single fill sweep
+    single_fill = runs_dir / "uo2f2_fill_sweep"
+    if single_fill.exists():
+        fill_runs.append(single_fill)
+
+    if not fill_runs:
+        print("No fill sweep runs found")
+        return None
+
+    # Load results from each run
+    results_by_geometry = {}
+
+    for run_dir in fill_runs:
+        latest = find_latest_run(run_dir)
+        if not latest:
+            continue
+
+        results = load_results(latest / "results.csv")
+        if not results:
+            continue
+
+        # Generate geometry label from run name or first result
+        if run_dir.name.startswith("uo2f2_fill_sweep_"):
+            label = run_dir.name.replace("uo2f2_fill_sweep_", "")
+        else:
+            # Try to extract geometry info from results
+            r = results[0]
+            parts = []
+            if 'pipe_size' in r:
+                parts.append(f'{r["pipe_size"]}" pipe')
+            if 'gap_cm' in r:
+                parts.append(f'gap={r["gap_cm"]}cm')
+            if 'rows' in r and 'cols' in r:
+                parts.append(f'{r["rows"]}x{r["cols"]}')
+            label = ", ".join(parts) if parts else run_dir.name
+
+        results_by_geometry[label] = results
+
+    if not results_by_geometry:
+        print("No valid results found in fill sweep runs")
+        return None
+
+    # Set output path
+    if output_path is None:
+        plots_dir = exp_path / "summary_plots"
+        plots_dir.mkdir(exist_ok=True)
+        output_path = plots_dir / "fill_overlay.png"
+
+    # Generate plot
+    plot_fill_sweep_overlay(results_by_geometry, output_path, title)
+
+    return output_path
+
+
 if __name__ == "__main__":
     import sys
 
     if len(sys.argv) < 2:
         print("Usage: python summary_plots.py <experiment_dir>")
+        print("       python summary_plots.py <experiment_dir> --fill-overlay")
         sys.exit(1)
 
-    generate_summary_plots(sys.argv[1])
+    if "--fill-overlay" in sys.argv:
+        generate_fill_overlay_from_runs(sys.argv[1])
+    else:
+        generate_summary_plots(sys.argv[1])

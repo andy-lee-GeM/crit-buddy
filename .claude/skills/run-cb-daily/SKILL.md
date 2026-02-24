@@ -74,14 +74,19 @@ A daily workflow to process criticality modeling requests from YouTrack through 
 
 ### Phase 1: Pull YouTrack
 
-1. Query YouTrack API for tickets with status "Ready":
-   ```
-   GET /api/issues?query=project:CRIT+State:Ready
+1. **Fetch tickets using the unified YouTrack CLI:**
+   ```bash
+   python scripts/youtrack/youtrack_cli.py fetch-ready
    ```
 
-2. For each ticket, read the ticket description to extract parameters from the markdown table.
+2. **For a specific ticket:**
+   ```bash
+   python scripts/youtrack/youtrack_cli.py fetch CB-10 --json
+   ```
 
-3. If no tickets in Ready state, report and exit.
+3. For each ticket, read the ticket description to extract parameters from the markdown table.
+
+4. If no tickets in Ready state, report and exit.
 
 ### Phase 2: Setup Experiment
 
@@ -196,23 +201,19 @@ This generates:
 
 ### Phase 4: Update YouTrack
 
+Use the unified YouTrack CLI for all operations:
+
 1. **Move ticket to "In Progress":**
-   ```
-   POST /api/issues/{TICKET_ID}/commands
-   Body: {"query": "State In Progress"}
-   ```
-
-2. **Attach experiment plan and geometry:**
-   ```
-   POST /api/issues/{TICKET_ID}/attachments
-   Files: experiment-plan.md, _validation/geometry.png
+   ```bash
+   python scripts/youtrack/youtrack_cli.py update-status {TICKET_ID} "In Progress"
    ```
 
-3. **Add comment:**
+2. **Add comment:**
+   ```bash
+   python scripts/youtrack/youtrack_cli.py comment {TICKET_ID} "Experiment setup complete. Geometry validated. Ready for review."
    ```
-   POST /api/issues/{TICKET_ID}/comments
-   Body: "Experiment setup complete. Geometry validated. Ready for review."
-   ```
+
+Note: File attachments will be uploaded in Phase 7 along with results.
 
 ### Phase 5: Review Experiment (Approval Gate)
 
@@ -290,37 +291,143 @@ Example: If `h_to_u=20` gives highest k-eff:
 h_to_u: 20  # Fixed at peak (was [0, 10, 20, 30, 40, 50])
 ```
 
-**Step 3: Fill Sweep - Find Critical Threshold**
+**Step 3: Fill Sweep - ALL Geometries**
 
-```bash
-python run_study.py experiments/crit_requests/{TICKET_ID}/_config/uo2f2_fill_sweep.yaml
-```
+**IMPORTANT: Run fill sweep for EACH geometry case from Step 1, not just worst-case.**
 
-Output: `runs/uo2f2_fill_sweep/{timestamp}/results.csv`
+1. **Create configs folder for fill sweeps:**
+   ```
+   _config/uo2f2_fill_sweeps/
+   ├── case_1.yaml  # pipe_size=3, gap=0
+   ├── case_2.yaml  # pipe_size=3, gap=10
+   ├── case_3.yaml  # pipe_size=4, gap=0
+   └── ...          # One config per geometry from Step 1
+   ```
+
+2. **Each fill sweep config uses:**
+   - Fixed geometry from one Step 1 case
+   - Peak H/U from Step 2
+   - Sweep fill_fraction: [0.1, 0.2, ..., 1.0]
+
+   Example `_config/uo2f2_fill_sweeps/case_1.yaml`:
+   ```yaml
+   problem: pipe
+   name: "{TICKET_ID} - Fill Sweep (3\" pipe, gap=0)"
+
+   # Fixed geometry from Step 1 case
+   pipe_size: "3"
+   gap_cm: 0
+   rows: 2
+   cols: 3
+   length_cm: 1000
+
+   # Peak H/U from Step 2
+   h_to_u: 20
+
+   # Sweep fill fraction
+   fill_fraction: [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1.0]
+
+   # Fixed for UO2F2
+   fissile_material: uo2f2
+   fissile_density: 6.37
+   enrichment: {enrichment}
+   environment: humid_air
+   reflector_thickness_cm: 30
+   ```
+
+3. **Run all fill sweeps:**
+   ```bash
+   # Run each config - outputs go to runs/uo2f2_fill_sweeps/{timestamp}/case_N/
+   for config in experiments/crit_requests/{TICKET_ID}/_config/uo2f2_fill_sweeps/*.yaml; do
+       python run_study.py "$config"
+   done
+   ```
+
+4. **Output structure:**
+   ```
+   runs/uo2f2_fill_sweeps/{timestamp}/
+   ├── all_results.csv      # Combined results from all cases
+   ├── case_1/results.csv
+   ├── case_2/results.csv
+   └── case_N/results.csv
+   ```
 
 **After Step 3:**
-- Review results.csv to find the **critical threshold**
-- This is the fill fraction where k-eff + 2σ ≥ 0.95
-- If all fill fractions are SAFE, the configuration is safe-by-design
+- Generate overlay plot showing ALL fill% curves:
+  ```bash
+  python -c "from critbuddy.reporting.summary_plots import generate_fill_overlay_from_runs; generate_fill_overlay_from_runs('experiments/crit_requests/{TICKET_ID}')"
+  ```
+- The overlay plot shows critical threshold for each geometry
+- Identify which geometries are safe-by-design vs. require fill limits
 
 ### Phase 7: Generate Report
 
 After all runs complete:
 
-1. **Generate summary plots** from `runs/*/results.csv`
+1. **Generate summary plots**:
+   ```bash
+   PYTHONPATH=/path/to/crit-buddy python -c "
+   from critbuddy.reporting.summary_plots import plot_fill_sweep, load_results
+   from pathlib import Path
+   results = load_results(Path('experiments/crit_requests/{TICKET_ID}/runs/uo2f2_fill_sweep/latest/results.csv'))
+   plots_dir = Path('experiments/crit_requests/{TICKET_ID}/results/plots')
+   plots_dir.mkdir(parents=True, exist_ok=True)
+   plot_fill_sweep(results, plots_dir / 'fill_sweep.png', '{TICKET_ID}: Fill Fraction Sweep')
+   "
+   ```
 
-2. **Generate TICKET_SUMMARY.md** with:
-   - Safety finding (1-line conclusion)
-   - Status table (SAFE/MARGINAL/CRITICAL for each scenario)
-   - Critical threshold (fill % where system becomes unsafe)
-   - Worst-case geometry parameters
-   - Peak H/U ratio
-   - Results tables and plots
+2. **Attach files to YouTrack**:
+   - `geometry.png` - Geometry cross-sections
+   - `fill_sweep.png` - k-eff vs fill fraction plot
+   - `all_results.csv` - Combined raw data from all runs
+   - Upload via YouTrack API attachments endpoint
+   - Images will be referenced by filename in the comment
 
-3. **Update YouTrack:**
-   - Post summary as comment
-   - Attach TICKET_SUMMARY.md and summary plots
-   - Move ticket to "Complete"
+3. **Post FULL REPORT as YouTrack comment** with:
+   - Executive summary table (key metrics + status)
+   - Complete data tables for ALL steps (not just summaries)
+   - Image references (YouTrack renders attached images inline)
+   - Safety determination and conclusions
+
+   **IMPORTANT:** The comment should contain the COMPLETE report so reviewers can see everything directly in YouTrack without downloading attachments. Include:
+   - All k-eff values from Step 1 (geometry sweep)
+   - All k-eff values from Step 2 (H/U sweep)
+   - All k-eff values from Step 3 (fill sweep)
+   - Worst-case geometry identification
+   - Critical threshold (or "SAFE BY DESIGN" if none)
+   - Safety margins
+
+4. **Mark ticket complete:**
+   ```bash
+   python scripts/youtrack/youtrack_cli.py mark-complete {TICKET_ID}
+   ```
+
+**Example YouTrack comment structure:**
+```markdown
+## {TICKET_ID}: Analysis Complete - FINAL REPORT
+
+### Executive Summary
+| Metric | Value | Status |
+|--------|-------|--------|
+| UF6 k-eff (max) | X.XXX | SAFE/MARGINAL/CRITICAL |
+| UO2F2 k-eff (max) | X.XXX | SAFE/MARGINAL/CRITICAL |
+| Critical threshold | XX% / None | Status |
+
+### Step 1: UF6 Dry Results (N cases)
+[Full data table with all geometry cases]
+
+### Step 2: H/U Sweep Results
+[Full data table]
+
+### Step 3: Fill Sweep Results
+[Full data table]
+
+![Fill Sweep](fill_sweep.png)
+![Geometry](geometry.png)
+
+### Conclusions
+[Safety determination, key findings, recommendations]
+```
 
 ---
 
@@ -330,8 +437,11 @@ After all runs complete:
 experiments/crit_requests/{TICKET_ID}/
 ├── _config/
 │   ├── uf6_dry.yaml           # Geometry sweep config
-│   ├── uo2f2_hu_sweep.yaml    # H/U sweep (updated with worst-case geometry)
-│   └── uo2f2_fill_sweep.yaml  # Fill sweep (updated with worst-case + peak H/U)
+│   ├── uo2f2_hu_sweep.yaml    # H/U sweep (worst-case geometry)
+│   └── uo2f2_fill_sweeps/     # All fill sweep configs in one folder
+│       ├── case_1.yaml        # pipe_size=3, gap=0
+│       ├── case_2.yaml        # pipe_size=3, gap=10
+│       └── case_N.yaml        # etc.
 ├── _validation/
 │   ├── geometry.png           # 2D cross-sections
 │   └── voxel_3d.png           # 3D visualization
@@ -343,20 +453,29 @@ experiments/crit_requests/{TICKET_ID}/
 │   │       └── cases/
 │   ├── uo2f2_hu_sweep/
 │   │   └── {timestamp}/
-│   │       ├── config.yaml
-│   │       ├── results.csv
-│   │       └── cases/
-│   └── uo2f2_fill_sweep/
+│   │       └── ...
+│   └── uo2f2_fill_sweeps/     # All fill sweeps under one directory
 │       └── {timestamp}/
-│           ├── config.yaml
-│           ├── results.csv
-│           └── cases/
+│           ├── all_results.csv     # Combined results from all geometries
+│           ├── case_1/
+│           │   ├── config.yaml
+│           │   ├── results.csv
+│           │   └── cases/
+│           ├── case_2/
+│           │   └── ...
+│           └── case_N/
+├── results/                   # FINAL DELIVERABLE
+│   ├── REPORT.md              # Generated from template
+│   ├── all_results.csv
+│   └── plots/
+│       ├── geometry.png
+│       ├── hu_sweep.png
+│       └── fill_overlay.png   # All geometries on one plot
 ├── summary_plots/
-│   ├── uf6_dry_geometry.png
+│   ├── geometry_comparison.png
 │   ├── hu_sweep.png
-│   └── fill_sweep.png
-├── experiment-plan.md
-└── TICKET_SUMMARY.md
+│   └── fill_overlay.png
+└── experiment-plan.md
 ```
 
 ---
@@ -390,24 +509,29 @@ experiments/crit_requests/{TICKET_ID}/
 │                         ITERATIVE SAFETY CASE                              │
 ├────────────────────────────────────────────────────────────────────────────┤
 │                                                                            │
-│  Step 1: UF6 Dry                                                           │
-│  ├─ Sweep: gap_cm: [5, 10, 15, 20]                                         │
-│  ├─ Output: k-eff for each gap                                             │
-│  └─ Find: WORST-CASE GEOMETRY → gap_cm = 5 (highest k-eff)                 │
+│  Step 1: UF6 Dry (Geometry Sweep)                                          │
+│  ├─ Sweep: gap_cm: [5, 10, 15], pipe_size: [3, 4, 6]                       │
+│  ├─ Output: k-eff for each geometry (9 cases)                              │
+│  ├─ Find: WORST-CASE for H/U sweep → gap=5, pipe=6                         │
+│  └─ Record: ALL geometry cases for Step 3                                  │
 │                    ↓                                                       │
-│  Step 2: H/U Sweep                                                         │
-│  ├─ Fixed: gap_cm: 5 (worst-case from Step 1)                              │
+│  Step 2: H/U Sweep (at worst-case geometry)                                │
+│  ├─ Fixed: gap_cm: 5, pipe_size: 6 (worst-case from Step 1)                │
 │  ├─ Sweep: h_to_u: [0, 10, 20, 30, 40, 50]                                 │
 │  ├─ Output: k-eff for each H/U                                             │
 │  └─ Find: PEAK H/U → h_to_u = 20 (highest k-eff)                           │
 │                    ↓                                                       │
-│  Step 3: Fill Sweep                                                        │
-│  ├─ Fixed: gap_cm: 5 (worst-case), h_to_u: 20 (peak)                       │
-│  ├─ Sweep: fill_fraction: [0.1, 0.2, ..., 1.0]                             │
-│  ├─ Output: k-eff vs fill                                                  │
-│  └─ Find: CRITICAL THRESHOLD → fill where k-eff + 2σ ≥ 0.95               │
+│  Step 3: Fill Sweep (ALL geometries at peak H/U)                           │
+│  ├─ For EACH geometry from Step 1:                                         │
+│  │   ├─ Fixed: geometry + h_to_u: 20 (peak)                                │
+│  │   └─ Sweep: fill_fraction: [0.1, 0.2, ..., 1.0]                         │
+│  ├─ Output: k-eff vs fill for ALL geometries (9 curves)                    │
+│  ├─ Generate: fill_overlay.png (all curves on one plot)                    │
+│  └─ Find: CRITICAL THRESHOLD for each geometry                             │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-**Key Insight:** Each step uses fixed values from the previous step. We're finding the bounding case (worst geometry, peak moderation) before determining the safety threshold.
+**Key Change:** Step 3 now runs fill sweep for ALL geometries (not just worst-case).
+This produces an overlay plot showing fill% curves for every geometry, making it
+easy to compare critical thresholds across configurations.

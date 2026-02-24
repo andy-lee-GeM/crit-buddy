@@ -4,11 +4,36 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Crit-Buddy is a parametric nuclear criticality safety analysis framework using Monte Carlo codes (OpenMC and MCNP). It automates parametric criticality studies by sweeping user-defined parameters, running simulations with multiple solvers, and generating verification packages for independent review.
+**Crit-Buddy** is a nuclear criticality safety analysis tool. It answers: *"Will this geometry go critical?"*
+
+**What it does:**
+1. Takes geometry descriptions (pipe arrays, cylinder arrays, shipping containers)
+2. Runs Monte Carlo simulations (OpenMC/MCNP) to calculate k-eff
+3. Generates reports with safety thresholds for engineers
+
+**Standard 3-Step Safety Case:**
+```
+Step 1: UF6 Dry (Geometry Sweep)
+→ Find worst-case geometry, confirm subcritical for dry UF6
+
+Step 2: H/U Sweep (at worst-case geometry)
+→ Find peak moderation (optimal H/U ratio)
+
+Step 3: Fill Sweep (at worst-case + peak H/U)
+→ Find critical threshold (fill % where k+2σ ≥ 0.95)
+```
+
+**Output:** Reports telling engineers:
+- UF6 max k-eff (geometry safety margin)
+- UO2F2 critical threshold (fill % limit for wet conditions)
+
+**Workflow:** See `experiments/crit_requests/WORKFLOW.md`
+
+**Report Template:** See `docs/templates/cb-final-report-template.md`
 
 ## Current Work
 
-See `experiments/crit_requests/PLAN.md` for the current experiment execution plan and status.
+Active tickets are in `experiments/crit_requests/CB-*/`
 
 ## Criticality Safety Approach
 
@@ -117,6 +142,55 @@ Example scenario naming:
 
 # Use specific solver (openmc, mcnp, or all)
 /home/andylee/anaconda3/envs/openmc-env/bin/python run_study.py experiments/crit_requests/02_process_pipe/enr_24/nps_sweep.yaml --solver openmc
+```
+
+## YouTrack Integration
+
+Unified client for ticket management. Requires `YOUTRACK_TOKEN` env var and `youtrack` config in `config.yaml`.
+
+### CLI Commands
+
+```bash
+# Fetch tickets
+python scripts/youtrack/youtrack_cli.py fetch-ready              # All Ready tickets
+python scripts/youtrack/youtrack_cli.py fetch CB-10              # Single ticket
+python scripts/youtrack/youtrack_cli.py fetch CB-10 --json       # JSON output
+
+# Push results to ticket
+python scripts/youtrack/youtrack_cli.py push-results CB-10 experiments/crit_requests/CB-10/results
+
+# Update ticket status
+python scripts/youtrack/youtrack_cli.py update-status CB-10 "In Progress"
+python scripts/youtrack/youtrack_cli.py mark-complete CB-10
+python scripts/youtrack/youtrack_cli.py mark-failed CB-10 "Error message"
+
+# Add comment
+python scripts/youtrack/youtrack_cli.py comment CB-10 "Analysis started"
+
+# Template forms
+python scripts/youtrack/youtrack_cli.py list-forms
+python scripts/youtrack/youtrack_cli.py create-form pipe
+```
+
+### Python API
+
+```python
+from critbuddy.integrations.youtrack import YouTrackClient
+
+client = YouTrackClient()
+
+# Read operations
+tickets = client.get_ready_tickets()
+ticket = client.get_ticket("CB-10")
+
+# Update operations
+client.mark_in_progress("CB-10")
+client.add_comment("CB-10", "Analysis started")
+client.attach_file("CB-10", Path("results/plot.png"))
+client.mark_complete("CB-10")
+
+# Push full results (CSV, plots, report as comment)
+client.push_results("CB-10", Path("experiments/CB-10/results"))
 ```
 
 ## Architecture

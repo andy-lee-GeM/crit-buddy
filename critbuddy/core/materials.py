@@ -79,11 +79,11 @@ def create_steel() -> openmc.Material:
     """Create stainless steel 316 for OpenMC."""
     steel = openmc.Material(name="Steel")
     steel.set_density("g/cm3", 8.0)
-    steel.add_nuclide("Fe56", 0.68)
-    steel.add_nuclide("Cr52", 0.17)
-    steel.add_nuclide("Ni58", 0.12)
-    steel.add_nuclide("Mo96", 0.025)
-    steel.add_nuclide("Mn55", 0.005)
+    steel.add_nuclide("Fe56", 0.68, percent_type='wo')
+    steel.add_nuclide("Cr52", 0.17, percent_type='wo')
+    steel.add_nuclide("Ni58", 0.12, percent_type='wo')
+    steel.add_nuclide("Mo96", 0.025, percent_type='wo')
+    steel.add_nuclide("Mn55", 0.005, percent_type='wo')
     return steel
 
 
@@ -281,6 +281,7 @@ def create_uo2f2(enrichment_pct: float, h_to_u: float = 0.0,
     mat.add_nuclide("F19", f_atoms, percent_type="ao")
     if h_atoms > 0:
         mat.add_nuclide("H1", h_atoms, percent_type="ao")
+        mat.add_s_alpha_beta("c_H_in_H2O")  # Thermal scattering for bound hydrogen
 
     return mat
 
