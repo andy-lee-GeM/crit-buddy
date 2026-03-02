@@ -42,11 +42,11 @@ class ShippingCylinderTemplate(ProblemTemplate):
         ),
         "fissile_density": ParameterSpec(
             type="float",
-            default=5.09,
+            default=None,
             min=1.0,
             max=7.0,
             unit="g/cc",
-            description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
+            description="Optional fissile material density override (UF6 default: 5.09)",
         ),
         "h_to_u": ParameterSpec(
             type="float",
@@ -70,11 +70,19 @@ class ShippingCylinderTemplate(ProblemTemplate):
             description="Cylinder type - dimensions from ANSI N14.1 specs",
         ),
         # Environment
-        "environment": ParameterSpec(
+        "environment_material": ParameterSpec(
             type="enum",
             options=["water", "air", "none"],
             default="water",
             description="Environment/reflector material",
+        ),
+        "environment_density": ParameterSpec(
+            type="float",
+            default=None,
+            min=0.00001,
+            max=3.0,
+            unit="g/cc",
+            description="Optional environment density override",
         ),
         "reflector_thickness_cm": ParameterSpec(
             type="float",
@@ -127,9 +135,10 @@ class ShippingCylinderTemplate(ProblemTemplate):
         r_wall_outer = r_inner + wall_t
 
         # Environment/Reflector
-        environment = p.get("environment", "water")
+        environment_material = p.get("environment_material", "water")
+        environment_density = p.get("environment_density")
         refl_t = p["reflector_thickness_cm"]
-        if environment == "none":
+        if environment_material == "none":
             refl_t = 0.0
         r_refl_outer = r_wall_outer + refl_t
 
@@ -150,11 +159,16 @@ class ShippingCylinderTemplate(ProblemTemplate):
 
         # Material densities
         wall_density = get_density(wall_material)
-        env_density = get_density(environment) if environment != "none" else 0.0
+        if environment_material == "none":
+            env_density = 0.0
+        elif environment_density is not None:
+            env_density = environment_density
+        else:
+            env_density = get_density(environment_material)
 
         # Fissile material
         fissile_material = p.get("fissile_material", "uf6")
-        fissile_density = p.get("fissile_density", 5.09)
+        fissile_density = p.get("fissile_density")
         h_to_u = p.get("h_to_u", 0.0)
 
         return {
@@ -177,8 +191,8 @@ class ShippingCylinderTemplate(ProblemTemplate):
             # Z coordinates
             "Z_BOTTOM": z_bottom,
             "Z_TOP": z_top,
-            "Z_UF6_BOTTOM": z_uf6_bottom,
-            "Z_UF6_TOP": z_uf6_top,
+            "Z_FISSILE_BOTTOM": z_uf6_bottom,
+            "Z_FISSILE_TOP": z_uf6_top,
             "Z_REFL_BOTTOM": z_refl_bottom,
             "Z_REFL_TOP": z_refl_top,
 
@@ -188,7 +202,7 @@ class ShippingCylinderTemplate(ProblemTemplate):
             "WALL_DENSITY": wall_density,
 
             # Environment
-            "ENVIRONMENT": environment,
+            "ENVIRONMENT_MATERIAL": environment_material,
             "ENV_DENSITY": env_density,
             "REFL_THICKNESS": refl_t,
 

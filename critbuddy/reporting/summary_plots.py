@@ -299,7 +299,8 @@ def generate_summary_plots(
         swept_params = []
         for col in uf6_results[0].keys():
             if col in ['case', 'solver', 'keff', 'std', 'keff_2sigma', 'status', 'execution_time',
-                       'enrichment', 'environment_material', 'fill_fraction', 'fissile_density',
+                       'enrichment', 'environment_material', 'environment_density', 'environment',
+                       'fill_fraction', 'fissile_density',
                        'fissile_material', 'h_to_u', 'reflector_thickness_cm', 'wall_material']:
                 continue
             unique_vals = set(r[col] for r in uf6_results)

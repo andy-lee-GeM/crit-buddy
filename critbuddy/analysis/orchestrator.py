@@ -27,6 +27,7 @@ Usage:
 
 import csv
 import subprocess
+import sys
 import yaml
 from datetime import datetime
 from pathlib import Path
@@ -36,7 +37,7 @@ from typing import Dict, List, Any, Optional
 # Base paths
 CRIT_BUDDY_ROOT = Path(__file__).parent.parent.parent
 EXPERIMENTS_DIR = CRIT_BUDDY_ROOT / "experiments" / "crit_requests"
-PYTHON_EXE = "/home/andylee/anaconda3/envs/openmc-env/bin/python"
+PYTHON_EXE = sys.executable
 RUN_STUDY = CRIT_BUDDY_ROOT / "run_study.py"
 
 
@@ -97,6 +98,7 @@ def generate_config(
         "fill_fraction": fill_fraction,
         "enrichment": enrichment,
         "environment_material": "humid_air",
+        "environment_density": 0.0011,
         "reflector_thickness_cm": 30,
         "wall_material": "ss304",
     }
@@ -113,6 +115,24 @@ def generate_config(
         yaml.dump(config, f, default_flow_style=False, sort_keys=False)
 
     print(f"Generated: {output_path}")
+
+
+def _coerce_like_reference(value: Any, reference: Any) -> Any:
+    """
+    Coerce a CSV string value to match the type of a reference parameter.
+
+    CSV rows are string-typed; this helper restores numeric types so generated
+    follow-up configs remain schema-valid.
+    """
+    ref = reference
+    if isinstance(ref, list) and ref:
+        ref = ref[0]
+
+    if isinstance(ref, int):
+        return int(float(value))
+    if isinstance(ref, float):
+        return float(value)
+    return value
 
 
 def run_standard_analysis(
@@ -259,7 +279,10 @@ def run_standard_analysis(
                 # Extract worst-case geometry
                 for param in swept_params:
                     if param in worst_row:
-                        worst_case_geometry[param] = worst_row[param]
+                        worst_case_geometry[param] = _coerce_like_reference(
+                            worst_row[param],
+                            geometry_params.get(param),
+                        )
 
                 results["scenarios"]["uo2f2_wet"] = {
                     "cases": len(wet_results),

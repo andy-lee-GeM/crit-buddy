@@ -12,8 +12,10 @@ Applications: Process piping, cascade line spacing studies
 
 import openmc
 from critbuddy.core.materials import (
-    create_uf6, create_uo2f2, create_water, create_vacuum,
-    create_air, create_humid_air, get_material
+    create_fissile_material,
+    create_environment_material,
+    create_vacuum,
+    get_material,
 )
 
 
@@ -34,25 +36,21 @@ def build_model(p):
 
     # Fissile material (UF6 or UO2F2)
     fissile_type = p.get("FISSILE_MATERIAL", "uf6")
-    if fissile_type == "uo2f2":
-        m_fissile = create_uo2f2(
-            p["ENRICHMENT"],
-            h_to_u=p.get("H_TO_U", 0.0),
-            density=p.get("FISSILE_DENSITY", 6.37)
-        )
-    else:
-        m_fissile = create_uf6(p["ENRICHMENT"], density=p.get("FISSILE_DENSITY", 5.09))
+    m_fissile = create_fissile_material(
+        fissile_material=fissile_type,
+        enrichment_pct=p["ENRICHMENT"],
+        fissile_density=p.get("FISSILE_DENSITY"),
+        h_to_u=p.get("H_TO_U", 0.0),
+    )
 
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
 
     # Environment material (humid_air, air, or water)
-    env_material = p.get("ENVIRONMENT", "humid_air")
-    if env_material == "water":
-        m_env = create_water(density=1.0)
-    elif env_material == "air":
-        m_env = create_air()
-    else:  # humid_air (default) - 100% RH at 40°C for max water content
-        m_env = create_humid_air()
+    env_material = p["ENVIRONMENT_MATERIAL"]
+    m_env = create_environment_material(
+        environment_material=env_material,
+        environment_density=p.get("ENV_DENSITY"),
+    )
 
     # Vacuum space above liquid for unfilled portion of pipe (if fill_fraction < 1.0)
     fill_fraction = p.get("FILL_FRACTION", 1.0)
@@ -181,6 +179,7 @@ def build_model(p):
         "water_thickness": p["REFLECTOR_THICKNESS"],
         "environment": env_material,
         "fissile_material": fissile_type,
+        "fissile_density": m_fissile.density,
         "pipe_z_positions": pipe_z_positions,
         "fill_fraction": fill_fraction,
     }
@@ -249,7 +248,7 @@ def print_summary(p, dims):
 FISSILE MATERIAL
   Type:               {fissile_type}
   Enrichment:         {p['ENRICHMENT']:>8.2f} wt% U-235
-  Density:            {p['FISSILE_DENSITY']:>8.3f} g/cc
+  Density:            {dims.get('fissile_density', 0.0):>8.3f} g/cc
   H/U ratio:          {p.get('H_TO_U', 0.0):>8.1f}
   Fill fraction:      {p.get('FILL_FRACTION', 1.0):>8.1%}
 

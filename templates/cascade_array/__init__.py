@@ -49,11 +49,11 @@ class CascadeArrayTemplate(ProblemTemplate):
         ),
         "fissile_density": ParameterSpec(
             type="float",
-            default=5.09,
+            default=None,
             min=1.0,
             max=7.0,
             unit="g/cc",
-            description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
+            description="Optional fissile material density override (UF6 default: 5.09)",
         ),
         "h_to_u": ParameterSpec(
             type="float",
@@ -161,11 +161,19 @@ class CascadeArrayTemplate(ProblemTemplate):
         # =====================================================================
         # ENVIRONMENT
         # =====================================================================
-        "environment": ParameterSpec(
+        "environment_material": ParameterSpec(
             type="enum",
             options=["humid_air", "air"],
             default="humid_air",
             description="Material between units (inside cascade) - humid air or dry air only",
+        ),
+        "environment_density": ParameterSpec(
+            type="float",
+            default=None,
+            min=0.00001,
+            max=2.0,
+            unit="g/cc",
+            description="Optional environment density override",
         ),
         "reflector_thickness_cm": ParameterSpec(
             type="float",
@@ -254,6 +262,13 @@ class CascadeArrayTemplate(ProblemTemplate):
         # MATERIAL PROPERTIES
         # =====================================================================
         wall_density = get_density(p["wall_material"])
+        environment_material = p.get("environment_material", "humid_air")
+        environment_density = p.get("environment_density")
+        env_density = (
+            environment_density
+            if environment_density is not None
+            else get_density(environment_material)
+        )
 
         return {
             # Cylinder
@@ -298,9 +313,10 @@ class CascadeArrayTemplate(ProblemTemplate):
             # Materials
             "ENRICHMENT": p["enrichment"],
             "FISSILE_MATERIAL": p["fissile_material"],
-            "FISSILE_DENSITY": p["fissile_density"],
+            "FISSILE_DENSITY": p.get("fissile_density"),
             "H_TO_U": p.get("h_to_u", 0.0),
-            "ENVIRONMENT": p["environment"],
+            "ENVIRONMENT_MATERIAL": environment_material,
+            "ENV_DENSITY": env_density,
         }
 
 

@@ -12,7 +12,9 @@ Applications: Stacked storage configurations, warehouse layouts
 
 import openmc
 from critbuddy.core.materials import (
-    create_uf6, create_uo2f2, get_material, get_density
+    create_fissile_material,
+    create_environment_material,
+    get_material,
 )
 
 
@@ -36,22 +38,24 @@ def build_model(p):
 
     # Fissile material (UF6 or UO2F2)
     fissile_material = p["FISSILE_MATERIAL"]
-    fissile_density = p["FISSILE_DENSITY"]
+    fissile_density = p.get("FISSILE_DENSITY")
     h_to_u = p.get("H_TO_U", 0.0)
-
-    if fissile_material == "uo2f2":
-        # UO2F2: use H/U ratio for wet modeling (density auto-calculated)
-        m_fissile = create_uo2f2(p["ENRICHMENT"], h_to_u=h_to_u)
-    else:
-        # UF6: use specified density
-        m_fissile = create_uf6(p["ENRICHMENT"], density=fissile_density)
+    m_fissile = create_fissile_material(
+        fissile_material=fissile_material,
+        enrichment_pct=p["ENRICHMENT"],
+        fissile_density=fissile_density,
+        h_to_u=h_to_u,
+    )
 
     # Wall material
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
 
     # Environment material (between units and surrounding array)
-    env_material = p["ENVIRONMENT"]
-    m_env = get_material(env_material, solver="openmc")
+    env_material = p["ENVIRONMENT_MATERIAL"]
+    m_env = create_environment_material(
+        environment_material=env_material,
+        environment_density=p.get("ENV_DENSITY"),
+    )
 
     # Void material for unfilled portion of cylinder (if fill_fraction < 1.0)
     fill_fraction = p["FILL_FRACTION"]

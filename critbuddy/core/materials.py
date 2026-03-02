@@ -286,6 +286,56 @@ def create_uo2f2(enrichment_pct: float, h_to_u: float = 0.0,
     return mat
 
 
+def create_fissile_material(
+    fissile_material: str,
+    enrichment_pct: float,
+    fissile_density: float = None,
+    h_to_u: float = 0.0,
+) -> openmc.Material:
+    """
+    Create fissile material from template-facing material selector.
+
+    Args:
+        fissile_material: Material selector ("uf6" or "uo2f2")
+        enrichment_pct: U-235 enrichment (wt%)
+        fissile_density: Optional density override in g/cm3
+        h_to_u: H/U atomic ratio (used for UO2F2)
+
+    Returns:
+        OpenMC Material for the selected fissile material
+    """
+    key = fissile_material.lower()
+
+    if key == "uf6":
+        density = 5.09 if fissile_density is None else fissile_density
+        return create_uf6(enrichment_pct, density=density)
+    if key == "uo2f2":
+        # When density is omitted, create_uo2f2() auto-calculates from H/U.
+        return create_uo2f2(enrichment_pct, h_to_u=h_to_u, density=fissile_density)
+
+    raise ValueError(f"Unsupported fissile_material '{fissile_material}'")
+
+
+def create_environment_material(
+    environment_material: str,
+    environment_density: float = None,
+) -> openmc.Material:
+    """
+    Create environment/reflector material with optional density override.
+
+    Args:
+        environment_material: Registry material key (e.g., humid_air, air, water)
+        environment_density: Optional density override in g/cm3
+
+    Returns:
+        OpenMC Material for the selected environment
+    """
+    mat = get_material(environment_material, solver="openmc")
+    if environment_density is not None:
+        mat.set_density("g/cm3", environment_density)
+    return mat
+
+
 def create_monel() -> openmc.Material:
     """
     Create Monel 400 alloy for OpenMC (5A/5B cylinder wall material).

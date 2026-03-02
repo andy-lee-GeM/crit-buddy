@@ -44,11 +44,11 @@ class PipeTemplate(ProblemTemplate):
         ),
         "fissile_density": ParameterSpec(
             type="float",
-            default=5.09,
+            default=None,
             min=1.0,
             max=7.0,
             unit="g/cc",
-            description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
+            description="Optional fissile material density override (UF6 default: 5.09)",
         ),
         "h_to_u": ParameterSpec(
             type="float",
@@ -127,11 +127,19 @@ class PipeTemplate(ProblemTemplate):
             description="Pipe wall material",
         ),
         # Environment
-        "environment": ParameterSpec(
+        "environment_material": ParameterSpec(
             type="enum",
             options=["humid_air", "air", "water"],
             default="humid_air",
             description="Environment material around pipes",
+        ),
+        "environment_density": ParameterSpec(
+            type="float",
+            default=None,
+            min=0.00001,
+            max=2.0,
+            unit="g/cc",
+            description="Optional environment density override",
         ),
         "reflector_thickness_cm": ParameterSpec(
             type="float",
@@ -207,18 +215,16 @@ class PipeTemplate(ProblemTemplate):
         # Material densities
         wall_density = get_density(p["wall_material"])
 
-        # Map environment to density
-        environment = p.get("environment", "humid_air")
-        if environment == "water":
-            env_density = 1.0
-        elif environment == "air":
-            env_density = 0.001225
-        else:  # humid_air
-            env_density = 0.001
+        environment_material = p.get("environment_material", "humid_air")
+        environment_density = p.get("environment_density")
+        if environment_density is not None:
+            env_density = environment_density
+        else:
+            env_density = get_density(environment_material)
 
         # Fissile material properties
         fissile_material = p.get("fissile_material", "uf6")
-        fissile_density = p.get("fissile_density", 5.09)
+        fissile_density = p.get("fissile_density")
         h_to_u = p.get("h_to_u", 0.0)
 
         # Fill fraction (for partial fill)
@@ -277,7 +283,7 @@ class PipeTemplate(ProblemTemplate):
             "WALL_DENSITY": wall_density,
 
             # Environment
-            "ENVIRONMENT": environment,
+            "ENVIRONMENT_MATERIAL": environment_material,
             "ENV_DENSITY": env_density,
             "REFLECTOR_THICKNESS": reflector_t,
 

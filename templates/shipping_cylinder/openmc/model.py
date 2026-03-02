@@ -10,7 +10,11 @@ Geometry:   Cylinder with wall (Monel or carbon steel) and optional reflector
 """
 
 import openmc
-from critbuddy.core.materials import create_uf6, get_material
+from critbuddy.core.materials import (
+    create_fissile_material,
+    create_environment_material,
+    get_material,
+)
 
 
 def build_model(p):
@@ -29,9 +33,14 @@ def build_model(p):
 
     materials_list = []
 
-    # UF6 fissile material
-    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["FISSILE_DENSITY"])
-    materials_list.append(m_uf6)
+    # Fissile material
+    m_fissile = create_fissile_material(
+        fissile_material=p.get("FISSILE_MATERIAL", "uf6"),
+        enrichment_pct=p["ENRICHMENT"],
+        fissile_density=p.get("FISSILE_DENSITY"),
+        h_to_u=p.get("H_TO_U", 0.0),
+    )
+    materials_list.append(m_fissile)
 
     # Wall material (from cylinder registry via template)
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
@@ -39,8 +48,12 @@ def build_model(p):
 
     # External reflector (if present)
     m_refl = None
-    if p["ENVIRONMENT"] != "none" and p["REFL_THICKNESS"] > 0:
-        m_refl = get_material(p["ENVIRONMENT"], solver="openmc")
+    environment_material = p["ENVIRONMENT_MATERIAL"]
+    if environment_material != "none" and p["REFL_THICKNESS"] > 0:
+        m_refl = create_environment_material(
+            environment_material=environment_material,
+            environment_density=p.get("ENV_DENSITY"),
+        )
         materials_list.append(m_refl)
 
     materials = openmc.Materials(materials_list)
@@ -62,11 +75,14 @@ def build_model(p):
         s_wall_outer.boundary_type = "vacuum"
         s_refl_outer = None
 
+    z_fissile_bottom = p["Z_FISSILE_BOTTOM"]
+    z_fissile_top = p["Z_FISSILE_TOP"]
+
     # Axial surfaces (z-planes)
     s_z_bottom = openmc.ZPlane(z0=p["Z_BOTTOM"], name="s_z_bottom")
     s_z_top = openmc.ZPlane(z0=p["Z_TOP"], name="s_z_top")
-    s_z_uf6_bottom = openmc.ZPlane(z0=p["Z_FISSILE_BOTTOM"], name="s_z_uf6_bottom")
-    s_z_uf6_top = openmc.ZPlane(z0=p["Z_FISSILE_TOP"], name="s_z_uf6_top")
+    s_z_uf6_bottom = openmc.ZPlane(z0=z_fissile_bottom, name="s_z_uf6_bottom")
+    s_z_uf6_top = openmc.ZPlane(z0=z_fissile_top, name="s_z_uf6_top")
 
     # Reflector z-boundaries
     if p["REFL_THICKNESS"] > 0:
@@ -90,7 +106,7 @@ def build_model(p):
     cell_id = 1
 
     # --- UF6 region ---
-    c_uf6 = openmc.Cell(cell_id=cell_id, name="UF6", fill=m_uf6)
+    c_uf6 = openmc.Cell(cell_id=cell_id, name="Fissile", fill=m_fissile)
     c_uf6.region = -s_inner & +s_z_uf6_bottom & -s_z_uf6_top
     cells.append(c_uf6)
     cell_id += 1
@@ -147,6 +163,8 @@ def build_model(p):
         "r_outer": p["R_REFL_OUTER"],
         "height": p["HEIGHT_CM"],
         "uf6_height": p["UF6_HEIGHT"],
+        "fissile_material": p.get("FISSILE_MATERIAL", "uf6"),
+        "fissile_density": m_fissile.density,
         "refl_thickness": p["REFL_THICKNESS"],
     }
 
@@ -218,8 +236,9 @@ CYLINDER TYPE
   Wall material:      {p['WALL_MATERIAL']}
 
 FISSILE MATERIAL
+  Type:               {dims.get('fissile_material', 'uf6').upper()}
   Enrichment:         {p['ENRICHMENT']:>8.2f} wt% U-235
-  Fissile Density:    {p['FISSILE_DENSITY']:>8.3f} g/cc
+  Fissile Density:    {dims.get('fissile_density', 0.0):>8.3f} g/cc
   Fill fraction:      {p['FILL_FRACTION']:>8.2f}
 
 CYLINDER GEOMETRY (cm)
@@ -230,7 +249,7 @@ CYLINDER GEOMETRY (cm)
   Wall thickness:     {p['WALL_THICKNESS']:>8.4f}
 
 ENVIRONMENT
-  Material:           {p['ENVIRONMENT']}
+  Material:           {p['ENVIRONMENT_MATERIAL']}
   Thickness:          {dims['refl_thickness']:>8.2f} cm
 
 SIMULATION

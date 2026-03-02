@@ -8,6 +8,9 @@ from .config import ExperimentConfig, Case, generate_cases, expand_sweeps
 from .template import ProblemTemplate, ParameterSpec
 from .materials import (
     create_uf6,
+    create_uo2f2,
+    create_fissile_material,
+    create_environment_material,
     create_aluminum,
     create_steel,
     create_water,
@@ -32,6 +35,9 @@ __all__ = [
     "ProblemTemplate",
     "ParameterSpec",
     "create_uf6",
+    "create_uo2f2",
+    "create_fissile_material",
+    "create_environment_material",
     "create_aluminum",
     "create_steel",
     "create_water",

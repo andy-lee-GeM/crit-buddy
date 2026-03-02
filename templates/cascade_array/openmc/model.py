@@ -18,11 +18,8 @@ Applications: Cascade hall layouts, process equipment arrays
 
 import openmc
 from critbuddy.core.materials import (
-    create_uf6,
-    create_uo2f2,
-    create_steel,
-    create_humid_air,
-    create_air,
+    create_fissile_material,
+    create_environment_material,
     create_water,
     get_material,
     get_color_mapping,
@@ -52,25 +49,22 @@ def build_model(p):
 
     fissile_type = p["FISSILE_MATERIAL"]
     enrichment = p["ENRICHMENT"]
-
-    # Fissile material (UF6 or UO2F2)
-    if fissile_type == "uo2f2":
-        h_to_u = p.get("H_TO_U", 0.0)
-        m_fissile = create_uo2f2(enrichment, h_to_u=h_to_u)
-    else:
-        density = p.get("FISSILE_DENSITY", 5.09)
-        m_fissile = create_uf6(enrichment, density=density)
+    m_fissile = create_fissile_material(
+        fissile_material=fissile_type,
+        enrichment_pct=enrichment,
+        fissile_density=p.get("FISSILE_DENSITY"),
+        h_to_u=p.get("H_TO_U", 0.0),
+    )
 
     # Steel wall
     m_steel = get_material(p["WALL_MATERIAL"], solver="openmc")
 
     # Environment between units (humid air or dry air only - no water)
-    environment = p["ENVIRONMENT"]
-    if environment == "air":
-        m_moderator = create_air()
-    else:
-        # Default to humid air (100% RH at 40C)
-        m_moderator = create_humid_air()
+    environment = p["ENVIRONMENT_MATERIAL"]
+    m_moderator = create_environment_material(
+        environment_material=environment,
+        environment_density=p.get("ENV_DENSITY"),
+    )
 
     # 30cm water reflector
     m_reflector = create_water(1.0)
