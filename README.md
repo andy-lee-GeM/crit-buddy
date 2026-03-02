@@ -8,11 +8,8 @@ Parametric nuclear criticality safety analysis using OpenMC.
 # Run a study
 python run_study.py path/to/config.yaml
 
-# Validate geometry first (generates plots, no simulation)
-python run_study.py path/to/config.yaml --validate
-
-# Quick smoke test (1 case, minimal particles)
-python run_study.py path/to/config.yaml --smoke
+# Run with MCNP instead of OpenMC
+python run_study.py path/to/config.yaml --solver mcnp
 ```
 
 ## Config File Format
@@ -31,8 +28,9 @@ gap_cm: [0, 5, 10, 15]     # Creates 4 cases
 rows: [1, 2, 3]            # Combined with above = 12 cases
 
 # Optional
-wall_material: steel       # steel, aluminum, ss304, monel
-environment: humid_air     # humid_air, air, water
+wall_material: steel               # steel, aluminum, ss304, monel
+environment_material: humid_air    # humid_air, air, water
+environment_density: 0.0011        # g/cc
 reflector_thickness_cm: 30
 ```
 
@@ -50,8 +48,6 @@ reflector_thickness_cm: 30
 Results are saved to:
 ```
 experiments/crit_requests/{name}/
-├── _validation/           # Geometry plots (from --validate)
-│   └── geometry.png
 └── runs/{config_name}/    # Simulation results
     └── {timestamp}/
         ├── results.csv    # k-eff values
@@ -64,11 +60,8 @@ experiments/crit_requests/{name}/
 # Single cylinder at 20% enrichment
 python run_study.py experiments/crit_requests/CB-7/_config/uf6_dry.yaml
 
-# Validate geometry before running
-python run_study.py experiments/crit_requests/CB-7/_config/uf6_dry.yaml --validate
-
-# Run specific case only
-python run_study.py config.yaml --case "rows=5, gap=10"
+# Run with both solvers (if MCNP is installed)
+python run_study.py experiments/crit_requests/CB-7/_config/uf6_dry.yaml --solver all
 ```
 
 ## Requirements

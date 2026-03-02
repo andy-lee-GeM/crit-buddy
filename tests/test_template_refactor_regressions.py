@@ -3,7 +3,7 @@ from pathlib import Path
 
 import openmc
 
-from critbuddy.runner import load_template_class, load_template_module
+from critbuddy.core.template_loader import load_template_class, load_template_module
 
 
 ROOT = Path(__file__).resolve().parents[1]
