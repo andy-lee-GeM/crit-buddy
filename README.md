@@ -58,10 +58,10 @@ experiments/crit_requests/{name}/
 
 ```bash
 # Single cylinder at 20% enrichment
-python run_study.py experiments/crit_requests/CB-7/_config/uf6_dry.yaml
+python run_study.py experiments/crit_requests/CB-7/_config/01_uf6_dry.yaml
 
 # Run with both solvers (if MCNP is installed)
-python run_study.py experiments/crit_requests/CB-7/_config/uf6_dry.yaml --solver all
+python run_study.py experiments/crit_requests/CB-7/_config/01_uf6_dry.yaml --solver all
 ```
 
 ## Requirements
