@@ -71,7 +71,10 @@ def _add_cylinder_cells(
     h_inner: float,
     h_outer: float,
     t_wall: float,
+    fill_fraction: float,
+    fissile_height: float,
     m_fissile,
+    m_void,
     m_wall,
     cells: list,
     cylinder_regions: list,
@@ -101,10 +104,24 @@ def _add_cylinder_cells(
     z_top_inner_plane = openmc.ZPlane(z0=z_top_inner, name=f"z_top_inner_{suffix}")
     z_top_plane = openmc.ZPlane(z0=z_top, name=f"z_top_{suffix}")
 
-    c_fissile = openmc.Cell(cell_id=cell_id, name=f"fissile_{suffix}", fill=m_fissile)
-    c_fissile.region = -cyl_inner & +z_bottom_inner_plane & -z_top_inner_plane
-    cells.append(c_fissile)
-    cell_id += 1
+    if fill_fraction < 1.0:
+        z_fill = z_bottom_inner + fissile_height
+        z_fill_plane = openmc.ZPlane(z0=z_fill, name=f"z_fill_{suffix}")
+
+        c_fissile = openmc.Cell(cell_id=cell_id, name=f"fissile_{suffix}", fill=m_fissile)
+        c_fissile.region = -cyl_inner & +z_bottom_inner_plane & -z_fill_plane
+        cells.append(c_fissile)
+        cell_id += 1
+
+        c_void = openmc.Cell(cell_id=cell_id, name=f"void_{suffix}", fill=m_void)
+        c_void.region = -cyl_inner & +z_fill_plane & -z_top_inner_plane
+        cells.append(c_void)
+        cell_id += 1
+    else:
+        c_fissile = openmc.Cell(cell_id=cell_id, name=f"fissile_{suffix}", fill=m_fissile)
+        c_fissile.region = -cyl_inner & +z_bottom_inner_plane & -z_top_inner_plane
+        cells.append(c_fissile)
+        cell_id += 1
 
     c_wall = openmc.Cell(cell_id=cell_id, name=f"wall_{suffix}", fill=m_wall)
     c_wall.region = +cyl_inner & -cyl_outer & +z_bottom_inner_plane & -z_top_inner_plane
@@ -123,6 +140,33 @@ def _add_cylinder_cells(
 
     cylinder_regions.append(-cyl_outer & +z_bottom_plane & -z_top_plane)
     return cell_id
+
+
+def _make_box(
+    x_lo: float,
+    x_hi: float,
+    y_lo: float,
+    y_hi: float,
+    z_lo: float,
+    z_hi: float,
+    name: str = "",
+):
+    """Create an axis-aligned transmission box and return region plus surfaces."""
+    x_min = openmc.XPlane(x0=x_lo, name=f"{name}x_min")
+    x_max = openmc.XPlane(x0=x_hi, name=f"{name}x_max")
+    y_min = openmc.YPlane(y0=y_lo, name=f"{name}y_min")
+    y_max = openmc.YPlane(y0=y_hi, name=f"{name}y_max")
+    z_min = openmc.ZPlane(z0=z_lo, name=f"{name}z_min")
+    z_max = openmc.ZPlane(z0=z_hi, name=f"{name}z_max")
+    region = +x_min & -x_max & +y_min & -y_max & +z_min & -z_max
+    return region, (x_min, x_max, y_min, y_max, z_min, z_max)
+
+
+def _subtract_cylinders(region, cylinder_regions):
+    """Subtract all cylinder envelopes from a region."""
+    for cyl_region in cylinder_regions:
+        region = region & ~cyl_region
+    return region
 
 
 def build_model(p):
@@ -157,15 +201,21 @@ def build_model(p):
     # Wall material
     m_wall = get_material(p["WALL_MATERIAL"], solver="openmc")
 
-    # Environment between units (humid air or dry air only - no water)
+    # Environment between units (humid air, dry air, or water)
     environment = p["ENVIRONMENT_MATERIAL"]
     m_moderator = create_environment_material(
         environment_material=environment,
         environment_density=p.get("ENV_DENSITY"),
     )
 
-    boundary_type = p.get("BOUNDARY_TYPE", "vacuum")
-    materials = openmc.Materials([m_fissile, m_wall, m_moderator])
+    fill_fraction = p.get("FILL_FRACTION", 1.0)
+    fissile_height = p.get("FISSILE_HEIGHT", p["H_INNER"])
+    m_void = None
+    if fill_fraction < 1.0:
+        m_void = get_material(p.get("VOID_MATERIAL", "void"), solver="openmc")
+        materials = openmc.Materials([m_fissile, m_wall, m_moderator, m_void])
+    else:
+        materials = openmc.Materials([m_fissile, m_wall, m_moderator])
 
     # =========================================================================
     # DIMENSIONS
@@ -211,7 +261,10 @@ def build_model(p):
             h_inner=H_inner,
             h_outer=H_outer,
             t_wall=t_wall,
+            fill_fraction=fill_fraction,
+            fissile_height=fissile_height,
             m_fissile=m_fissile,
+            m_void=m_void,
             m_wall=m_wall,
             cells=cells,
             cylinder_regions=cylinder_regions,
@@ -221,73 +274,67 @@ def build_model(p):
     # =========================================================================
     # BOUNDING BOX AND OUTER SHELL
     # =========================================================================
+    # Region contract for this section:
+    #   system_region    : total region of entire problem (outer box)
+    #   cassette_region     : cassette region (inner box)
+    #   moderator_region : cassette region minus all cylinders (inner box)
+    #   shell_region     : system_region minus array_region
+    #
+    # Boundary behavior on system_region:
+    #   x: periodic (x_min <-> x_max) : to simulate repeating cassettes
+    #   y: vacuum
+    #   z: vacuum
 
     # Array dimensions
     array_x = p["ARRAY_X"]
     array_y = p["ARRAY_Y"]
     array_z = p["ARRAY_Z"]
 
-    if boundary_type == "reflective":
-        # Infinite-lattice style: boundaries are half-gap from outermost walls.
-        pad_x = gap_xy / 2.0
-        pad_y = gap_xy / 2.0
-        pad_z = gap_z / 2.0
-    else:
-        # Finite case: explicit environment shell around array.
-        pad_x = reflector
-        pad_y = reflector
-        pad_z = reflector
+    # 1) Compute outer and inner box bounds
+    # Outer system box:
+    # - X uses half-gap padding for periodic continuation.
+    # - Y/Z use explicit shell thickness for vacuum leakage.
+    outer_x = (-gap_xy / 2.0, array_x + gap_xy / 2.0)
+    outer_y = (-reflector, array_y + reflector)
+    outer_z = (-reflector, array_z + reflector)
 
-    x_lo = -pad_x
-    x_hi = array_x + pad_x
-    y_lo = -pad_y
-    y_hi = array_y + pad_y
-    z_lo = -pad_z
-    z_hi = array_z + pad_z
+    # Inner array box (actual cassette extent).
+    inner_x = (0.0, array_x)
+    inner_y = (0.0, array_y)
+    inner_z = (0.0, array_z)
 
-    total_x = x_hi - x_lo
-    total_y = y_hi - y_lo
-    total_z = z_hi - z_lo
+    total_x = outer_x[1] - outer_x[0]
+    total_y = outer_y[1] - outer_y[0]
+    total_z = outer_z[1] - outer_z[0]
 
-    # Bounding box surfaces
-    x_min = openmc.XPlane(x0=x_lo, boundary_type=boundary_type, name="x_min")
-    x_max = openmc.XPlane(x0=x_hi, boundary_type=boundary_type, name="x_max")
-    y_min = openmc.YPlane(y0=y_lo, boundary_type=boundary_type, name="y_min")
-    y_max = openmc.YPlane(y0=y_hi, boundary_type=boundary_type, name="y_max")
-    z_min = openmc.ZPlane(z0=z_lo, boundary_type=boundary_type, name="z_min")
-    z_max = openmc.ZPlane(z0=z_hi, boundary_type=boundary_type, name="z_max")
+    # 2) Build system and array regions from box surfaces
+    system_region, outer_surfaces = _make_box(*outer_x, *outer_y, *outer_z)
+    x_min, x_max, y_min, y_max, z_min, z_max = outer_surfaces
 
-    # Inner box surfaces (array boundary - separates interior from outer shell)
-    array_x_min = openmc.XPlane(x0=0, name="array_x_min")
-    array_x_max = openmc.XPlane(x0=array_x, name="array_x_max")
-    array_y_min = openmc.YPlane(y0=0, name="array_y_min")
-    array_y_max = openmc.YPlane(y0=array_y, name="array_y_max")
-    array_z_min = openmc.ZPlane(z0=0, name="array_z_min")
-    array_z_max = openmc.ZPlane(z0=array_z, name="array_z_max")
+    # Assign fixed boundary behavior on the outer system box.
+    x_min.boundary_type = x_max.boundary_type = "periodic"
+    y_min.boundary_type = y_max.boundary_type = "vacuum"
+    z_min.boundary_type = z_max.boundary_type = "vacuum"
 
-    system_region = +x_min & -x_max & +y_min & -y_max & +z_min & -z_max
-    array_region = (+array_x_min & -array_x_max &
-                    +array_y_min & -array_y_max &
-                    +array_z_min & -array_z_max)
+    # Periodic pair in X (reverse link is set automatically by OpenMC).
+    x_min.periodic_surface = x_max
 
-    # In reflective mode, fill all non-cylinder space with environment.
-    # In vacuum mode, environment is only inside array volume.
-    moderator_region = system_region if boundary_type == "reflective" else array_region
+    # Inner array box (transmission surfaces used only for region partitioning).
+    array_region, _ = _make_box(*inner_x, *inner_y, *inner_z, name="array_")
 
-    # Exclude all cylinder regions from moderator
-    for cyl_region in cylinder_regions:
-        moderator_region = moderator_region & ~cyl_region
+    # 3) Apply region algebra
+    moderator_region = _subtract_cylinders(array_region, cylinder_regions)
+    shell_region = system_region & ~array_region
 
+    # 4) Instantiate moderator and shell cells
     c_moderator = openmc.Cell(cell_id=cell_id, name="moderator", fill=m_moderator)
     c_moderator.region = moderator_region
     cells.append(c_moderator)
     cell_id += 1
 
-    if boundary_type == "vacuum":
-        shell_region = system_region & ~array_region
-        c_shell = openmc.Cell(cell_id=cell_id, name="environment_shell", fill=m_moderator)
-        c_shell.region = shell_region
-        cells.append(c_shell)
+    c_shell = openmc.Cell(cell_id=cell_id, name="environment_shell", fill=m_moderator)
+    c_shell.region = shell_region
+    cells.append(c_shell)
 
     # =========================================================================
     # GEOMETRY ASSEMBLY
@@ -320,8 +367,6 @@ def build_model(p):
         "CASSETTE_Z": pack_z,
         # Overall
         "REFLECTOR_THICKNESS": reflector,
-        "REFLECTOR_THICKNESS_INPUT": p.get("REFLECTOR_THICKNESS_INPUT", reflector),
-        "BOUNDARY_TYPE": boundary_type,
         "ARRAY_X": array_x,
         "ARRAY_Y": array_y,
         "ARRAY_Z": array_z,
@@ -334,6 +379,8 @@ def build_model(p):
         "h_to_u": p.get("H_TO_U", 0.0),
         "enrichment": enrichment,
         "environment": environment,
+        "FILL_FRACTION": fill_fraction,
+        "FISSILE_HEIGHT": fissile_height,
         "total_cylinders": p["TOTAL_CYLINDERS"],
         "cylinders_per_pack": p["CYLINDERS_PER_PACK"],
     }
@@ -396,6 +443,7 @@ def create_plots(dims, materials):
 
     t_wall = dims["T_WALL"]
     H_inner = dims["H_INNER"]
+    fissile_height = dims.get("FISSILE_HEIGHT", H_inner)
 
     # Center of array
     center_x = array_x / 2
@@ -403,7 +451,7 @@ def create_plots(dims, materials):
     center_z = array_z / 2
 
     # XY slice: cut through middle of fissile region in first layer
-    z_slice = t_wall + H_inner / 2
+    z_slice = t_wall + fissile_height / 2
 
     plot_xy = openmc.Plot(name="xy")
     plot_xy.basis = "xy"
@@ -439,78 +487,3 @@ def create_plots(dims, materials):
     plots.append(plot_yz)
 
     return plots, get_color_legend(materials)
-
-
-# =============================================================================
-# SUMMARY
-# =============================================================================
-
-
-def print_summary(p, dims):
-    """Print case summary."""
-    boundary = dims.get("BOUNDARY_TYPE", "vacuum")
-    if boundary == "vacuum":
-        boundary_detail = (
-            f"vacuum (environment shell = {dims['REFLECTOR_THICKNESS_INPUT']:.2f} cm)"
-        )
-    else:
-        boundary_detail = (
-            f"reflective (half-gap pads: XY={dims['GAP_XY'] / 2:.2f} cm, "
-            f"Z={dims['GAP_Z'] / 2:.2f} cm)"
-        )
-
-    print(
-        f"""
-================================================================================
-                      CASCADE ARRAY SUMMARY
-================================================================================
-HIERARCHY
-  Level 1: Cylinder     R_inner={dims['R_INNER']:.2f} cm, H_inner={dims['H_INNER']:.2f} cm
-  Level 2: Pack         {dims['I']} x {dims['J']} x {dims['K']} = {dims['cylinders_per_pack']} cylinders
-  Level 3: Root         Pack + boundary shell
-
-TOTAL CYLINDERS: {dims['total_cylinders']}
-
-CYLINDER GEOMETRY
-  Inner radius:         {dims['R_INNER']:>8.2f} cm
-  Outer radius:         {dims['R_OUTER']:>8.2f} cm
-  Wall thickness:       {dims['T_WALL']:>8.3f} cm
-  Inner height:         {dims['H_INNER']:>8.2f} cm
-  Outer height:         {dims['H_OUTER']:>8.2f} cm
-
-SPACING
-  Horizontal gap (XY):  {dims['GAP_XY']:>8.2f} cm  (wall-to-wall)
-  Vertical gap (Z):     {dims['GAP_Z']:>8.2f} cm  (cap-to-cap)
-  Cylinder pitch (XY):  {dims['PITCH_CYLINDER']:>8.2f} cm
-  Cylinder pitch (Z):   {dims['PITCH_Z']:>8.2f} cm
-
-PACK DIMENSIONS
-  X (i direction):      {dims['CASSETTE_X']:>8.2f} cm
-  Y (j direction):      {dims['CASSETTE_Y']:>8.2f} cm
-  Z (k direction):      {dims['CASSETTE_Z']:>8.2f} cm
-
-ARRAY DIMENSIONS
-  X (pack width):       {dims['ARRAY_X']:>8.2f} cm
-  Y (pack depth):       {dims['ARRAY_Y']:>8.2f} cm
-  Z (stack height):     {dims['ARRAY_Z']:>8.2f} cm
-
-TOTAL DIMENSIONS (with boundary shell)
-  X:                    {dims['TOTAL_X']:>8.2f} cm
-  Y:                    {dims['TOTAL_Y']:>8.2f} cm
-  Z:                    {dims['TOTAL_Z']:>8.2f} cm
-  Boundary:             {boundary_detail}
-
-FISSILE MATERIAL
-  Type:                 {dims['fissile_material'].upper()}
-  Enrichment:           {dims['enrichment']:>8.2f} wt% U-235
-  Density:              {dims['fissile_density']:>8.3f} g/cc
-  H/U ratio:            {dims['h_to_u']:>8.1f}
-
-ENVIRONMENT
-  Material:             {dims['environment']}
-
-SIMULATION
-  {int(p['PARTICLES'])} particles x {int(p['BATCHES'])} batches ({int(p['INACTIVE'])} inactive)
-================================================================================
-"""
-    )

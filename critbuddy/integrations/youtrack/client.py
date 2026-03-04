@@ -33,6 +33,34 @@ import yaml
 class YouTrackClient:
     """Unified YouTrack API client for crit-buddy."""
 
+    # Single source of truth for YouTrack form templates.
+    FORM_TEMPLATES = {
+        "pipe": {
+            "file": "pipe-form.md",
+            "summary": "[TEMPLATE] Criticality Analysis Request: Pipe Array",
+        },
+        "cylinder": {
+            "file": "cylinder-form.md",
+            "summary": "[TEMPLATE] Criticality Analysis Request: Cylinder",
+        },
+        "rectangular-box": {
+            "file": "rectangular-box-form.md",
+            "summary": "[TEMPLATE] Criticality Analysis Request: Rectangular Box",
+        },
+        "shipping-cylinder": {
+            "file": "shipping-cylinder-form.md",
+            "summary": "[TEMPLATE] Criticality Analysis Request: Shipping Cylinder",
+        },
+        # Keep maker-array registered for compatibility; availability depends on file presence.
+        "maker-array": {
+            "file": "maker-array-form.md",
+            "summary": "[TEMPLATE] Criticality Analysis Request: Maker Array",
+        },
+    }
+    FORM_ALIASES = {
+        "parallel-pipes": "pipe",
+    }
+
     def __init__(self, config_path: Optional[Path] = None):
         """
         Initialize client with config from config.yaml and YOUTRACK_TOKEN env var.
@@ -61,6 +89,7 @@ class YouTrackClient:
         self.project_id = youtrack_config.get("project_id")
         self.project_internal_id = youtrack_config.get("project_internal_id")
         self.status_field = youtrack_config.get("status_field", "Stage")
+        self.ready_status = youtrack_config.get("ready_status", "Ready for run")
 
         if not self.url:
             raise ValueError("youtrack.url not configured in config.yaml")
@@ -122,12 +151,12 @@ class YouTrackClient:
 
     def get_ready_tickets(self) -> List[dict]:
         """
-        Fetch all tickets in "Ready" state.
+        Fetch all tickets in configured ready status.
 
         Returns:
             List of ticket dicts with id, summary, and description
         """
-        query = f"project:{self.project_id} {self.status_field}:{{Ready}}"
+        query = f"project:{self.project_id} {self.status_field}:{{{self.ready_status}}}"
         encoded_query = quote(query)
         return self._get(
             f"/api/issues?query={encoded_query}&fields=idReadable,summary,description"
@@ -362,7 +391,11 @@ Results have been attached to this ticket.
         """Get list of available form template names."""
         if not self.forms_dir.exists():
             return []
-        return [f.stem.replace("-form", "") for f in self.forms_dir.glob("*-form.md")]
+        available = []
+        for form_name, meta in self.FORM_TEMPLATES.items():
+            if (self.forms_dir / meta["file"]).exists():
+                available.append(form_name)
+        return sorted(available)
 
     def create_template_issue(self, form_name: str) -> dict:
         """
@@ -374,42 +407,20 @@ Results have been attached to this ticket.
         Returns:
             API response with new issue details
         """
-        form_mapping = {
-            "pipe": {
-                "file": "parallel-pipes-form.md",
-                "summary": "[TEMPLATE] Criticality Analysis Request: Parallel Pipes",
-            },
-            "parallel-pipes": {
-                "file": "parallel-pipes-form.md",
-                "summary": "[TEMPLATE] Criticality Analysis Request: Parallel Pipes",
-            },
-            "shipping-cylinder": {
-                "file": "shipping-cylinder-form.md",
-                "summary": "[TEMPLATE] Criticality Analysis Request: Shipping Cylinder",
-            },
-            "maker-array": {
-                "file": "maker-array-form.md",
-                "summary": "[TEMPLATE] Criticality Analysis Request: Maker Array",
-            },
-            "cylinder": {
-                "file": "cylinder-form.md",
-                "summary": "[TEMPLATE] Criticality Analysis Request: Cylinder",
-            },
-            "rectangular-box": {
-                "file": "rectangular-box-form.md",
-                "summary": "[TEMPLATE] Criticality Analysis Request: Rectangular Box",
-            },
-        }
-
-        if form_name not in form_mapping:
-            available = ", ".join(form_mapping.keys())
+        resolved = self.FORM_ALIASES.get(form_name, form_name)
+        if resolved not in self.FORM_TEMPLATES:
+            available = ", ".join(sorted(self.FORM_TEMPLATES.keys()))
             raise ValueError(f"Unknown form: {form_name}. Available: {available}")
 
-        form_info = form_mapping[form_name]
+        form_info = self.FORM_TEMPLATES[resolved]
         form_path = self.forms_dir / form_info["file"]
 
         if not form_path.exists():
-            raise FileNotFoundError(f"Form template not found: {form_path}")
+            available = ", ".join(self.get_available_forms())
+            raise FileNotFoundError(
+                f"Form template not found for '{form_name}': {form_path}. "
+                f"Available forms: {available or 'none'}"
+            )
 
         description = form_path.read_text()
         return self.create_issue(form_info["summary"], description)

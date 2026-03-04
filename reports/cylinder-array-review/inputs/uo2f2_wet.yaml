@@ -1,0 +1,45 @@
+# =============================================================================
+# UO2F2 WET - INFINITE ARRAY ANALYSIS
+# =============================================================================
+# Purpose: Determine critical fill threshold at optimal moderation
+# Key Result: Criticality threshold for bounding wet UO2F2 scenario
+# =============================================================================
+
+problem: cylinder
+name: "UO2F2 Wet - Infinite Array"
+
+# -----------------------------------------------------------------------------
+# GEOMETRY - 10-inch diameter vessels in infinite array
+# -----------------------------------------------------------------------------
+rows: 3                         # Unit cell rows (X)
+cols: 4                         # Unit cell cols (Y)
+layers: 5                       # Unit cell layers (Z)
+
+radius_cm: 12.70                # 5-inch inner radius
+height_cm: 100.0                # 1 meter internal height
+wall_material: steel
+wall_thickness_cm: 0.3175       # 1/8 inch wall
+
+gap_horizontal_cm: 12.70                # 5-inch horizontal gap (wall-to-wall)
+gap_vertical_cm: 7.62                  # 3-inch vertical gap
+
+# -----------------------------------------------------------------------------
+# MATERIAL - Wet UO2F2 at optimal moderation
+# -----------------------------------------------------------------------------
+enrichment: 21                  # Bounding HALEU (wt% U-235)
+
+fissile_material: uo2f2
+h_to_u_ratio: 30                # Optimal moderation (from H/U sweep)
+fill_fraction: [0.01, 0.015, 0.02, 0.025, 0.03, 0.05, 0.10]  # Find critical threshold
+
+# -----------------------------------------------------------------------------
+# ENVIRONMENT - Humid air between units
+# -----------------------------------------------------------------------------
+environment: humid_air
+void_material: humid_air
+
+# -----------------------------------------------------------------------------
+# BOUNDARY - Reflective (infinite array)
+# -----------------------------------------------------------------------------
+boundary_type: reflective
+reflector_thickness_cm: 6.35    # = gap_xy/2 for proper unit cell

@@ -32,11 +32,11 @@ If this skill conflicts with `WORKFLOW.md`, follow `WORKFLOW.md`.
 
 - If a ticket ID is provided, fetch only that ticket:
   ```bash
-  python scripts/youtrack/youtrack_cli.py fetch {TICKET_ID} --json
+  python -m critbuddy.integrations.youtrack.cli fetch {TICKET_ID} --json
   ```
-- If no ticket ID is provided, fetch all tickets in Ready state:
+- If no ticket ID is provided, fetch all tickets in Ready-for-run state:
   ```bash
-  python scripts/youtrack/youtrack_cli.py fetch-ready --json
+  python -m critbuddy.integrations.youtrack.cli fetch-ready --json
   ```
 - If no tickets are returned, report and stop.
 
@@ -68,8 +68,8 @@ Create `experiment-plan.md` from:
 ### 3. Mark ticket in progress
 
 ```bash
-python scripts/youtrack/youtrack_cli.py update-status {TICKET_ID} "In Progress"
-python scripts/youtrack/youtrack_cli.py comment {TICKET_ID} "Setup complete. Starting analysis workflow."
+python -m critbuddy.integrations.youtrack.cli update-status {TICKET_ID} "In Progress"
+python -m critbuddy.integrations.youtrack.cli comment {TICKET_ID} "Setup complete. Starting analysis workflow."
 ```
 
 ### 4. Execute analysis (Phase 2 from `WORKFLOW.md`)
@@ -120,8 +120,8 @@ Under `experiments/crit_requests/{TICKET_ID}/results/`, produce:
 ### 6. Publish back to YouTrack
 
 ```bash
-python scripts/youtrack/youtrack_cli.py push-results {TICKET_ID} experiments/crit_requests/{TICKET_ID}/results
-python scripts/youtrack/youtrack_cli.py mark-complete {TICKET_ID}
+python -m critbuddy.integrations.youtrack.cli push-results {TICKET_ID} experiments/crit_requests/{TICKET_ID}/results
+python -m critbuddy.integrations.youtrack.cli mark-complete {TICKET_ID}
 ```
 
 ### 7. Failure handling
@@ -129,7 +129,7 @@ python scripts/youtrack/youtrack_cli.py mark-complete {TICKET_ID}
 If setup, run, or publish fails:
 
 ```bash
-python scripts/youtrack/youtrack_cli.py mark-failed {TICKET_ID} "{ERROR_MESSAGE}"
+python -m critbuddy.integrations.youtrack.cli mark-failed {TICKET_ID} "{ERROR_MESSAGE}"
 ```
 
 ## Safety Classification

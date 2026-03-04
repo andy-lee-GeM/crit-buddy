@@ -27,7 +27,7 @@ Step 3: Fill Sweep (at worst-case + peak H/U)
 - UF6 max k-eff (geometry safety margin)
 - UO2F2 critical threshold (fill % limit for wet conditions)
 
-**Workflow:** See `experiments/crit_requests/WORKFLOW.md`
+**Workflow:** See `.claude/skills/run-cb-daily/SKILL.md` (Standard Workflow section)
 
 **Report Template:** See `docs/templates/cb-final-report-template.md`
 
@@ -152,24 +152,24 @@ Unified client for ticket management. Requires `YOUTRACK_TOKEN` env var and `you
 
 ```bash
 # Fetch tickets
-python scripts/youtrack/youtrack_cli.py fetch-ready              # All Ready tickets
-python scripts/youtrack/youtrack_cli.py fetch CB-10              # Single ticket
-python scripts/youtrack/youtrack_cli.py fetch CB-10 --json       # JSON output
+python -m critbuddy.integrations.youtrack.cli fetch-ready              # All Ready-for-run tickets
+python -m critbuddy.integrations.youtrack.cli fetch CB-10              # Single ticket
+python -m critbuddy.integrations.youtrack.cli fetch CB-10 --json       # JSON output
 
 # Push results to ticket
-python scripts/youtrack/youtrack_cli.py push-results CB-10 experiments/crit_requests/CB-10/results
+python -m critbuddy.integrations.youtrack.cli push-results CB-10 experiments/crit_requests/CB-10/results
 
 # Update ticket status
-python scripts/youtrack/youtrack_cli.py update-status CB-10 "In Progress"
-python scripts/youtrack/youtrack_cli.py mark-complete CB-10
-python scripts/youtrack/youtrack_cli.py mark-failed CB-10 "Error message"
+python -m critbuddy.integrations.youtrack.cli update-status CB-10 "In Progress"
+python -m critbuddy.integrations.youtrack.cli mark-complete CB-10
+python -m critbuddy.integrations.youtrack.cli mark-failed CB-10 "Error message"
 
 # Add comment
-python scripts/youtrack/youtrack_cli.py comment CB-10 "Analysis started"
+python -m critbuddy.integrations.youtrack.cli comment CB-10 "Analysis started"
 
 # Template forms
-python scripts/youtrack/youtrack_cli.py list-forms
-python scripts/youtrack/youtrack_cli.py create-form pipe
+python -m critbuddy.integrations.youtrack.cli list-forms
+python -m critbuddy.integrations.youtrack.cli create-form pipe
 ```
 
 ### Python API

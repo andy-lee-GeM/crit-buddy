@@ -61,6 +61,14 @@ class CascadeArrayTemplate(ProblemTemplate):
             unit="",
             description="H/U atomic ratio for wet UO2F2 (0 = dry, higher = more water)",
         ),
+        "fill_fraction": ParameterSpec(
+            type="float",
+            required=False,
+            default=1.0,
+            min=0.01,
+            max=1.0,
+            description="Fill fraction by height (1.0 = full)",
+        ),
         # =====================================================================
         # CYLINDER GEOMETRY
         # =====================================================================
@@ -101,7 +109,7 @@ class CascadeArrayTemplate(ProblemTemplate):
             type="int",
             required=True,
             min=1,
-            max=20,
+            max=2000,
             description="Cylinders per pack in X direction",
         ),
         "j": ParameterSpec(
@@ -139,9 +147,9 @@ class CascadeArrayTemplate(ProblemTemplate):
         # =====================================================================
         "environment_material": ParameterSpec(
             type="enum",
-            options=["humid_air", "air"],
+            options=["humid_air", "air", "water"],
             default="humid_air",
-            description="Material between units (inside cascade) - humid air or dry air only",
+            description="Material between units (inside cascade): humid_air, air, or water",
         ),
         "environment_density": ParameterSpec(
             type="float",
@@ -157,13 +165,13 @@ class CascadeArrayTemplate(ProblemTemplate):
             min=5.0,
             max=100.0,
             unit="cm",
-            description="Environment shell thickness for finite (vacuum boundary) cases",
+            description="Environment shell thickness on Y/Z vacuum boundaries",
         ),
-        "boundary_type": ParameterSpec(
+        "void_material": ParameterSpec(
             type="enum",
-            options=["vacuum", "reflective"],
-            default="vacuum",
-            description="Boundary condition: vacuum (finite) or reflective (infinite lattice)",
+            options=["void", "air", "humid_air"],
+            default="void",
+            description="Material in cylinder headspace when fill_fraction < 1.0",
         ),
     }
 
@@ -191,9 +199,11 @@ class CascadeArrayTemplate(ProblemTemplate):
         R_inner = p["R_inner_cm"]
         H_inner = p["H_inner_cm"]
         t_wall = p["t_wall_cm"]
+        fill_fraction = p.get("fill_fraction", 1.0)
 
         R_outer = R_inner + t_wall
         H_outer = H_inner + 2 * t_wall  # top and bottom caps
+        fissile_height = H_inner * fill_fraction
 
         # =====================================================================
         # PACK DIMENSIONS
@@ -221,22 +231,22 @@ class CascadeArrayTemplate(ProblemTemplate):
         array_z = cassette_z
 
         # =====================================================================
-        # TOTAL DIMENSIONS (depends on boundary condition)
+        # TOTAL DIMENSIONS
         # =====================================================================
-        boundary_type = p.get("boundary_type", "vacuum")
-        reflector_thickness_input = p["reflector_thickness_cm"]
+        # Fixed model boundary scheme:
+        #   X: periodic to represent an infinite row continuation
+        #   Y/Z: vacuum with explicit environment shell thickness
+        reflector_thickness = p["reflector_thickness_cm"]
 
-        if boundary_type == "reflective":
-            # Reflective boundaries are placed at half-gap from the outer walls.
-            reflector_thickness = 0.0
-            total_x = array_x + gap_xy
-            total_y = array_y + gap_xy
-            total_z = array_z + gap_z
-        else:
-            reflector_thickness = reflector_thickness_input
-            total_x = array_x + 2 * reflector_thickness
-            total_y = array_y + 2 * reflector_thickness
-            total_z = array_z + 2 * reflector_thickness
+        # Periodic X boundary sits half-gap beyond outer cylinder wall.
+        pad_x = gap_xy / 2.0
+        # Vacuum Y/Z boundaries use explicit shell thickness.
+        pad_y = reflector_thickness
+        pad_z = reflector_thickness
+
+        total_x = array_x + 2 * pad_x
+        total_y = array_y + 2 * pad_y
+        total_z = array_z + 2 * pad_z
 
         # =====================================================================
         # MATERIAL PROPERTIES
@@ -277,11 +287,9 @@ class CascadeArrayTemplate(ProblemTemplate):
             "ARRAY_Z": array_z,
             # Total
             "REFLECTOR_THICKNESS": reflector_thickness,
-            "REFLECTOR_THICKNESS_INPUT": reflector_thickness_input,
             "TOTAL_X": total_x,
             "TOTAL_Y": total_y,
             "TOTAL_Z": total_z,
-            "BOUNDARY_TYPE": boundary_type,
             # Counts
             "TOTAL_CYLINDERS": i * j * k,
             # Materials
@@ -289,6 +297,9 @@ class CascadeArrayTemplate(ProblemTemplate):
             "FISSILE_MATERIAL": p["fissile_material"],
             "FISSILE_DENSITY": p.get("fissile_density"),
             "H_TO_U": p.get("h_to_u", 0.0),
+            "FILL_FRACTION": fill_fraction,
+            "FISSILE_HEIGHT": fissile_height,
+            "VOID_MATERIAL": p.get("void_material", "void"),
             "ENVIRONMENT_MATERIAL": environment_material,
             "ENV_DENSITY": env_density,
         }
