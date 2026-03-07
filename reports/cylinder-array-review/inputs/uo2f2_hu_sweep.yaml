@@ -1,0 +1,45 @@
+# =============================================================================
+# UO2F2 H/U SWEEP - OPTIMAL MODERATION DETERMINATION
+# =============================================================================
+# Purpose: Confirm optimal H/U ratio for worst-case moderation
+# Key Result: Peak reactivity H/U ratio for bounding analysis
+# =============================================================================
+
+problem: cylinder
+name: "UO2F2 H/U Sweep - Infinite Array"
+
+# -----------------------------------------------------------------------------
+# GEOMETRY - 10-inch diameter vessels in infinite array
+# -----------------------------------------------------------------------------
+rows: 3                         # Unit cell rows (X)
+cols: 4                         # Unit cell cols (Y)
+layers: 5                       # Unit cell layers (Z)
+
+radius_cm: 12.70                # 5-inch inner radius
+height_cm: 100.0                # 1 meter internal height
+wall_material: steel
+wall_thickness_cm: 0.3175       # 1/8 inch wall
+
+gap_horizontal_cm: 12.70                # 5-inch horizontal gap (wall-to-wall)
+gap_vertical_cm: 7.62                  # 3-inch vertical gap
+
+# -----------------------------------------------------------------------------
+# MATERIAL - UO2F2 with varying H/U ratio
+# -----------------------------------------------------------------------------
+enrichment: 21                  # Bounding HALEU (wt% U-235)
+
+fissile_material: uo2f2
+h_to_u_ratio: [0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100]  # Sweep to find peak
+fill_fraction: 1.0              # 100% fill for H/U optimization
+
+# -----------------------------------------------------------------------------
+# ENVIRONMENT - Humid air between units
+# -----------------------------------------------------------------------------
+environment: humid_air
+void_material: humid_air
+
+# -----------------------------------------------------------------------------
+# BOUNDARY - Reflective (infinite array)
+# -----------------------------------------------------------------------------
+boundary_type: reflective
+reflector_thickness_cm: 6.35    # = gap_xy/2 for proper unit cell

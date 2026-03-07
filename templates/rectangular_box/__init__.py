@@ -42,11 +42,11 @@ class RectangularBoxTemplate(ProblemTemplate):
         ),
         "fissile_density": ParameterSpec(
             type="float",
-            default=5.09,
+            default=None,
             min=1.0,
             max=7.0,
             unit="g/cc",
-            description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
+            description="Optional fissile material density override (UF6 default: 5.09)",
         ),
         "h_to_u": ParameterSpec(
             type="float",
@@ -103,11 +103,19 @@ class RectangularBoxTemplate(ProblemTemplate):
             description="Wall thickness (all 6 faces)",
         ),
         # Environment
-        "environment": ParameterSpec(
+        "environment_material": ParameterSpec(
             type="enum",
             options=["water", "concrete", "air", "none"],
             default="water",
             description="Environment/reflector material",
+        ),
+        "environment_density": ParameterSpec(
+            type="float",
+            default=None,
+            min=0.00001,
+            max=3.0,
+            unit="g/cc",
+            description="Optional environment density override",
         ),
         "reflector_thickness_cm": ParameterSpec(
             type="float",
@@ -151,9 +159,10 @@ class RectangularBoxTemplate(ProblemTemplate):
         fill_fraction = p.get("fill_fraction", 1.0)
 
         # Environment/Reflector
-        environment = p.get("environment", "water")
+        environment_material = p.get("environment_material", "water")
+        environment_density = p.get("environment_density")
         refl_t = p["reflector_thickness_cm"]
-        if environment == "none":
+        if environment_material == "none":
             refl_t = 0.0
 
         # X coordinates (centered at 0)
@@ -181,11 +190,16 @@ class RectangularBoxTemplate(ProblemTemplate):
 
         # Material densities
         wall_density = get_density(p["wall_material"])
-        env_density = get_density(environment) if environment != "none" else 0.0
+        if environment_material == "none":
+            env_density = 0.0
+        elif environment_density is not None:
+            env_density = environment_density
+        else:
+            env_density = get_density(environment_material)
 
         # Fissile material
         fissile_material = p.get("fissile_material", "uf6")
-        fissile_density = p.get("fissile_density", 5.09)
+        fissile_density = p.get("fissile_density")
         h_to_u = p.get("h_to_u", 0.0)
 
         # Total bounding box dimensions
@@ -230,7 +244,7 @@ class RectangularBoxTemplate(ProblemTemplate):
             "WALL_DENSITY": wall_density,
 
             # Environment
-            "ENVIRONMENT": environment,
+            "ENVIRONMENT_MATERIAL": environment_material,
             "ENV_DENSITY": env_density,
             "REFL_THICKNESS": refl_t,
 

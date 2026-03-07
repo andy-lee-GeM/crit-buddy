@@ -50,11 +50,11 @@ class CylinderTemplate(ProblemTemplate):
         ),
         "fissile_density": ParameterSpec(
             type="float",
-            default=5.09,
+            default=None,
             min=1.0,
             max=7.0,
             unit="g/cc",
-            description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
+            description="Optional fissile material density override (UF6 default: 5.09)",
         ),
         "h_to_u": ParameterSpec(
             type="float",
@@ -149,11 +149,19 @@ class CylinderTemplate(ProblemTemplate):
             description="Wall thickness",
         ),
         # Environment
-        "environment": ParameterSpec(
+        "environment_material": ParameterSpec(
             type="enum",
             options=["humid_air", "air", "water"],
             default="humid_air",
             description="Environment material around array",
+        ),
+        "environment_density": ParameterSpec(
+            type="float",
+            default=None,
+            min=0.00001,
+            max=2.0,
+            unit="g/cc",
+            description="Optional environment density override",
         ),
         "reflector_thickness_cm": ParameterSpec(
             type="float",
@@ -211,9 +219,10 @@ class CylinderTemplate(ProblemTemplate):
 
         # Material selections
         fissile_material = p.get("fissile_material", "uf6")
-        fissile_density = p.get("fissile_density", 5.09)
+        fissile_density = p.get("fissile_density")
         h_to_u = p.get("h_to_u", 0.0)
-        environment = p.get("environment", "humid_air")
+        environment_material = p.get("environment_material", "humid_air")
+        environment_density = p.get("environment_density")
         void_material = p.get("void_material", "void")
 
         # Apply fill fraction to UF6 height
@@ -246,7 +255,11 @@ class CylinderTemplate(ProblemTemplate):
 
         # Material densities
         wall_density = get_density(p["wall_material"])
-        water_density = p.get("water_density", 1.0)
+        env_density = (
+            environment_density
+            if environment_density is not None
+            else get_density(environment_material)
+        )
 
         return {
             # Array configuration
@@ -290,7 +303,8 @@ class CylinderTemplate(ProblemTemplate):
             "WALL_MATERIAL": p["wall_material"],
             "WALL_DENSITY": wall_density,
             # Environment
-            "ENVIRONMENT": environment,
+            "ENVIRONMENT_MATERIAL": environment_material,
+            "ENV_DENSITY": env_density,
             "VOID_MATERIAL": void_material,
             # Fill fraction
             "FILL_FRACTION": fill_fraction,

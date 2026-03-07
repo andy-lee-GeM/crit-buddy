@@ -4,9 +4,7 @@ Crit-buddy entry point.
 
 Usage:
     python run_study.py <experiment.yaml>
-    python run_study.py experiments/my_study/experiment.yaml --validate
-    python run_study.py experiments/my_study/experiment.yaml --smoke
-    python run_study.py experiments/my_study/experiment.yaml --solver openmc
+    python run_study.py <experiment.yaml> --solver openmc
 """
 
 import sys

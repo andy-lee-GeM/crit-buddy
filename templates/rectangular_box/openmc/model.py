@@ -11,7 +11,11 @@ Applications: Chemical traps, HEPA filters, rectangular GEVS components
 """
 
 import openmc
-from critbuddy.core.materials import create_uf6, get_material
+from critbuddy.core.materials import (
+    create_fissile_material,
+    create_environment_material,
+    get_material,
+)
 
 
 def build_model(p):
@@ -34,20 +38,28 @@ def build_model(p):
     # MATERIALS (from shared library)
     # ══════════════════════════════════════════════════════════════════════════
 
-    m_uf6 = create_uf6(p["ENRICHMENT"], density=p["FISSILE_DENSITY"])
+    m_fissile = create_fissile_material(
+        fissile_material=p.get("FISSILE_MATERIAL", "uf6"),
+        enrichment_pct=p["ENRICHMENT"],
+        fissile_density=p.get("FISSILE_DENSITY"),
+        h_to_u=p.get("H_TO_U", 0.0),
+    )
 
     # Wall material
     wall_mat = p.get("WALL_MATERIAL", "steel")
     m_wall = get_material(wall_mat, solver="openmc")
 
     # Reflector material
-    refl_mat = p.get("ENVIRONMENT", "water")
+    refl_mat = p["ENVIRONMENT_MATERIAL"]
     if refl_mat != "none":
-        m_refl = get_material(refl_mat, solver="openmc")
-        materials = openmc.Materials([m_uf6, m_wall, m_refl])
+        m_refl = create_environment_material(
+            environment_material=refl_mat,
+            environment_density=p.get("ENV_DENSITY"),
+        )
+        materials = openmc.Materials([m_fissile, m_wall, m_refl])
     else:
         m_refl = None
-        materials = openmc.Materials([m_uf6, m_wall])
+        materials = openmc.Materials([m_fissile, m_wall])
 
     # ══════════════════════════════════════════════════════════════════════════
     # SURFACES
@@ -109,7 +121,7 @@ def build_model(p):
                                    z_wall_bottom, z_wall_top)
 
     # Cell 1: UF6 (fissile material)
-    c_uf6 = openmc.Cell(cell_id=1, name="UF6", fill=m_uf6)
+    c_uf6 = openmc.Cell(cell_id=1, name="Fissile", fill=m_fissile)
     c_uf6.region = inner_region
     cells.append(c_uf6)
 
@@ -141,6 +153,8 @@ def build_model(p):
         "length": p["LENGTH"],
         "width": p["WIDTH"],
         "height": p["HEIGHT"],
+        "fissile_material": p.get("FISSILE_MATERIAL", "uf6"),
+        "fissile_density": m_fissile.density,
         "total_x": p["TOTAL_X"],
         "total_y": p["TOTAL_Y"],
         "total_z": p["TOTAL_Z"],
@@ -213,8 +227,9 @@ def print_summary(p, dims):
                          CASE SUMMARY
 ================================================================================
 FISSILE MATERIAL
+  Type:               {dims.get('fissile_material', 'uf6').upper()}
   Enrichment:         {p['ENRICHMENT']:>8.2f} wt% U-235
-  Density:            {p['FISSILE_DENSITY']:>8.3f} g/cc
+  Density:            {dims.get('fissile_density', 0.0):>8.3f} g/cc
 
 GEOMETRY (cm)
   Internal L x W x H: {dims['length']:>6.2f} x {dims['width']:>6.2f} x {dims['height']:>6.2f}
@@ -224,7 +239,7 @@ GEOMETRY (cm)
 
 MATERIALS
   Wall:               {p['WALL_MATERIAL']}
-  Reflector:          {p['ENVIRONMENT']}
+  Reflector:          {p['ENVIRONMENT_MATERIAL']}
 
 SIMULATION
   {int(p['PARTICLES'])} particles x {int(p['BATCHES'])} batches ({int(p['INACTIVE'])} inactive)

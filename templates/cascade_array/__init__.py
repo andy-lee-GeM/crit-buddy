@@ -2,15 +2,12 @@
 Cascade Array Problem Template.
 
 A hierarchical array of cylinders organized as:
-    - Cylinders within cassettes (i x j x k lattice)
-    - Cassettes within rows (M cassettes per row)
-    - 2 rows forming the complete cascade
+    - Cylinders within a pack (i x j x k lattice)
 
 Geometry Hierarchy:
     Level 1: Cylinder    - Single steel-clad vessel with fissile material
-    Level 2: Cassette    - i x j x k lattice of cylinders
-    Level 3: Row         - M cassettes in a line along X
-    Level 4: Cascade     - 2 rows + water reflector (ROOT)
+    Level 2: Pack        - i x j x k lattice of cylinders
+    Level 3: Pack + boundary shell (ROOT)
 
 Applications: Cascade hall layouts, process equipment arrays
 """
@@ -23,10 +20,10 @@ class CascadeArrayTemplate(ProblemTemplate):
     Cascade array template with nested universe hierarchy.
 
     Coordinate system:
-        - X: cassette direction within row (M cassettes)
-        - Y: row direction (2 rows)
-        - Z: vertical (k layers within cassette)
-        - Origin at corner of array (not centered)
+        - X: cylinder count direction within pack (i)
+        - Y: cylinder count direction within pack (j)
+        - Z: vertical stacking direction (k)
+        - Origin at pack corner (not centered)
     """
 
     PARAMETERS = {
@@ -49,11 +46,11 @@ class CascadeArrayTemplate(ProblemTemplate):
         ),
         "fissile_density": ParameterSpec(
             type="float",
-            default=5.09,
+            default=None,
             min=1.0,
             max=7.0,
             unit="g/cc",
-            description="Fissile material density (UF6: 5.09, UO2F2: 6.37)",
+            description="Optional fissile material density override (UF6 default: 5.09)",
         ),
         "h_to_u": ParameterSpec(
             type="float",
@@ -63,6 +60,14 @@ class CascadeArrayTemplate(ProblemTemplate):
             max=500.0,
             unit="",
             description="H/U atomic ratio for wet UO2F2 (0 = dry, higher = more water)",
+        ),
+        "fill_fraction": ParameterSpec(
+            type="float",
+            required=False,
+            default=1.0,
+            min=0.01,
+            max=1.0,
+            description="Fill fraction by height (1.0 = full)",
         ),
         # =====================================================================
         # CYLINDER GEOMETRY
@@ -98,74 +103,61 @@ class CascadeArrayTemplate(ProblemTemplate):
             description="Container wall material",
         ),
         # =====================================================================
-        # CASSETTE CONFIGURATION (i x j x k cylinders)
+        # ARRAY CONFIGURATION
         # =====================================================================
         "i": ParameterSpec(
             type="int",
             required=True,
             min=1,
-            max=20,
-            description="Cylinders per cassette in X direction",
+            max=2000,
+            description="Cylinders per pack in X direction",
         ),
         "j": ParameterSpec(
             type="int",
             required=True,
             min=1,
             max=20,
-            description="Cylinders per cassette in Y direction",
+            description="Cylinders per pack in Y direction",
         ),
         "k": ParameterSpec(
             type="int",
             required=True,
             min=1,
             max=10,
-            description="Cylinders per cassette in Z direction (layers)",
+            description="Cylinders per pack in Z direction (layers)",
         ),
-        "d_cylinder_cm": ParameterSpec(
+        "gap_xy_cm": ParameterSpec(
             type="float",
-            required=True,
-            min=0.0,
-            max=100.0,
-            unit="cm",
-            description="Gap between cylinder outer walls within cassette",
-        ),
-        # =====================================================================
-        # ROW CONFIGURATION (M cassettes)
-        # =====================================================================
-        "M": ParameterSpec(
-            type="int",
-            required=True,
-            min=1,
-            max=50,
-            description="Number of cassettes per row",
-        ),
-        "d_cassette_cm": ParameterSpec(
-            type="float",
-            required=True,
+            default=0.0,
             min=0.0,
             max=200.0,
             unit="cm",
-            description="Gap between cassettes within a row",
+            description="Horizontal wall-to-wall gap in X/Y directions",
         ),
-        # =====================================================================
-        # CASCADE CONFIGURATION (2 rows)
-        # =====================================================================
-        "d_row_cm": ParameterSpec(
+        "gap_z_cm": ParameterSpec(
             type="float",
-            required=True,
+            default=0.0,
             min=0.0,
             max=200.0,
             unit="cm",
-            description="Gap between the two rows",
+            description="Vertical cap-to-cap gap in Z direction",
         ),
         # =====================================================================
         # ENVIRONMENT
         # =====================================================================
-        "environment": ParameterSpec(
+        "environment_material": ParameterSpec(
             type="enum",
-            options=["humid_air", "air"],
+            options=["humid_air", "air", "water"],
             default="humid_air",
-            description="Material between units (inside cascade) - humid air or dry air only",
+            description="Material between units (inside cascade): humid_air, air, or water",
+        ),
+        "environment_density": ParameterSpec(
+            type="float",
+            default=None,
+            min=0.00001,
+            max=2.0,
+            unit="g/cc",
+            description="Optional environment density override",
         ),
         "reflector_thickness_cm": ParameterSpec(
             type="float",
@@ -173,7 +165,13 @@ class CascadeArrayTemplate(ProblemTemplate):
             min=5.0,
             max=100.0,
             unit="cm",
-            description="Water reflector thickness around cascade",
+            description="Environment shell thickness on Y/Z vacuum boundaries",
+        ),
+        "void_material": ParameterSpec(
+            type="enum",
+            options=["void", "air", "humid_air"],
+            default="void",
+            description="Material in cylinder headspace when fill_fraction < 1.0",
         ),
     }
 
@@ -201,59 +199,66 @@ class CascadeArrayTemplate(ProblemTemplate):
         R_inner = p["R_inner_cm"]
         H_inner = p["H_inner_cm"]
         t_wall = p["t_wall_cm"]
+        fill_fraction = p.get("fill_fraction", 1.0)
 
         R_outer = R_inner + t_wall
         H_outer = H_inner + 2 * t_wall  # top and bottom caps
+        fissile_height = H_inner * fill_fraction
 
         # =====================================================================
-        # CASSETTE DIMENSIONS
+        # PACK DIMENSIONS
         # =====================================================================
         i = p["i"]
         j = p["j"]
         k = p["k"]
-        d_cylinder = p["d_cylinder_cm"]
+        gap_xy = p.get("gap_xy_cm", 0.0)
+        gap_z = p.get("gap_z_cm", 0.0)
 
         # Pitch = center-to-center distance
-        pitch_cylinder = 2 * R_outer + d_cylinder
-        pitch_z = H_outer + d_cylinder  # vertical spacing
+        pitch_cylinder = 2 * R_outer + gap_xy
+        pitch_z = H_outer + gap_z  # vertical spacing
 
-        # Cassette outer dimensions
-        cassette_x = i * pitch_cylinder
-        cassette_y = j * pitch_cylinder
-        cassette_z = k * pitch_z
-
-        # =====================================================================
-        # ROW DIMENSIONS
-        # =====================================================================
-        M = p["M"]
-        d_cassette = p["d_cassette_cm"]
-
-        pitch_cassette = cassette_x + d_cassette
-        row_x = M * pitch_cassette
+        # Pack outer dimensions
+        cassette_x = i * (2 * R_outer) + (i - 1) * gap_xy
+        cassette_y = j * (2 * R_outer) + (j - 1) * gap_xy
+        cassette_z = k * H_outer + (k - 1) * gap_z
 
         # =====================================================================
-        # CASCADE DIMENSIONS
+        # PACK DIMENSIONS
         # =====================================================================
-        d_row = p["d_row_cm"]
-
-        pitch_row = cassette_y + d_row
-        array_x = row_x
-        array_y = 2 * pitch_row  # 2 rows
+        array_x = cassette_x
+        array_y = cassette_y
         array_z = cassette_z
 
         # =====================================================================
-        # TOTAL DIMENSIONS (with reflector)
+        # TOTAL DIMENSIONS
         # =====================================================================
+        # Fixed model boundary scheme:
+        #   X: periodic to represent an infinite row continuation
+        #   Y/Z: vacuum with explicit environment shell thickness
         reflector_thickness = p["reflector_thickness_cm"]
 
-        total_x = array_x + 2 * reflector_thickness
-        total_y = array_y + 2 * reflector_thickness
-        total_z = array_z + 2 * reflector_thickness
+        # Periodic X boundary sits half-gap beyond outer cylinder wall.
+        pad_x = gap_xy / 2.0
+        # Vacuum Y/Z boundaries use explicit shell thickness.
+        pad_y = reflector_thickness
+        pad_z = reflector_thickness
+
+        total_x = array_x + 2 * pad_x
+        total_y = array_y + 2 * pad_y
+        total_z = array_z + 2 * pad_z
 
         # =====================================================================
         # MATERIAL PROPERTIES
         # =====================================================================
         wall_density = get_density(p["wall_material"])
+        environment_material = p.get("environment_material", "humid_air")
+        environment_density = p.get("environment_density")
+        env_density = (
+            environment_density
+            if environment_density is not None
+            else get_density(environment_material)
+        )
 
         return {
             # Cylinder
@@ -264,25 +269,19 @@ class CascadeArrayTemplate(ProblemTemplate):
             "T_WALL": t_wall,
             "WALL_MATERIAL": p["wall_material"],
             "WALL_DENSITY": wall_density,
-            # Cassette
+            # Pack
             "I": i,
             "J": j,
             "K": k,
-            "D_CYLINDER": d_cylinder,
+            "GAP_XY": gap_xy,
+            "GAP_Z": gap_z,
             "PITCH_CYLINDER": pitch_cylinder,
             "PITCH_Z": pitch_z,
             "CASSETTE_X": cassette_x,
             "CASSETTE_Y": cassette_y,
             "CASSETTE_Z": cassette_z,
-            "CYLINDERS_PER_CASSETTE": i * j * k,
-            # Row
-            "M": M,
-            "D_CASSETTE": d_cassette,
-            "PITCH_CASSETTE": pitch_cassette,
-            "ROW_X": row_x,
-            # Cascade
-            "D_ROW": d_row,
-            "PITCH_ROW": pitch_row,
+            "CYLINDERS_PER_PACK": i * j * k,
+            # Pack
             "ARRAY_X": array_x,
             "ARRAY_Y": array_y,
             "ARRAY_Z": array_z,
@@ -292,15 +291,17 @@ class CascadeArrayTemplate(ProblemTemplate):
             "TOTAL_Y": total_y,
             "TOTAL_Z": total_z,
             # Counts
-            "CASSETTES_PER_ROW": M,
-            "TOTAL_CASSETTES": 2 * M,
-            "TOTAL_CYLINDERS": 2 * M * i * j * k,
+            "TOTAL_CYLINDERS": i * j * k,
             # Materials
             "ENRICHMENT": p["enrichment"],
             "FISSILE_MATERIAL": p["fissile_material"],
-            "FISSILE_DENSITY": p["fissile_density"],
+            "FISSILE_DENSITY": p.get("fissile_density"),
             "H_TO_U": p.get("h_to_u", 0.0),
-            "ENVIRONMENT": p["environment"],
+            "FILL_FRACTION": fill_fraction,
+            "FISSILE_HEIGHT": fissile_height,
+            "VOID_MATERIAL": p.get("void_material", "void"),
+            "ENVIRONMENT_MATERIAL": environment_material,
+            "ENV_DENSITY": env_density,
         }
 
 
