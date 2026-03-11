@@ -7,8 +7,9 @@
 # Conda environment name for OpenMC
 conda_env: openmc-env
 
-# OpenMC cross-sections path
-# Download with: python -c "import openmc.data; openmc.data.download_nndc_data('endfb71')"
+# OpenMC cross-sections path (path to cross_sections.xml, not the directory)
+# Reuse a copied/shared HDF5 library when available, or download with:
+# python -c "import openmc.data; openmc.data.download_nndc_data('endfb71')"
 openmc_cross_sections: /path/to/endfb-vii.1-hdf5/cross_sections.xml
 
 # MCNP configuration (optional - only needed if using MCNP solver)

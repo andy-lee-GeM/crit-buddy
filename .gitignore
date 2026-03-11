@@ -35,8 +35,9 @@ config.yaml
 .DS_Store
 Thumbs.db
 
-# Local docs (not tracked)
-docs/
+# Docs
+docs/*
+!docs/openmc-data-setup.md
 
 # Experiments (local only)
 experiments/

@@ -88,7 +88,12 @@ conda install -c conda-forge openmc
 pip install -r requirements.txt
 ```
 
-### 3. Download nuclear data
+### 3. Provision nuclear data
+
+If you are setting up another development environment, reuse an existing OpenMC HDF5
+library instead of downloading it again when possible. See
+[`docs/openmc-data-setup.md`](docs/openmc-data-setup.md) for the internal setup flow
+used with this repo.
 
 ```bash
 # Download ENDF/B-VII.1 cross-sections (~1.5 GB)
@@ -107,7 +112,7 @@ Edit `config.yaml` with your paths:
 # Conda environment name
 conda_env: openmc-env
 
-# Path to cross-sections XML
+# Path to cross_sections.xml
 openmc_cross_sections: /path/to/cross_sections.xml
 
 # Optional: MCNP configuration
@@ -116,6 +121,9 @@ mcnp:
   tasks: 4
   timeout: 3600
 ```
+
+`run_study.py` will export `OPENMC_CROSS_SECTIONS` from `config.yaml` if the file
+exists and the environment variable is not already set.
 
 ### 5. Verify installation
 
