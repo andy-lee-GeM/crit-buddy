@@ -169,7 +169,7 @@ def _plot_grouped_sweep(
         # Format label based on parameter type
         if group_param == "enrichment":
             label = f"{group_val}% enrichment"
-        elif group_param == "h_to_u_ratio":
+        elif group_param in {"h_to_u_ratio", "h_to_u"}:
             label = f"H/U = {group_val}"
         elif group_param == "fill_fraction":
             label = f"{group_val*100:.0f}% fill"
@@ -222,6 +222,7 @@ def _format_param_label(param: str) -> str:
         "enrichment": "Enrichment (%)",
         "fill_fraction": "Fill Fraction",
         "h_to_u_ratio": "H/U Ratio",
+        "h_to_u": "H/U Ratio",
         "gap_xy_cm": "Gap Distance (cm)",
         "gap_z_cm": "Vertical Gap (cm)",
         "radius_cm": "Radius (cm)",

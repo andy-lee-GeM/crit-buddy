@@ -41,11 +41,12 @@ class CascadeArrayModelTests(unittest.TestCase):
 
         staged_cases = [
             ("01_single_cylinder", {"i": 1, "j": 1, "k": 1}),
-            ("02_single_cassette_4x1", {"i": 4, "j": 1, "k": 1}),
-            ("03_single_cassette_2x3", {"i": 2, "j": 3, "k": 1}),
-            ("04_cassette_stack_2x2_2", {"i": 2, "j": 2, "k": 2}),
-            ("05_cassette_stack_4x3_2", {"i": 4, "j": 3, "k": 5}),
-            ("06_cassette_stack_5x2_2", {"i": 5, "j": 2, "k": 5}),
+            ("02_single_cylinder_thin_film", {"i": 1, "j": 1, "k": 1, "t_film_cm": 0.5, "film_material": "water"}),
+            ("03_single_cassette_4x1", {"i": 4, "j": 1, "k": 1}),
+            ("04_single_cassette_2x3", {"i": 2, "j": 3, "k": 1}),
+            ("05_cassette_stack_2x2_2", {"i": 2, "j": 2, "k": 2}),
+            ("06_cassette_stack_4x3_2", {"i": 4, "j": 3, "k": 5}),
+            ("07_cassette_stack_5x2_2", {"i": 5, "j": 2, "k": 5}),
         ]
 
         for case_name, overrides in staged_cases:

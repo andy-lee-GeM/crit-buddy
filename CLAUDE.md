@@ -59,7 +59,7 @@ All analyses use bounding (conservative) assumptions:
 **Material Functions** (`critbuddy/core/materials.py`):
 - `create_uf6(enrichment, density)` - Pure UF6 (primary)
 - `create_uf6_with_hf(enrichment, density)` - UF6 + HF for 30B cylinders
-- Registry materials: `create_aluminum()`, `create_steel()`, `create_water()`, etc.
+- Registry materials: `aluminum()`, `stainless_steel_316()`, `water()`, etc.
 - MCNP equivalents: `mcnp_uf6()`, `mcnp_aluminum()`, etc.
 
 ### Experiment Directory Structure
@@ -129,19 +129,16 @@ Example scenario naming:
 
 ```bash
 # Run an experiment
-/home/andylee/anaconda3/envs/openmc-env/bin/python run_study.py experiments/crit_requests/01_single_cylinder/enr_20/radius_height.yaml
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python run_study.py experiments/crit_requests/01_single_cylinder/enr_20/radius_height.yaml
 
-# Quick smoke test (1 case, minimal particles)
-/home/andylee/anaconda3/envs/openmc-env/bin/python run_study.py experiments/crit_requests/01_single_cylinder/enr_20/radius_height.yaml --smoke
+# Run without generating plots/report
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python run_study.py experiments/crit_requests/01_single_cylinder/enr_20/radius_height.yaml --no-report
 
-# Validate geometry (generates 2D plots in _validation/)
-/home/andylee/anaconda3/envs/openmc-env/bin/python run_study.py experiments/crit_requests/01_single_cylinder/enr_20/radius_height.yaml --validate
-
-# Run specific case only
-/home/andylee/anaconda3/envs/openmc-env/bin/python run_study.py experiments/crit_requests/01_single_cylinder/enr_20/radius_height.yaml --case "R=25cm"
+# Cascade-array manual visualization regression check
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.test_cascade_array_model
 
 # Use specific solver (openmc, mcnp, or all)
-/home/andylee/anaconda3/envs/openmc-env/bin/python run_study.py experiments/crit_requests/02_process_pipe/enr_24/nps_sweep.yaml --solver openmc
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python run_study.py experiments/crit_requests/02_process_pipe/enr_24/nps_sweep.yaml --solver openmc
 ```
 
 ## YouTrack Integration
@@ -209,7 +206,7 @@ client.push_results("CB-10", Path("experiments/CB-10/results"))
 **Materials (`core/materials.py`):**
 - `create_uf6(enrichment, density)` - Pure UF6 (primary)
 - `create_uf6_with_hf(enrichment, density)` - UF6 + HF for 30B cylinders
-- Registry materials: `create_aluminum()`, `create_steel()`, `create_water()`, etc.
+- Registry materials: `aluminum()`, `stainless_steel_316()`, `water()`, etc.
 - MCNP equivalents: `mcnp_uf6()`, `mcnp_aluminum()`, etc.
 
 **Solvers (`solvers/`):**
@@ -263,7 +260,7 @@ gap_vertical_cm: 7.62       # Vertical gap between layers
 # Cylinder geometry
 radius_cm: 12.7             # Inner radius [REQUIRED]
 height_cm: 100              # Cylinder height [REQUIRED]
-wall_material: steel        # steel, aluminum, ss304, monel
+wall_material: steel        # steel, aluminum, ss304
 wall_thickness_cm: 0.6      # Wall thickness
 
 # Environment
@@ -290,7 +287,7 @@ pipe_size: "2"              # NPS: 1/8, 1/4, ..., 8, or "custom"
 length_cm: 100              # 1-1000 cm [REQUIRED]
 
 # Environment
-wall_material: ss304        # ss304, steel, aluminum, monel
+wall_material: ss304        # ss304, steel, aluminum
 environment: humid_air      # humid_air, air, water
 reflector_thickness_cm: 30  # 0-100 cm
 ```

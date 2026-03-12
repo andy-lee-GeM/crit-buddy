@@ -35,7 +35,7 @@ fill_fraction: [0.25, 0.50, 0.75, 1.0]  # Fill sweep to find critical threshold
 # -----------------------------------------------------------------------------
 # ENVIRONMENT - Humid air between units
 # -----------------------------------------------------------------------------
-environment: humid_air
+environment_material: humid_air
 void_material: humid_air
 
 # -----------------------------------------------------------------------------

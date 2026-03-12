@@ -44,9 +44,11 @@ Three case families are covered:
 | Material | Density | Composition Basis |
 |---|---|---|
 | UF6 | 5.09 | `materials.py:create_uf6` (U-235/U-238 from wt% + F-19) |
-| UO2F2 | `uo2f2_density(h_to_u)` | `materials.py:create_uo2f2` (U, O, F, H per H/U) |
-| Steel | 8.0 | `materials.py:create_steel` (Fe, Cr, Ni, Mo, Mn) |
-| Humid air | 0.0011 | `materials.py:create_humid_air` (N, O, Ar, H) |
+| UO2F2 | `uo2f2_density(h_to_u, enrichment_pct)` | `materials.py:create_uo2f2` (U, O, F, H per H/U) |
+| Steel | 8.0 | `materials.py:stainless_steel_316` (Fe, Cr, Ni, Mo, Mn) |
+| Humid air | 0.0011 | `materials.py:humid_air` (N, O, Ar, H) |
+
+**UO2F2 density basis:** ORNL/TM-12292, Appendix A. The implementation uses Eq. (A.1) for the aqueous region and the uranyl-fluoride low-H/U piecewise branch for hydrated salts.
 
 **Thermal scattering:** apply `lwtr` (OpenMC `c_H_in_H2O`) for UO2F2 when H/U > 0.
 

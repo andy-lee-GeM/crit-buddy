@@ -122,7 +122,7 @@ class PipeTemplate(ProblemTemplate):
         # Wall
         "wall_material": ParameterSpec(
             type="enum",
-            options=["ss304", "steel", "aluminum", "monel"],
+            options=["ss304", "steel", "aluminum"],
             default="ss304",
             description="Pipe wall material",
         ),

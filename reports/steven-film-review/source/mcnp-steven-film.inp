@@ -1,0 +1,65 @@
+Centrifuge Model- Infinite Lattice
+c
+c Cell Cards
+c
+1 1 -5.59 16 -9 18 imp:n=1 $Fuel Volume
+2 2 -8.8 1 -2 3 -4 imp:n=1 $centrifuge
+3 3 3.3e-02 16 9 -17 imp:n=1 $air in centrifuge
+4 0 0.100283856 16 -3 1 -4 imp:n=1 $water Layer
+5 4 3.3e-02 6 2 14 -15 imp:n=1 $air
+8 4 3.3e-02 -7 5 14 -15 imp:n=1 $air
+9 4 3.3e-02 8 2 14 -15 imp:n=1 $air
+10 4 3.3e-02 -5 3 14 -15 imp:n=1 $air
+16 0 4 3.3e-02 -2 -1 imp:n=1 $vertical space
+17 4 3.3e-02 -2 -1 3 14 imp:n=1 $vertical space
+18 3 0.100283856 17 -4 -16 imp:n=1 $water Layer
+19 3 0.100283856 -18 3 -16 imp:n=1 $water Layer
+c
+c Surface Cards
+c
+1 cz 12.70 $ Fuel Volume
+2 cz 13.0175 $centrifuge
+3 pz 0 $Ground Level
+4 pz 100 $Top of Centrifuge
+5 py 12.0175
+6 py -12.0175
+7 px 12.0175
+8 px -12.0175
+9 pz 10
+14 pz -100
+15 pz 200
+16 pz 11.70
+17 pz 99
+18 pz 1.0
+c
+c Data Cards
+c
+c Source Term
+c
+mode n
+c
+m1 92235.80c 1.883e-03
+   92238.80c 7.437e-03
+   8016.80c 4.664e-02
+   1001.80c 5.592e-02
+mt1 lwtr.01t
+m2 26058.80c 0.017
+   26055.80c 4.30e-04
+   25055.80c 4.30e-04
+   24052.80c 0.0036
+c
+m3 1001.80c 0.067
+   8016.80c 0.033
+mt3 lwtr.01t
+c
+m4 7014.80c 3.9e-05
+   8016.80c 4.3e-04
+   18040.80c 2.4e-04
+   1001.80c 1.1e-06
+   9019.80c 1.1e-06
+m5 92235.80c 3.52866e-03
+   92238.80c 3.535782e-01
+   43098.80c 8.5242857e-01
+kcode 1000 1.0 50 200
+ksrc 0 0 5
+print

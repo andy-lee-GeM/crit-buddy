@@ -14,8 +14,8 @@ import openmc
 from critbuddy.core.materials import (
     create_fissile_material,
     create_environment_material,
-    create_vacuum,
     get_material,
+    vacuum,
 )
 
 
@@ -57,7 +57,7 @@ def build_model(p):
     fill_height = p.get("FILL_HEIGHT", 0.0)  # Relative to pipe center
     m_vacuum = None
     if fill_fraction < 1.0:
-        m_vacuum = create_vacuum()
+        m_vacuum = vacuum()
         materials = openmc.Materials([m_fissile, m_wall, m_env, m_vacuum])
     else:
         materials = openmc.Materials([m_fissile, m_wall, m_env])

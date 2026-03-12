@@ -12,7 +12,6 @@ from .voxel import (
     create_voxel_plot,
     create_isometric_slices,
 )
-from .excel import generate_lookup_xlsx, generate_cascade_array_xlsx
 from .ticket_report import generate_ticket_report
 from .summary_plots import generate_summary_plots
 
@@ -22,8 +21,6 @@ __all__ = [
     "plot_heatmap",
     "generate_report",
     "generate_calculation_report",
-    "generate_lookup_xlsx",
-    "generate_cascade_array_xlsx",
     "PlotSpec",
     "auto_plot_spec",
     "get_plot_spec",

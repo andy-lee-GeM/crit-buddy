@@ -136,7 +136,7 @@ class CylinderTemplate(ProblemTemplate):
         # Wall
         "wall_material": ParameterSpec(
             type="enum",
-            options=["aluminum", "steel", "ss304", "monel"],
+            options=["aluminum", "steel", "ss304"],
             default="steel",
             description="Container wall material",
         ),

@@ -200,9 +200,21 @@ def create_void() -> openmc.Material:
 
 def uo2f2_density(h_to_u: float = 0.0) -> float:
     """
-    Calculate UO2F2 mixture density from H/U ratio.
+    Calculate UO2F2 density from H/U ratio.
 
-    Assumes ideal mixing of crystalline UO2F2 (6.37 g/cc) with water (1.0 g/cc).
+    For H/U > 0, density is evaluated as an aqueous UO2F2 solution using the
+    25 C Johnson-Kraus empirical correlation:
+
+        1 / rho = 1 / rho_water + a * w + b * w**2
+
+    where w is the UO2F2 weight fraction, rho_water = 0.99707 g/cm3,
+    a = -0.9120, and b = 0.0567.
+
+    Source: D. R. Johnson and C. A. Kraus, J. Am. Chem. Soc. 75 (1953),
+    2764-2767, "Density, Viscosity, Conductance, and Acid Dissociation of
+    Uranyl Fluoride Solutions at 25 and 30 C".
+
+    H/U == 0 retains the legacy dry-crystal density endpoint for compatibility.
 
     Args:
         h_to_u: Hydrogen atoms per uranium atom (0 = dry, higher = wetter)
@@ -211,40 +223,50 @@ def uo2f2_density(h_to_u: float = 0.0) -> float:
         Mixture density in g/cc
 
     Examples:
-        H/U=0:   6.37 g/cc (dry crystal)
-        H/U=2:   4.91 g/cc (monohydrate)
-        H/U=10:  2.88 g/cc (wet slurry)
-        H/U=100: 1.27 g/cc (dilute solution)
+        H/U=0:   6.37 g/cc (dry crystal endpoint)
+        H/U=10:  2.62 g/cc
+        H/U=30:  1.88 g/cc
+        H/U=100: 1.20 g/cc
     """
-    mw_uo2f2 = 308.02  # g/mol (U: 238.03, O: 32, F: 38)
-    mw_h2o = 18.015    # g/mol
+    mw_uo2f2 = 308.02
+    mw_h2o = 18.015
+    rho_water = 0.99707
+    coeff_a = -0.9120
+    coeff_b = 0.0567
 
-    v_uo2f2 = mw_uo2f2 / 6.37   # 48.35 cm³/mol
-    v_h2o = mw_h2o / 1.0        # 18.015 cm³/mol
+    if h_to_u < 0.0:
+        raise ValueError("H/U ratio must be non-negative")
 
-    n_water = h_to_u / 2.0  # moles H2O per mole UO2F2
+    if h_to_u == 0.0:
+        return 6.37
+
+    n_water = h_to_u / 2.0
 
     total_mass = mw_uo2f2 + n_water * mw_h2o
-    total_volume = v_uo2f2 + n_water * v_h2o
+    uo2f2_weight_fraction = mw_uo2f2 / total_mass
 
-    return total_mass / total_volume
+    inverse_density = (
+        1.0 / rho_water
+        + coeff_a * uo2f2_weight_fraction
+        + coeff_b * uo2f2_weight_fraction**2
+    )
+    return 1.0 / inverse_density
 
 
-def create_uo2f2(enrichment_pct: float, h_to_u: float = 0.0,
-                 density: float = None) -> openmc.Material:
+def create_uo2f2(enrichment_pct: float, h_to_u: float = 0.0) -> openmc.Material:
     """
     Create uranyl fluoride (UO2F2) for OpenMC - dry or wet.
 
     Reaction: UF6 + 2H2O → UO2F2 + 4HF
 
-    The H/U ratio specifies the degree of hydration:
-      H/U = 0:   Dry UO2F2 (crystal, 6.37 g/cc)
-      H/U = 2:   Monohydrate UO2F2·H2O
-      H/U = 10:  Wet slurry
-      H/U = 100: Dilute solution
+    The H/U ratio specifies the water associated with each uranium atom:
+      H/U = 0:   Dry UO2F2 endpoint retained for compatibility
+      H/U = 10:  Concentrated aqueous solution
+      H/U = 30:  Moderated aqueous solution
+      H/U = 100: Dilute aqueous solution
 
-    Density is auto-calculated from H/U assuming ideal mixing, unless
-    explicitly overridden.
+    Density is always auto-calculated from the Johnson-Kraus aqueous-solution
+    correlation. H/U = 0 retains the legacy dry endpoint for compatibility.
 
     IMPORTANT: UO2F2 contains oxygen which provides internal moderation,
     potentially making it MORE reactive than pure UF6. Adding water (H/U > 0)
@@ -253,15 +275,11 @@ def create_uo2f2(enrichment_pct: float, h_to_u: float = 0.0,
     Args:
         enrichment_pct: U-235 weight percent
         h_to_u: H/U atomic ratio (0 = dry, >0 = wet with water)
-        density: Override density (if None, calculated from H/U)
-
     Returns:
         OpenMC Material
     """
     u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
-
-    if density is None:
-        density = uo2f2_density(h_to_u)
+    density = uo2f2_density(h_to_u)
 
     # Composition per U atom:
     #   U: 1 (split between U-235 and U-238)

@@ -31,6 +31,15 @@ class MaterialFactoryTests(unittest.TestCase):
         self.assertEqual(mat.name, "Humid_Air")
         self.assertAlmostEqual(mat.density, 0.0015, places=6)
 
+    def test_create_fissile_material_rejects_uo2f2_density_override(self):
+        with self.assertRaises(ValueError):
+            create_fissile_material(
+                "uo2f2",
+                enrichment_pct=5.0,
+                fissile_density=2.0,
+                h_to_u=30.0,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -29,13 +29,13 @@ gap_vertical_cm: 7.62                  # 3-inch vertical gap
 enrichment: 21                  # Bounding HALEU (wt% U-235)
 
 fissile_material: uo2f2
-h_to_u_ratio: [0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100]  # Sweep to find peak
+h_to_u: [0, 5, 10, 15, 20, 25, 30, 40, 50, 75, 100]  # Sweep to find peak
 fill_fraction: 1.0              # 100% fill for H/U optimization
 
 # -----------------------------------------------------------------------------
 # ENVIRONMENT - Humid air between units
 # -----------------------------------------------------------------------------
-environment: humid_air
+environment_material: humid_air
 void_material: humid_air
 
 # -----------------------------------------------------------------------------

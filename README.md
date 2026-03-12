@@ -10,6 +10,9 @@ python run_study.py path/to/config.yaml
 
 # Run with MCNP instead of OpenMC
 python run_study.py path/to/config.yaml --solver mcnp
+
+# Skip plot/report generation
+python run_study.py path/to/config.yaml --no-report
 ```
 
 ## Config File Format
@@ -28,7 +31,7 @@ gap_cm: [0, 5, 10, 15]     # Creates 4 cases
 rows: [1, 2, 3]            # Combined with above = 12 cases
 
 # Optional
-wall_material: steel               # steel, aluminum, ss304, monel
+wall_material: steel               # steel, aluminum, ss304
 environment_material: humid_air    # humid_air, air, water
 environment_density: 0.0011        # g/cc
 reflector_thickness_cm: 30
@@ -70,6 +73,13 @@ python run_study.py experiments/crit_requests/CB-7/_config/01_uf6_dry.yaml --sol
 - OpenMC with Python bindings
 - Nuclear data library (ENDF/B-VII.1 or similar)
 
+## Material Models
+
+`UO2F2` density is derived from the ORNL report `ORNL/TM-12292`, Appendix A.
+The implementation in [`critbuddy/core/uo2f2_physics.py`](/home/gem/Projects/crit-buddy/critbuddy/core/uo2f2_physics.py) uses the uranium-density relationship from Eq. (A.1), plus the uranyl-fluoride-specific low-H/U hydrated-salt branch used below `H/U = 4`, and then converts that uranium density into bulk mixture density from the requested `H/U` and enrichment.
+
+The model constants are centralized in `ATOMIC_MASSES` and `UO2F2_MODEL` so the molar masses, molar volumes, hydration terms, and branch coefficients are kept in one place.
+
 ## Setup
 
 ### 1. Install OpenMC
@@ -85,7 +95,7 @@ conda install -c conda-forge openmc
 ### 2. Install Python dependencies
 
 ```bash
-pip install -r requirements.txt
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m pip install -r requirements.txt
 ```
 
 ### 3. Provision nuclear data
@@ -96,8 +106,11 @@ library instead of downloading it again when possible. See
 used with this repo.
 
 ```bash
-# Download ENDF/B-VII.1 cross-sections (~1.5 GB)
-python -c "import openmc.data; openmc.data.download_nndc_data('endfb71')"
+# Download/extract ENDF/B-VII.1 HDF5 data (~1.6 GB compressed)
+mkdir -p ~/openmc_data
+cd ~/openmc_data
+wget -O endfb-vii.1-hdf5.tar.xz https://anl.box.com/shared/static/9igk353zpy8fn9ttvtrqgzvw1vtejoz6.xz
+tar -xJf endfb-vii.1-hdf5.tar.xz
 ```
 
 ### 4. Create config.yaml
@@ -128,5 +141,12 @@ exists and the environment variable is not already set.
 ### 5. Verify installation
 
 ```bash
-python run_study.py --help
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -c "import openmc, yaml; print(openmc.__version__); from pathlib import Path; cfg = yaml.safe_load(open('config.yaml')); p = Path(cfg['openmc_cross_sections']); print(p); print(p.exists())"
+```
+
+### 6. Cascade Array Manual Check
+
+```bash
+# Geometry/visualization manual regression coverage
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.test_cascade_array_model
 ```

@@ -77,18 +77,35 @@ That is optional for normal Crit-Buddy runs because the runner already does it f
 This uses the same config-loading path that Crit-Buddy uses at runtime:
 
 ```bash
-python -c "from critbuddy.runner import load_config; load_config(); import os; from pathlib import Path; p = Path(os.environ['OPENMC_CROSS_SECTIONS']); print(p); print(p.exists())"
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -c "import openmc; print(openmc.__version__); from critbuddy.runner import load_config; load_config(); import os; from pathlib import Path; p = Path(os.environ['OPENMC_CROSS_SECTIONS']); print(p); print(p.exists())"
 ```
 
 The command should print the resolved `cross_sections.xml` path and then `True`.
 
 ## Fallback: Download the Data
 
-If you cannot reuse the existing library, download ENDF/B-VII.1 with OpenMC:
+If you cannot reuse the existing library, download the prebuilt ENDF/B-VII.1 HDF5
+archive into a local data directory:
 
 ```bash
-python -c "import openmc.data; openmc.data.download_nndc_data('endfb71')"
+mkdir -p ~/openmc_data
+cd ~/openmc_data
+wget -O endfb-vii.1-hdf5.tar.xz https://anl.box.com/shared/static/9igk353zpy8fn9ttvtrqgzvw1vtejoz6.xz
+tar -xJf endfb-vii.1-hdf5.tar.xz
 ```
 
+This should produce:
+
+```text
+~/openmc_data/endfb-vii.1-hdf5/
+  cross_sections.xml
+  neutron/
+  photon/
+```
+
+OpenMC 0.15.3 in this repo does not expose the older
+`openmc.data.download_nndc_data()` helper, so the tarball workflow above is the
+supported fallback here.
+
 After the download completes, update `config.yaml` so `openmc_cross_sections` points
-to the downloaded `cross_sections.xml`.
+to the extracted `cross_sections.xml`.
