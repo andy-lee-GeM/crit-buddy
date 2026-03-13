@@ -3,14 +3,15 @@ Exact OpenMC reproduction of the current ``mcnp-steven-film.inp`` unit cell.
 
 This template is intentionally deck-specific. The user-facing sweep parameter is
 the axial fill surface location ``fill_z_cm`` because that is the literal MCNP
-surface being varied.
+surface being varied. The canonical boundary setup is reflective in ``x/y`` and
+vacuum in ``z``.
 """
 
 from critbuddy.core.template import ProblemTemplate, ParameterSpec
 
 
 class StevenMCNPFilmTemplate(ProblemTemplate):
-    """Single reflected unit cell matching the Steven MCNP film deck."""
+    """Single unit cell matching the Steven MCNP film deck."""
 
     PARAMETERS = {
         "fill_z_cm": ParameterSpec(
@@ -44,7 +45,7 @@ class StevenMCNPFilmTemplate(ProblemTemplate):
         "z_boundary_type": ParameterSpec(
             type="enum",
             options=["reflective", "vacuum"],
-            default="reflective",
+            default="vacuum",
             description="Boundary condition at z-min/z-max",
         ),
     }
@@ -84,7 +85,7 @@ class StevenMCNPFilmTemplate(ProblemTemplate):
             "TOTAL_Z": 200.0,
             "X_BOUNDARY_TYPE": p.get("x_boundary_type", "reflective"),
             "Y_BOUNDARY_TYPE": p.get("y_boundary_type", "reflective"),
-            "Z_BOUNDARY_TYPE": p.get("z_boundary_type", "reflective"),
+            "Z_BOUNDARY_TYPE": p.get("z_boundary_type", "vacuum"),
         }
 
 

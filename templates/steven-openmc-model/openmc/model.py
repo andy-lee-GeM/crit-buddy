@@ -9,7 +9,11 @@ Geometry represented here:
 - steel wall from r = 12.70 to 13.0175 cm for 0 < z < 100 cm
 - steel end caps from -0.3175 to 0 cm and from 100 to 100.3175 cm
 - air inside r < 13.0175 cm above and below the capped vessel
-- air outside the vessel but inside the reflected square unit cell
+- air outside the vessel but inside the square unit cell
+
+Canonical boundary setup for validation:
+- reflective in x/y
+- vacuum in z
 """
 
 import openmc
@@ -39,7 +43,7 @@ def _create_materials():
 
 
 def build_model(p):
-    """Build the reflected Steven unit-cell model."""
+    """Build the Steven unit-cell model with parameterized boundary types."""
     materials, m_fuel, m_wall, m_water, m_air = _create_materials()
 
     fuel_radius = p["FUEL_RADIUS_CM"]
