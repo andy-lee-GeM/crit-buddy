@@ -1,65 +1,72 @@
-Centrifuge Model- Infinite Lattice
+Centrifuge Model - Infinite Lattice
 c
 c Cell Cards
 c
-1 1 -5.59 16 -9 18 imp:n=1 $Fuel Volume
-2 2 -8.8 1 -2 3 -4 imp:n=1 $centrifuge
-3 3 3.3e-02 16 9 -17 imp:n=1 $air in centrifuge
-4 0 0.100283856 16 -3 1 -4 imp:n=1 $water Layer
-5 4 3.3e-02 6 2 14 -15 imp:n=1 $air
-8 4 3.3e-02 -7 5 14 -15 imp:n=1 $air
+1 1 -4.33 -16 -9 3 -4 imp:n=1 $ Fuel Volume
+2 2 -8.0 1 -2 3 -4 imp:n=1 $centrifuge
+3 4 3.3e-02 -16 9 -4 imp:n=1 $air in centrifuge
+5 3 -1.0 16 -1 3 -4 imp:n=1 $water Layer
+7 4 3.3e-02 6 2 14 -15 imp:n=1 $air
+8 4 3.3e-02 -7 2 14 -15 imp:n=1 $air
 9 4 3.3e-02 8 2 14 -15 imp:n=1 $air
-10 4 3.3e-02 -5 3 14 -15 imp:n=1 $air
-16 0 4 3.3e-02 -2 -1 imp:n=1 $vertical space
-17 4 3.3e-02 -2 -1 3 14 imp:n=1 $vertical space
-18 3 0.100283856 17 -4 -16 imp:n=1 $water Layer
-19 3 0.100283856 -18 3 -16 imp:n=1 $water Layer
-c
+10 4 3.3e-02 -5 2 14 -15 imp:n=1 $air
+11 4 3.3e-02 -2 20 -15 imp:n=1 $vertical space
+12 4 3.3e-02 -2 -21 14 imp:n=1 $vertical space
+c 18 3 -1.0 -16 17 -4 imp:n=1 $water Layer
+c 19 3 -1.0 -16 -18 3 imp:n=1 $water Layer
+20 2 -8.0 -2 -20 4 imp:n=1
+21 2 -8.0 -2 -3 21 imp:n=1
+
 c Surface Cards
 c
-1 cz 12.70 $ Fuel Volume
-2 cz 13.0175 $centrifuge
-3 pz 0 $Ground Level
-4 pz 100 $Top of Centrifuge
-5 py 12.0175
-6 py -12.0175
-7 px 12.0175
-8 px -12.0175
-9 pz 10
-14 pz -100
-15 pz 200
-16 pz 11.70
+1 cz 12.70        $ Fuel Volume
+2 cz 13.0175      $centrifuge
+3 pz 0            $Ground Level
+4 pz 100          $Top of Centrifuge
+*5 py 13.5175
+*6 py -13.5175
+*7 px 13.5175
+*8 px -13.5175
+9 pz 20
+*14 pz -50
+*15 pz 150
+16 cz 11.70
 17 pz 99
 18 pz 1.0
-c
+20 pz 100.3175
+21 pz -0.3175
+
 c Data Cards
 c
 c Source Term
 c
 mode n
 c
-m1 92235.80c 1.883e-03
-   92238.80c 7.437e-03
-   8016.80c 4.664e-02
-   1001.80c 5.592e-02
-mt1 lwtr.01t
-m2 26058.80c 0.017
-   26055.80c 4.30e-04
-   25055.80c 4.30e-04
-   24052.80c 0.0036
+m1     92235.80c 0.001496
+       92238.80c 0.00591035
+       8016.80c 0.0333
+       9019.80c 0.0148
+       1001.80c 0.037
+mt1    lwtr.01t
 c
-m3 1001.80c 0.067
-   8016.80c 0.033
-mt3 lwtr.01t
+m2     28058.80c 0.0017
+       26056.80c 0.0777
+       25055.50c 4.30e-04
+       42096.80c 2.08e-04
+       24052.80c 0.0138
 c
-m4 7014.80c 3.9e-05
-   8016.80c 4.3e-04
-   18040.80c 2.4e-04
-   1001.80c 1.1e-06
-   9019.80c 1.1e-06
-m5 92235.80c 3.52866e-03
-   92238.80c 3.535782e-01
-   43098.80c 8.5242857e-01
-kcode 1000 1.0 50 200
-ksrc 0 0 5
+m3     1001.80c 0.067
+       8016.80c 0.033
+mt3    lwtr.01t
+c
+m4     7014.80c 3.9e-05
+       8016.80c 1.05e-05
+       18040.80c 2.4e-04
+       1001.80c 1.1e-06
+c
+m5     92235.80c 7.22961366e-03
+       92238.80c 1.35627529e-01
+       9019.80c 8.57142857e-01
+kcode 4800 1.0 50 200
+ksrc 0 0 10
 print
