@@ -96,34 +96,11 @@ class CascadeArrayTemplate(ProblemTemplate):
             unit="cm",
             description="Steel wall thickness (default 1/8 inch)",
         ),
-        "t_film_cm": ParameterSpec(
-            type="float",
-            required=False,
-            default=0.0,
-            min=0.0,
-            max=5.0,
-            unit="cm",
-            description="Thin film thickness between fissile core and wall",
-        ),
         "wall_material": ParameterSpec(
             type="enum",
             options=["steel", "aluminum"],
             default="steel",
             description="Container wall material",
-        ),
-        "film_material": ParameterSpec(
-            type="enum",
-            options=[
-                "aluminum",
-                "steel",
-                "air",
-                "humid_air",
-                "water",
-                "void",
-                "ss304",
-            ],
-            default="aluminum",
-            description="Thin film material between fissile core and wall",
         ),
         # =====================================================================
         # ARRAY CONFIGURATION
@@ -206,23 +183,6 @@ class CascadeArrayTemplate(ProblemTemplate):
 
     SAFETY_LIMIT = 0.95
 
-    def validate_params(self, user_params: dict) -> list[str]:
-        """Validate base schema and film/core compatibility."""
-        errors = super().validate_params(user_params)
-
-        inner_radius = user_params.get("R_inner_cm")
-        film_thickness = user_params.get("t_film_cm", 0.0)
-        if (
-            isinstance(inner_radius, (int, float))
-            and isinstance(film_thickness, (int, float))
-            and film_thickness >= inner_radius
-        ):
-            errors.append(
-                "Parameter 't_film_cm' must be smaller than 'R_inner_cm' so fissile radius remains positive"
-            )
-
-        return errors
-
     def derive_params(self, p: dict) -> dict:
         """
         Compute derived geometry parameters from user inputs.
@@ -239,10 +199,8 @@ class CascadeArrayTemplate(ProblemTemplate):
         R_inner = p["R_inner_cm"]
         H_inner = p["H_inner_cm"]
         t_wall = p["t_wall_cm"]
-        t_film = p.get("t_film_cm", 0.0)
         fill_fraction = p.get("fill_fraction", 1.0)
 
-        R_fissile = R_inner - t_film
         R_outer = R_inner + t_wall
         H_outer = H_inner + 2 * t_wall  # top and bottom caps
         fissile_height = H_inner * fill_fraction
@@ -305,15 +263,12 @@ class CascadeArrayTemplate(ProblemTemplate):
         return {
             # Cylinder
             "R_INNER": R_inner,
-            "R_FISSILE": R_fissile,
             "R_OUTER": R_outer,
             "H_INNER": H_inner,
             "H_OUTER": H_outer,
             "T_WALL": t_wall,
-            "T_FILM": t_film,
             "WALL_MATERIAL": p["wall_material"],
             "WALL_DENSITY": wall_density,
-            "FILM_MATERIAL": p.get("film_material", "aluminum"),
             # Pack
             "I": i,
             "J": j,

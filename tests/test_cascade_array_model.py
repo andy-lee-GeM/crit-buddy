@@ -29,6 +29,16 @@ class CascadeArrayModelTests(unittest.TestCase):
             "reflector_thickness_cm": 10.0,
         }
 
+    def test_void_environment_is_valid(self):
+        template = load_template_class("cascade_array")
+        params = self._base_params()
+        params.update({
+            "environment_material": "void",
+            "environment_density": 0.0001,
+        })
+
+        self.assertEqual(template.validate_params(params), [])
+
     def test_visualization_plot_generation_staged_cases(self):
         if shutil.which("openmc") is None:
             self.skipTest("openmc executable not on PATH")

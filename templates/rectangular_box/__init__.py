@@ -90,7 +90,7 @@ class RectangularBoxTemplate(ProblemTemplate):
         # Wall
         "wall_material": ParameterSpec(
             type="enum",
-            options=["steel", "aluminum", "ss304"],
+            options=["steel", "aluminum", "ss304", "monel"],
             default="steel",
             description="Container wall material",
         ),

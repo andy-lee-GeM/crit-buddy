@@ -247,6 +247,45 @@ def run_cases(solver_backend, cases, run_dir: Path, template_dir: Path, safety_l
     return results
 
 
+def validate_geometry(
+    config_path: Path,
+    solver: str = "openmc",
+) -> Path:
+    """Generate a geometry validation image for the first case in a config."""
+    config_path = Path(config_path).resolve()
+    if not config_path.exists():
+        raise FileNotFoundError(f"Config not found: {config_path}")
+
+    experiment_dir = _resolve_experiment_dir(config_path)
+    config = ExperimentConfig.from_file(config_path)
+    template = load_template_class(config.problem)
+    template_dir = Path(__file__).parent.parent / "templates" / config.problem
+
+    cases = generate_cases(config, template)
+    if not cases:
+        raise RuntimeError("No cases generated from config")
+
+    solvers = create_solvers(solver)
+    if not solvers:
+        raise RuntimeError("No solvers available")
+
+    validation_dir = experiment_dir / "_validation"
+    first_case = cases[0]
+
+    for solver_backend in solvers:
+        image_path = solver_backend.validate(
+            params=first_case.all_params,
+            case_dir=validation_dir,
+            template_dir=template_dir,
+        )
+        if image_path:
+            print(f"Validated case: {first_case.label}")
+            print(f"Geometry:      {image_path}")
+            return image_path
+
+    raise RuntimeError("Selected solver does not support geometry validation")
+
+
 def write_results(run_dir: Path, all_results: dict[str, list[dict]]) -> Path | None:
     """Write results.csv with a union of all user parameter columns."""
     results_path = run_dir / "results.csv"
@@ -343,6 +382,7 @@ def main() -> None:
     parser.add_argument("experiment", help="Path to experiment YAML")
     parser.add_argument("--solver", choices=["openmc", "mcnp", "all"], default="openmc")
     parser.add_argument("--name", help="Custom run name (default: YAML filename)")
+    parser.add_argument("--validate", action="store_true", help="Generate geometry validation output only")
     parser.add_argument("--no-report", action="store_true", help="Skip plot/report generation")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode (warnings only)")
@@ -351,12 +391,18 @@ def main() -> None:
     setup_logging(verbose=args.verbose, quiet=args.quiet)
 
     try:
-        run_analysis(
-            config_path=Path(args.experiment),
-            solver=args.solver,
-            run_name=args.name,
-            generate_outputs=not args.no_report,
-        )
+        if args.validate:
+            validate_geometry(
+                config_path=Path(args.experiment),
+                solver=args.solver,
+            )
+        else:
+            run_analysis(
+                config_path=Path(args.experiment),
+                solver=args.solver,
+                run_name=args.name,
+                generate_outputs=not args.no_report,
+            )
     except Exception as exc:
         logger.exception("Analysis failed")
         print(f"Error: {exc}")

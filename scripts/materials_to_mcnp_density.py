@@ -25,7 +25,6 @@ except Exception as exc:
 Builder = Callable[[argparse.Namespace], object]
 DEFAULT_UF6_ENRICHMENTS = [5.0, 10.0, 15.0, 20.0]
 DEFAULT_UO2F2_ENRICHMENTS = [5.0, 10.0, 15.0, 20.0]
-DEFAULT_H_TO_U_VALUES = [0.0, 2.0, 10.0, 30.0, 100.0]
 
 
 def _builders() -> dict[str, Builder]:
@@ -40,10 +39,7 @@ def _builders() -> dict[str, Builder]:
         "void": lambda a: lib.void(),
         "vacuum": lambda a: lib.vacuum(),
         "uf6": lambda a: lib.create_uf6(a.enrichment, density=a.uf6_density),
-        "uo2f2": lambda a: lib.create_uo2f2(
-            a.enrichment,
-            h_to_u=a.h_to_u,
-        ),
+        "uo2f2": lambda a: lib.uo2f2(a.enrichment, density=a.uo2f2_density),
     }
 
 
@@ -76,12 +72,6 @@ def _requested_enrichments(args: argparse.Namespace) -> list[float]:
     return DEFAULT_UF6_ENRICHMENTS
 
 
-def _requested_h_to_u_values(args: argparse.Namespace) -> list[float]:
-    if args.h_to_u_values:
-        return args.h_to_u_values
-    return DEFAULT_H_TO_U_VALUES if args.use_default_sweeps else [args.h_to_u]
-
-
 def _material_jobs(args: argparse.Namespace) -> list[tuple[str, object]]:
     builders = _builders()
     names = _all_names() if "all" in args.materials else args.materials
@@ -98,11 +88,9 @@ def _material_jobs(args: argparse.Namespace) -> list[tuple[str, object]]:
 
         if name == "uo2f2":
             for enrichment in _requested_enrichments(args):
-                for h_to_u in _requested_h_to_u_values(args):
-                    args.enrichment = enrichment
-                    args.h_to_u = h_to_u
-                    label = f"uo2f2_enr_{enrichment:.1f}wt_hu_{h_to_u:.1f}"
-                    jobs.append((label, builders["uo2f2"](args)))
+                args.enrichment = enrichment
+                label = f"uo2f2_enr_{enrichment:.1f}wt"
+                jobs.append((label, builders["uo2f2"](args)))
             continue
 
         jobs.append((name, builders[name](args)))
@@ -118,11 +106,9 @@ def _case_notes(name: str) -> list[str]:
         notes.append(f"enrichment_wt_pct: {enrichment}")
         notes.append("density_basis: dry_uf6_default")
     elif name.startswith("uo2f2_enr_"):
-        rest = name.removeprefix("uo2f2_enr_")
-        enrichment, h_to_u = rest.split("_hu_")
-        notes.append(f"enrichment_wt_pct: {enrichment.removesuffix('wt')}")
-        notes.append(f"h_to_u: {h_to_u}")
-        notes.append("density_basis: ORNL_TM_12292_Appendix_A_Eq_A1_plus_uranyl_fluoride_piecewise_fit")
+        enrichment = name.removeprefix("uo2f2_enr_").removesuffix("wt")
+        notes.append(f"enrichment_wt_pct: {enrichment}")
+        notes.append("density_basis: user_specified_or_default_dry_uo2f2")
 
     return notes
 
@@ -193,16 +179,10 @@ def main() -> int:
         help="Water density in g/cc",
     )
     parser.add_argument(
-        "--h-to-u",
+        "--uo2f2-density",
         type=float,
-        default=0.0,
-        help="Single H/U value for UO2F2 when not using default sweeps",
-    )
-    parser.add_argument(
-        "--h-to-u-values",
-        type=_parse_float_list,
-        default=None,
-        help="Comma-separated H/U values for UO2F2, e.g. 0,2,10,30,100",
+        default=6.37,
+        help="Dry UO2F2 density in g/cc",
     )
     parser.add_argument(
         "--no-default-sweeps",
@@ -235,9 +215,8 @@ def main() -> int:
     print("Static materials      : no extra inputs required")
     print(f"Default UF6 enr (wt%) : {_format_float_list(DEFAULT_UF6_ENRICHMENTS)}")
     print(f"Default UO2F2 enr     : {_format_float_list(DEFAULT_UO2F2_ENRICHMENTS)}")
-    print(f"Default UO2F2 H/U     : {_format_float_list(DEFAULT_H_TO_U_VALUES)}")
     print("UF6 density model     : dry default 5.09 g/cc unless overridden")
-    print("UO2F2 density model   : ORNL/TM-12292 Appendix A Eq. (A.1) with low-H/U uranyl-fluoride fit")
+    print("UO2F2 density model   : dry default 6.37 g/cc unless overridden")
     print("MCNP density forms    : use either -g/cc or +atoms/b-cm")
 
     jobs = _material_jobs(args)

@@ -66,36 +66,27 @@ def iter_cylinder_placements(p):
 def _add_cylinder_cells(
     placement: CylinderPlacement,
     *,
-    r_fissile: float,
     r_inner: float,
     r_outer: float,
     h_inner: float,
     h_outer: float,
     t_wall: float,
-    t_film: float,
     fill_fraction: float,
     fissile_height: float,
     m_fissile,
-    m_film,
     m_void,
     m_wall,
     cells: list,
     cylinder_regions: list,
     cell_id: int,
 ) -> int:
-    """Create fissile, optional film, wall, bottom-cap, and top-cap cells."""
+    """Create fissile, wall, bottom-cap, and top-cap cells for one placement."""
     suffix = f"{placement.layer}_{placement.j_idx}_{placement.i_idx}"
     z_bottom = placement.z_base
     z_bottom_inner = z_bottom + t_wall
     z_top_inner = z_bottom + t_wall + h_inner
     z_top = z_bottom + h_outer
 
-    cyl_fissile = openmc.ZCylinder(
-        x0=placement.x_center,
-        y0=placement.y_center,
-        r=r_fissile,
-        name=f"cyl_fissile_{suffix}",
-    )
     cyl_inner = openmc.ZCylinder(
         x0=placement.x_center,
         y0=placement.y_center,
@@ -118,24 +109,18 @@ def _add_cylinder_cells(
         z_fill_plane = openmc.ZPlane(z0=z_fill, name=f"z_fill_{suffix}")
 
         c_fissile = openmc.Cell(cell_id=cell_id, name=f"fissile_{suffix}", fill=m_fissile)
-        c_fissile.region = -cyl_fissile & +z_bottom_inner_plane & -z_fill_plane
+        c_fissile.region = -cyl_inner & +z_bottom_inner_plane & -z_fill_plane
         cells.append(c_fissile)
         cell_id += 1
 
         c_void = openmc.Cell(cell_id=cell_id, name=f"void_{suffix}", fill=m_void)
-        c_void.region = -cyl_fissile & +z_fill_plane & -z_top_inner_plane
+        c_void.region = -cyl_inner & +z_fill_plane & -z_top_inner_plane
         cells.append(c_void)
         cell_id += 1
     else:
         c_fissile = openmc.Cell(cell_id=cell_id, name=f"fissile_{suffix}", fill=m_fissile)
-        c_fissile.region = -cyl_fissile & +z_bottom_inner_plane & -z_top_inner_plane
+        c_fissile.region = -cyl_inner & +z_bottom_inner_plane & -z_top_inner_plane
         cells.append(c_fissile)
-        cell_id += 1
-
-    if t_film > 0.0:
-        c_film = openmc.Cell(cell_id=cell_id, name=f"film_{suffix}", fill=m_film)
-        c_film.region = +cyl_fissile & -cyl_inner & +z_bottom_inner_plane & -z_top_inner_plane
-        cells.append(c_film)
         cell_id += 1
 
     c_wall = openmc.Cell(cell_id=cell_id, name=f"wall_{suffix}", fill=m_wall)
@@ -222,48 +207,26 @@ def build_model(p):
         environment_material=environment,
         environment_density=p.get("ENV_DENSITY"),
     )
-    m_film = None
-    if p.get("T_FILM", 0.0) > 0.0:
-        film_material = p["FILM_MATERIAL"]
-        if film_material == p["WALL_MATERIAL"]:
-            m_film = m_wall
-        else:
-            m_film = get_material(film_material, solver="openmc")
 
     fill_fraction = p.get("FILL_FRACTION", 1.0)
     fissile_height = p.get("FISSILE_HEIGHT", p["H_INNER"])
     m_void = None
-    material_list = []
-
-    def _append_material(material):
-        if material is None:
-            return
-        if all(existing is not material for existing in material_list):
-            material_list.append(material)
-
-    _append_material(m_fissile)
-    _append_material(m_wall)
-    _append_material(m_film)
-    _append_material(m_moderator)
-
     if fill_fraction < 1.0:
         m_void = get_material(p.get("VOID_MATERIAL", "void"), solver="openmc")
-        _append_material(m_void)
-
-    materials = openmc.Materials(material_list)
+        materials = openmc.Materials([m_fissile, m_wall, m_moderator, m_void])
+    else:
+        materials = openmc.Materials([m_fissile, m_wall, m_moderator])
 
     # =========================================================================
     # DIMENSIONS
     # =========================================================================
 
     # Cylinder dimensions
-    R_fissile = p["R_FISSILE"]
     R_inner = p["R_INNER"]
     R_outer = p["R_OUTER"]
     H_inner = p["H_INNER"]
     H_outer = p["H_OUTER"]
     t_wall = p["T_WALL"]
-    t_film = p.get("T_FILM", 0.0)
 
     # Pack dimensions
     i_count = p["I"]  # cylinders in X
@@ -293,17 +256,14 @@ def build_model(p):
     for placement in iter_cylinder_placements(p):
         cell_id = _add_cylinder_cells(
             placement,
-            r_fissile=R_fissile,
             r_inner=R_inner,
             r_outer=R_outer,
             h_inner=H_inner,
             h_outer=H_outer,
             t_wall=t_wall,
-            t_film=t_film,
             fill_fraction=fill_fraction,
             fissile_height=fissile_height,
             m_fissile=m_fissile,
-            m_film=m_film,
             m_void=m_void,
             m_wall=m_wall,
             cells=cells,
@@ -389,13 +349,11 @@ def build_model(p):
 
     dims = {
         # Cylinder
-        "R_FISSILE": R_fissile,
         "R_INNER": R_inner,
         "R_OUTER": R_outer,
         "H_INNER": H_inner,
         "H_OUTER": H_outer,
         "T_WALL": t_wall,
-        "T_FILM": t_film,
         # Pack
         "I": i_count,
         "J": j_count,
@@ -421,7 +379,6 @@ def build_model(p):
         "h_to_u": p.get("H_TO_U", 0.0),
         "enrichment": enrichment,
         "environment": environment,
-        "film_material": p.get("FILM_MATERIAL"),
         "FILL_FRACTION": fill_fraction,
         "FISSILE_HEIGHT": fissile_height,
         "total_cylinders": p["TOTAL_CYLINDERS"],
@@ -446,13 +403,13 @@ def create_settings(p, dims):
 
     # Box source encompassing all fissile regions.
     # This intentionally spans the full fissile envelope (including inter-unit gaps).
-    radial_offset = dims["T_WALL"] + dims.get("T_FILM", 0.0)
-    x_min = radial_offset
-    x_max = dims["ARRAY_X"] - radial_offset
-    y_min = radial_offset
-    y_max = dims["ARRAY_Y"] - radial_offset
-    z_min = dims["T_WALL"]
-    z_max = dims["ARRAY_Z"] - dims["T_WALL"]
+    t_wall = dims["T_WALL"]
+    x_min = t_wall
+    x_max = dims["ARRAY_X"] - t_wall
+    y_min = t_wall
+    y_max = dims["ARRAY_Y"] - t_wall
+    z_min = t_wall
+    z_max = dims["ARRAY_Z"] - t_wall
 
     settings.source = openmc.IndependentSource(
         space=openmc.stats.Box(
