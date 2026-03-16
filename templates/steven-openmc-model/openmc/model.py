@@ -11,33 +11,54 @@ Geometry represented here:
 - air inside r < 13.0175 cm above and below the capped vessel
 - air outside the vessel but inside the square unit cell
 
+Materials represented here:
+- ``m1`` exact fuel card
+- ``m2`` exact wall card
+- ``m3`` exact water card
+- ``m4`` exact air card
+
 Canonical boundary setup for validation:
 - reflective in x/y
-- vacuum in z
+- reflective in z
 """
 
 import openmc
 from critbuddy.core.materials import (
-    create_environment_material,
-    create_fissile_material,
     get_color_legend,
     get_color_mapping,
-    get_material,
 )
 
 def _create_materials():
-    fuel = create_fissile_material(
-        fissile_material="uo2f2",
-        enrichment_pct=20.0,
-        fissile_density=4.4,
-    )
+    # Reproduce the current root mcnp-steven-film.inp material cards directly.
+    fuel = openmc.Material(name="Steven_MCNP_M1_Fuel")
+    fuel.set_density("g/cm3", 4.33)
+    fuel.add_nuclide("U235", 0.001496, percent_type="ao")
+    fuel.add_nuclide("U238", 0.00591035, percent_type="ao")
+    fuel.add_nuclide("O16", 0.0333, percent_type="ao")
+    fuel.add_nuclide("F19", 0.0148, percent_type="ao")
+    fuel.add_nuclide("H1", 0.037, percent_type="ao")
+    fuel.add_s_alpha_beta("c_H_in_H2O")
 
-    wall = get_material("ss304", solver="openmc")
-    water = get_material("water", solver="openmc")
-    air = create_environment_material(
-        environment_material="humid_air",
-        environment_density=0.0011,
-    )
+    wall = openmc.Material(name="Steven_MCNP_M2_Wall")
+    wall.set_density("g/cm3", 8.0)
+    wall.add_nuclide("Ni58", 0.0017, percent_type="ao")
+    wall.add_nuclide("Fe56", 0.0777, percent_type="ao")
+    wall.add_nuclide("Mn55", 4.30e-04, percent_type="ao")
+    wall.add_nuclide("Mo96", 2.08e-04, percent_type="ao")
+    wall.add_nuclide("Cr52", 0.0138, percent_type="ao")
+
+    water = openmc.Material(name="Steven_MCNP_M3_Water")
+    water.set_density("g/cm3", 1.0)
+    water.add_nuclide("H1", 0.067, percent_type="ao")
+    water.add_nuclide("O16", 0.033, percent_type="ao")
+    water.add_s_alpha_beta("c_H_in_H2O")
+
+    air = openmc.Material(name="Steven_MCNP_M4_Air")
+    air.set_density("atom/b-cm", 3.3e-02)
+    air.add_nuclide("N14", 3.9e-05, percent_type="ao")
+    air.add_nuclide("O16", 1.05e-05, percent_type="ao")
+    air.add_nuclide("Ar40", 2.4e-04, percent_type="ao")
+    air.add_nuclide("H1", 1.1e-06, percent_type="ao")
 
     return openmc.Materials([fuel, wall, water, air]), fuel, wall, water, air
 
@@ -110,7 +131,7 @@ def build_model(p):
             fill=m_air,
             region=-s_outer & +z_min & -z_cap_bottom_plane,
         ),
-        # MCNP cells 7-10 are an awkward decomposition of this same outer region.
+        # The literal MCNP cells 7-10 overlap awkwardly; this is their intended union.
         openmc.Cell(
             name="outer_air",
             fill=m_air,
