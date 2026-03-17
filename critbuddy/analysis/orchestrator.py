@@ -112,7 +112,7 @@ def run_analysis_workflow(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run crit-buddy analysis workflow")
     parser.add_argument("experiment_dir", help="Path to experiment directory")
-    parser.add_argument("--solver", choices=["openmc", "mcnp", "all"], default="openmc")
+    parser.add_argument("--solver", choices=["openmc"], default="openmc")
     args = parser.parse_args()
 
     result = run_analysis_workflow(

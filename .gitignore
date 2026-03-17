@@ -7,6 +7,18 @@ tallies.out
 # Experiment run outputs
 experiments/*/runs/
 
+# Study run outputs
+studies/*/runs/
+studies/*/openmc/runs/
+
+# Manual MCNP study artifacts
+studies/*/mcnp/*/out
+studies/*/mcnp/*/runtpe
+studies/*/mcnp/*/srctp
+studies/*/mcnp/*/mctal
+studies/*/mcnp/*/meshtal*
+studies/*/mcnp/*/outp*
+
 # MCNP output files
 runtpe*
 srctp*
@@ -20,6 +32,7 @@ __pycache__/
 .eggs/
 dist/
 build/
+tests/_visualizations/
 
 # Local config (contains machine-specific paths)
 config.yaml
@@ -41,3 +54,9 @@ docs/*
 
 # Experiments (local only)
 experiments/
+
+# Operational requests (local only)
+requests/
+
+# Scratch / archived engineering work
+workbench/

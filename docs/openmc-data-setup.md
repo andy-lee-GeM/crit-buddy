@@ -77,7 +77,7 @@ That is optional for normal Crit-Buddy runs because the runner already does it f
 This uses the same config-loading path that Crit-Buddy uses at runtime:
 
 ```bash
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python -c "import openmc; print(openmc.__version__); from critbuddy.runner import load_config; load_config(); import os; from pathlib import Path; p = Path(os.environ['OPENMC_CROSS_SECTIONS']); print(p); print(p.exists())"
+python -c "import openmc; print(openmc.__version__); from critbuddy.runner import load_config; load_config(); import os; from pathlib import Path; p = Path(os.environ['OPENMC_CROSS_SECTIONS']); print(p); print(p.exists())"
 ```
 
 The command should print the resolved `cross_sections.xml` path and then `True`.

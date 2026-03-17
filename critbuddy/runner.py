@@ -4,7 +4,6 @@ Criticality study runner.
 
 Usage:
     python run_study.py <experiment.yaml>
-    python run_study.py <experiment.yaml> --solver openmc
 """
 
 from __future__ import annotations
@@ -21,9 +20,9 @@ from pathlib import Path
 import yaml
 
 from critbuddy.core.config import ExperimentConfig, generate_cases
-from critbuddy.core.template_loader import load_template_class
+from critbuddy.core.template_loader import load_model_class, load_template_class
 from critbuddy.reporting import generate_report, plot_heatmap, plot_keff
-from critbuddy.solvers import OpenMCSolver, MCNPSolver
+from critbuddy.solvers import OpenMCSolver
 from critbuddy.utils import Status, setup_logging, get_logger
 
 logger = get_logger(__name__)
@@ -43,11 +42,6 @@ def load_config() -> dict:
         xs_path = config["openmc_cross_sections"]
         if Path(xs_path).exists():
             os.environ["OPENMC_CROSS_SECTIONS"] = xs_path
-
-    if "mcnp" in config and "executable" in config["mcnp"] and not os.getenv("MCNP_EXECUTABLE"):
-        mcnp_path = config["mcnp"]["executable"]
-        if Path(mcnp_path).exists():
-            os.environ["MCNP_EXECUTABLE"] = mcnp_path
 
     return config
 
@@ -76,20 +70,11 @@ def create_run_directory(experiment_dir: Path, run_name: str) -> Path:
 
 
 def create_solvers(solver_name: str = "openmc") -> list:
-    """Create solver instances for openmc, mcnp, or all."""
-    solvers = []
+    """Create solver instances for config-driven runs."""
+    if solver_name != "openmc":
+        raise ValueError("Config-driven runs only support the OpenMC solver")
 
-    if solver_name in ("openmc", "all"):
-        solvers.append(OpenMCSolver())
-
-    if solver_name in ("mcnp", "all"):
-        mcnp_solver = MCNPSolver()
-        if mcnp_solver.is_available():
-            solvers.append(mcnp_solver)
-        else:
-            print("  Warning: MCNP not available, skipping")
-
-    return solvers
+    return [OpenMCSolver()]
 
 
 @dataclass
@@ -99,8 +84,8 @@ class RunContext:
     config_path: Path
     experiment_dir: Path
     config: ExperimentConfig
-    template: object
-    template_dir: Path
+    definition: object
+    definition_dir: Path
     cases: list
     solvers: list
     run_name: str
@@ -109,7 +94,20 @@ class RunContext:
 
 def _resolve_experiment_dir(config_path: Path) -> Path:
     parent = config_path.parent
-    return parent.parent if parent.name == "_config" else parent
+    return parent.parent if parent.name in {"_config", "configs"} else parent
+
+
+def _resolve_definition(config: ExperimentConfig) -> tuple[object, Path]:
+    root = Path(__file__).parent.parent
+    if config.model:
+        definition_dir = root / "models" / config.model
+        return load_model_class(config.model), definition_dir
+
+    if config.problem:
+        definition_dir = root / "templates" / config.problem
+        return load_template_class(config.problem), definition_dir
+
+    raise RuntimeError("Config did not resolve to a model or problem definition")
 
 
 def _prepare_run_context(config_path: Path, solver: str, run_name: str | None) -> RunContext:
@@ -119,10 +117,9 @@ def _prepare_run_context(config_path: Path, solver: str, run_name: str | None) -
 
     experiment_dir = _resolve_experiment_dir(config_path)
     config = ExperimentConfig.from_file(config_path)
-    template = load_template_class(config.problem)
-    template_dir = Path(__file__).parent.parent / "templates" / config.problem
+    definition, definition_dir = _resolve_definition(config)
 
-    cases = generate_cases(config, template)
+    cases = generate_cases(config, definition)
     if not cases:
         raise RuntimeError("No cases generated from config")
 
@@ -138,8 +135,8 @@ def _prepare_run_context(config_path: Path, solver: str, run_name: str | None) -
         config_path=config_path,
         experiment_dir=experiment_dir,
         config=config,
-        template=template,
-        template_dir=template_dir,
+        definition=definition,
+        definition_dir=definition_dir,
         cases=cases,
         solvers=solvers,
         run_name=resolved_run_name,
@@ -154,7 +151,8 @@ def _print_run_header(context: RunContext) -> None:
                     CRITICALITY STUDY RUNNER
 {'=' * 80}
 Experiment: {context.config.name}
-Problem:    {context.config.problem}
+Type:       {context.config.definition_kind}
+Definition: {context.config.definition_name}
 Path:       {context.experiment_dir}
 {'=' * 80}
 """
@@ -172,8 +170,8 @@ def _run_solver_cases(context: RunContext) -> dict[str, list[dict]]:
             solver_backend,
             context.cases,
             context.run_dir,
-            context.template_dir,
-            context.template.SAFETY_LIMIT,
+            context.definition_dir,
+            context.definition.SAFETY_LIMIT,
         )
 
     return all_results
@@ -183,12 +181,12 @@ def _generate_outputs(context: RunContext, results_csv: Path) -> None:
     plot_paths = plot_keff(
         results_csv,
         output_dir=context.run_dir / "plots",
-        safety_limit=context.template.SAFETY_LIMIT,
+        safety_limit=context.definition.SAFETY_LIMIT,
     )
     heatmap_paths = plot_heatmap(
         results_csv,
         output_dir=context.run_dir / "plots",
-        safety_limit=context.template.SAFETY_LIMIT,
+        safety_limit=context.definition.SAFETY_LIMIT,
     )
     plot_paths.extend(heatmap_paths)
 
@@ -258,10 +256,9 @@ def validate_geometry(
 
     experiment_dir = _resolve_experiment_dir(config_path)
     config = ExperimentConfig.from_file(config_path)
-    template = load_template_class(config.problem)
-    template_dir = Path(__file__).parent.parent / "templates" / config.problem
+    definition, definition_dir = _resolve_definition(config)
 
-    cases = generate_cases(config, template)
+    cases = generate_cases(config, definition)
     if not cases:
         raise RuntimeError("No cases generated from config")
 
@@ -276,7 +273,7 @@ def validate_geometry(
         image_path = solver_backend.validate(
             params=first_case.all_params,
             case_dir=validation_dir,
-            template_dir=template_dir,
+            template_dir=definition_dir,
         )
         if image_path:
             print(f"Validated case: {first_case.label}")
@@ -379,8 +376,8 @@ def main() -> None:
     load_config()
 
     parser = argparse.ArgumentParser(description="Run criticality analysis")
-    parser.add_argument("experiment", help="Path to experiment YAML")
-    parser.add_argument("--solver", choices=["openmc", "mcnp", "all"], default="openmc")
+    parser.add_argument("experiment", help="Path to a study/request/model YAML config")
+    parser.add_argument("--solver", choices=["openmc"], default="openmc")
     parser.add_argument("--name", help="Custom run name (default: YAML filename)")
     parser.add_argument("--validate", action="store_true", help="Generate geometry validation output only")
     parser.add_argument("--no-report", action="store_true", help="Skip plot/report generation")

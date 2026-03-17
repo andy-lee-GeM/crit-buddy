@@ -1,152 +1,160 @@
 # Crit-Buddy
 
-Parametric nuclear criticality safety analysis using OpenMC.
+OpenMC-based nuclear criticality analysis for reusable models, formal studies,
+and ticket-driven requests. MCNP decks are kept as manual reference artifacts
+inside model folders when needed.
 
-## Quick Start
+## Project Layout
+
+```text
+models/     canonical physical systems
+studies/    formal analysis and validation work
+requests/   ticket-driven operational analyses
+workbench/  exploratory or archived engineering work
+critbuddy/  shared execution and reporting code
+docs/       shared setup and reference docs
+tests/      model and physics tests
+```
+
+The preferred workflow is:
+
+1. Define a canonical model under `models/`.
+2. Run OpenMC studies from `studies/` or `requests/`.
+3. Keep generated runs outside the model directory.
+4. Keep manual MCNP decks under `models/<name>/mcnp/`.
+
+## Running Studies
 
 ```bash
 # Run a study
-python run_study.py path/to/config.yaml
+python run_study.py studies/centrifuge-unit-cell-fill-sweep/study.yaml
 
-# Run with MCNP instead of OpenMC
-python run_study.py path/to/config.yaml --solver mcnp
+# Run a request config
+python run_study.py requests/CB-11/configs/01_uf6_dry.yaml
 
 # Skip plot/report generation
-python run_study.py path/to/config.yaml --no-report
+python run_study.py studies/centrifuge-unit-cell-fill-sweep/study.yaml --no-report
 ```
 
-## Config File Format
+## Config Format
+
+Model-based configs are the preferred format:
 
 ```yaml
-problem: cylinder          # Template: cylinder, pipe, rectangular_box, shipping_cylinder
-name: "My Analysis"        # Human-readable name
+model: centrifuge-unit-cell
+name: "Centrifuge Unit Cell Fill Sweep"
 
-# Required parameters (vary by template)
-enrichment: 20             # wt% U-235
-radius_cm: 7.62            # Cylinder radius
-height_cm: 100             # Cylinder height
-
-# Sweep parameters (use lists)
-gap_cm: [0, 5, 10, 15]     # Creates 4 cases
-rows: [1, 2, 3]            # Combined with above = 12 cases
-
-# Optional
-wall_material: steel               # steel, aluminum, ss304
-environment_material: humid_air    # humid_air, air, water
-environment_density: 0.0011        # g/cc
-reflector_thickness_cm: 30
+params:
+  fill_z_cm: [10, 20, 30, 40, 50]
+  source_z_cm: 10
+  x_boundary_type: reflective
+  y_boundary_type: reflective
+  z_boundary_type: reflective
 ```
 
-## Available Templates
+Legacy template-based configs are still supported for existing request and
+benchmark work:
 
-| Template | Description | Key Parameters |
-|----------|-------------|----------------|
-| `cylinder` | Vertical cylinder or 3D array | radius_cm, height_cm, rows, cols, layers, gap_cm |
-| `pipe` | Horizontal pipe or 2D array | pipe_size, length_cm, rows, cols, gap_cm |
-| `rectangular_box` | Box geometry | length_cm, width_cm, height_cm |
-| `shipping_cylinder` | ANSI N14.1 cylinders | cylinder_type (30B, 48Y, etc.) |
+```yaml
+problem: shipping_cylinder
+name: "ORNL 30B Single Cylinder Sweep"
 
-## Output
-
-Results are saved to:
+enrichment: [6, 7, 8, 9, 10, 12, 15, 20]
+uf6_density: [2.5, 3.5, 4.5, 5.5]
 ```
-experiments/crit_requests/{name}/
-└── runs/{config_name}/    # Simulation results
+
+## Model Documentation
+
+Each canonical model should include a `MODEL.md` file with this structure:
+
+- `Overview`
+- `Files`
+- `Geometry Summary`
+- `Modeling Assumptions`
+- `Validation`
+- `History`
+
+This is the stable model handoff document for the team. Detailed validation
+results and solver comparisons belong under `studies/`.
+
+## Outputs
+
+Results are written beside the config that was run:
+
+```text
+<study-or-request>/
+└── runs/{config_name}/
     └── {timestamp}/
-        ├── results.csv    # k-eff values
-        └── cases/         # Per-case outputs
+        ├── config.yaml
+        ├── results.csv
+        └── cases/
 ```
 
-## Examples
+Study-specific reports or merged solver comparisons can live at the study root,
+for example:
 
-```bash
-# Single cylinder at 20% enrichment
-python run_study.py experiments/crit_requests/CB-7/_config/01_uf6_dry.yaml
-
-# Run with both solvers (if MCNP is installed)
-python run_study.py experiments/crit_requests/CB-7/_config/01_uf6_dry.yaml --solver all
+```text
+studies/centrifuge-unit-cell-parity/
+  study.yaml
+  report.md
+  results.csv
+  openmc/
+  mcnp/
 ```
 
-## Requirements
+## Materials and Physics
 
-- Python 3.9+
-- OpenMC with Python bindings
-- Nuclear data library (ENDF/B-VII.1 or similar)
-
-## Material Models
-
-`UO2F2` density is derived from the ORNL report `ORNL/TM-12292`, Appendix A.
-The implementation in [`critbuddy/core/uo2f2_physics.py`](/home/gem/Projects/crit-buddy/critbuddy/core/uo2f2_physics.py) uses the uranium-density relationship from Eq. (A.1), plus the uranyl-fluoride-specific low-H/U hydrated-salt branch used below `H/U = 4`, and then converts that uranium density into bulk mixture density from the requested `H/U` and enrichment.
-
-The model constants are centralized in `ATOMIC_MASSES` and `UO2F2_MODEL` so the molar masses, molar volumes, hydration terms, and branch coefficients are kept in one place.
+`UO2F2` density and composition logic live in `critbuddy/core/uo2f2_physics.py`
+and `critbuddy/core/materials.py`. The current implementation follows the
+project's hydrated uranyl fluoride model and is covered by the dedicated physics
+tests.
 
 ## Setup
 
 ### 1. Install OpenMC
 
-Follow the [OpenMC installation guide](https://docs.openmc.org/en/stable/usersguide/install.html) or use conda:
+Use your normal Python environment tooling. One common approach is conda:
 
 ```bash
 conda create -n openmc-env python=3.11
 conda activate openmc-env
 conda install -c conda-forge openmc
+python -m pip install -r requirements.txt
 ```
 
-### 2. Install Python dependencies
+### 2. Configure Nuclear Data
 
-```bash
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m pip install -r requirements.txt
-```
-
-### 3. Provision nuclear data
-
-If you are setting up another development environment, reuse an existing OpenMC HDF5
-library instead of downloading it again when possible. See
-[`docs/openmc-data-setup.md`](docs/openmc-data-setup.md) for the internal setup flow
-used with this repo.
-
-```bash
-# Download/extract ENDF/B-VII.1 HDF5 data (~1.6 GB compressed)
-mkdir -p ~/openmc_data
-cd ~/openmc_data
-wget -O endfb-vii.1-hdf5.tar.xz https://anl.box.com/shared/static/9igk353zpy8fn9ttvtrqgzvw1vtejoz6.xz
-tar -xJf endfb-vii.1-hdf5.tar.xz
-```
-
-### 4. Create config.yaml
+Create `config.yaml` from the example:
 
 ```bash
 cp config.yaml.example config.yaml
 ```
 
-Edit `config.yaml` with your paths:
+Set:
 
 ```yaml
-# Conda environment name
 conda_env: openmc-env
-
-# Path to cross_sections.xml
 openmc_cross_sections: /path/to/cross_sections.xml
-
-# Optional: MCNP configuration
-mcnp:
-  executable: /path/to/mcnp6
-  tasks: 4
-  timeout: 3600
 ```
 
-`run_study.py` will export `OPENMC_CROSS_SECTIONS` from `config.yaml` if the file
-exists and the environment variable is not already set.
+See `docs/openmc-data-setup.md` for the full data setup flow.
 
-### 5. Verify installation
+### 3. Verify
 
 ```bash
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python -c "import openmc, yaml; print(openmc.__version__); from pathlib import Path; cfg = yaml.safe_load(open('config.yaml')); p = Path(cfg['openmc_cross_sections']); print(p); print(p.exists())"
+python -c "import openmc, yaml; print(openmc.__version__); from pathlib import Path; cfg = yaml.safe_load(open('config.yaml')); p = Path(cfg['openmc_cross_sections']); print(p); print(p.exists())"
 ```
 
-### 6. Cascade Array Manual Check
+## Tests
+
+The lean test suite covers:
+
+- canonical model construction
+- shared material factories
+- `UO2F2` physics utilities
+
+Example:
 
 ```bash
-# Geometry/visualization manual regression coverage
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.test_cascade_array_model
+python -m unittest tests.test_centrifuge_unit_cell_model tests.test_material_factories tests.test_uo2f2_physics
 ```

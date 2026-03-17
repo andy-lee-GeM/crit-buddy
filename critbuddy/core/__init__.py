@@ -24,7 +24,12 @@ from .material_conversions import (
     weight_to_atom_fractions,
 )
 from .template import ProblemTemplate, ParameterSpec
-from .template_loader import load_template_class, load_template_module
+from .template_loader import (
+    load_model_class,
+    load_model_module,
+    load_template_class,
+    load_template_module,
+)
 from .materials import (
     aluminum,
     air_dry,
@@ -65,6 +70,8 @@ __all__ = [
     "atom_to_weight_fractions",
     "average_atomic_mass",
     "get_atomic_masses",
+    "load_model_class",
+    "load_model_module",
     "load_template_class",
     "load_template_module",
     "normalize_fractions",

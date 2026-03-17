@@ -10,6 +10,7 @@ site easier to read.
 from __future__ import annotations
 
 import openmc
+from critbuddy.core.uo2f2_physics import uo2f2_stoichiometry, uo2f2_density
 
 def _uranium_fractions(enrichment_pct: float) -> tuple[float, float]:
     """Convert U-235 weight percent to uranium atom fractions."""
@@ -144,17 +145,23 @@ def create_hf() -> openmc.Material:
     return mat
 
 
-def uo2f2(enrichment_pct: float, density: float = 4.4) -> openmc.Material:
-    """Create wet UO2F2 assuming H/U = 6."""
+def uo2f2(
+    enrichment_pct: float,
+    density: float = 4.4,
+    h_to_u: float = 6.0,
+) -> openmc.Material:
+    """Create UO2F2 with an explicit H/U ratio."""
     u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
+    stoich = uo2f2_stoichiometry(h_to_u=h_to_u, enrichment_pct=enrichment_pct)
     mat = openmc.Material(name="UO2F2")
     mat.set_density("g/cm3", density)
     mat.add_nuclide("U235", u235_frac, percent_type="ao")
     mat.add_nuclide("U238", u238_frac, percent_type="ao")
-    mat.add_nuclide("H1", 6.0, percent_type="ao")
-    mat.add_nuclide("O16", 5.0, percent_type="ao")
-    mat.add_nuclide("F19", 2.0, percent_type="ao")
-    mat.add_s_alpha_beta("c_H_in_H2O")
+    if stoich.hydrogen_atoms_per_u > 0.0:
+        mat.add_nuclide("H1", stoich.hydrogen_atoms_per_u, percent_type="ao")
+        mat.add_s_alpha_beta("c_H_in_H2O")
+    mat.add_nuclide("O16", stoich.oxygen_atoms_per_u, percent_type="ao")
+    mat.add_nuclide("F19", stoich.fluorine_atoms_per_u, percent_type="ao")
     return mat
 
 
@@ -162,6 +169,7 @@ def create_fissile_material(
     fissile_material: str,
     enrichment_pct: float,
     fissile_density: float | None = None,
+    h_to_u: float | None = None,
 ) -> openmc.Material:
     """Create a fissile material selected by template-facing name."""
     key = fissile_material.lower()
@@ -170,8 +178,12 @@ def create_fissile_material(
         density = 5.09 if fissile_density is None else fissile_density
         return create_uf6(enrichment_pct, density=density)
     if key == "uo2f2":
-        density = 4.4 if fissile_density is None else fissile_density
-        return uo2f2(enrichment_pct, density=density)
+        ratio = 6.0 if h_to_u is None else h_to_u
+        if fissile_density is None:
+            density = 4.4 if h_to_u is None else uo2f2_density(ratio, enrichment_pct=enrichment_pct)
+        else:
+            density = fissile_density
+        return uo2f2(enrichment_pct, density=density, h_to_u=ratio)
 
     raise ValueError(f"Unsupported fissile_material '{fissile_material}'")
 
@@ -253,9 +265,24 @@ def _resolve_material_name(name: str) -> str:
 
 def get_material_color(name: str) -> tuple[int, int, int]:
     """Get RGB color tuple for a material by name."""
-    if name.startswith("UO2F2"):
+    normalized = name.strip()
+
+    if normalized.startswith("UO2F2"):
         return MATERIAL_COLORS["UO2F2"]
-    return MATERIAL_COLORS.get(name, (200, 200, 200))
+    if normalized.startswith("UF6"):
+        return MATERIAL_COLORS["UF6"]
+
+    lower_name = normalized.lower()
+    if "fuel" in lower_name:
+        return MATERIAL_COLORS["UO2F2"]
+    if "water" in lower_name:
+        return MATERIAL_COLORS["Water"]
+    if "air" in lower_name:
+        return MATERIAL_COLORS["Air"]
+    if "wall" in lower_name or "steel" in lower_name:
+        return MATERIAL_COLORS["Stainless_Steel_316"]
+
+    return MATERIAL_COLORS.get(normalized, (200, 200, 200))
 
 
 def get_color_mapping(materials) -> dict:
