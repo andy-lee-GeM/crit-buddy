@@ -19,9 +19,20 @@ import yaml
 class ExperimentConfig:
     """Parsed experiment configuration."""
 
-    problem: str
+    problem: Optional[str]
+    model: Optional[str]
     name: str
     user_params: Dict[str, Any]
+
+    @property
+    def definition_kind(self) -> str:
+        """Whether this config resolves to a legacy problem template or a model."""
+        return "model" if self.model else "problem"
+
+    @property
+    def definition_name(self) -> str:
+        """Resolved model or problem name used for loading."""
+        return self.model or self.problem or ""
 
     @classmethod
     def from_file(cls, path: Path) -> "ExperimentConfig":
@@ -34,17 +45,25 @@ class ExperimentConfig:
     def from_dict(cls, data: dict) -> "ExperimentConfig":
         """Create config from dictionary."""
         problem = data.get("problem")
-        if not problem:
-            raise ValueError("Config must specify 'problem' (template name)")
+        model = data.get("model")
+        if not problem and not model:
+            raise ValueError("Config must specify either 'problem' or 'model'")
 
         name = data.get("name", "Unnamed experiment")
 
-        # Everything else is a user parameter
-        reserved_keys = {"problem", "name"}
-        user_params = {k: v for k, v in data.items() if k not in reserved_keys}
+        params = data.get("params")
+        if params is not None and not isinstance(params, dict):
+            raise ValueError("'params' must be a mapping when provided")
+
+        # Everything else is a user parameter. Model configs can use nested
+        # params while legacy problem configs keep the flat structure.
+        reserved_keys = {"problem", "model", "name", "params", "solver", "solvers"}
+        user_params = dict(params or {})
+        user_params.update({k: v for k, v in data.items() if k not in reserved_keys})
 
         return cls(
             problem=problem,
+            model=model,
             name=name,
             user_params=user_params,
         )

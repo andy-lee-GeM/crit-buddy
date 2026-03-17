@@ -36,13 +36,13 @@ class CylinderSpec:
 # =============================================================================
 
 CYLINDER_REGISTRY = {
-    # Small cylinders (HALEU-capable, Monel construction)
+    # Small cylinders
     "1s": CylinderSpec(
         name="1S Cylinder",
         outer_diameter_cm=20.32,      # 8 inch OD
         wall_thickness_cm=0.635,      # 1/4 inch
         internal_height_cm=25.4,      # ~10 inches
-        wall_material="monel",
+        wall_material="steel",
         max_fill_kg=1.0,
         tare_weight_kg=8.0,
         description="Sample cylinder for HEU",
@@ -52,7 +52,7 @@ CYLINDER_REGISTRY = {
         outer_diameter_cm=12.7,       # 5 inch OD
         wall_thickness_cm=0.635,      # 1/4 inch
         internal_height_cm=40.64,     # ~16 inches
-        wall_material="monel",
+        wall_material="steel",
         max_fill_kg=2.2,
         tare_weight_kg=6.0,
         description="Sample cylinder for HEU",
@@ -62,7 +62,7 @@ CYLINDER_REGISTRY = {
         outer_diameter_cm=12.7,       # 5 inch OD
         wall_thickness_cm=0.635,      # 1/4 inch
         internal_height_cm=63.5,      # ~25 inches
-        wall_material="monel",
+        wall_material="steel",
         max_fill_kg=25.0,
         tare_weight_kg=25.0,
         description="Small sample cylinder for HALEU (up to 100% enrichment)",
@@ -72,31 +72,31 @@ CYLINDER_REGISTRY = {
         outer_diameter_cm=12.7,       # 5 inch OD
         wall_thickness_cm=0.635,      # 1/4 inch
         internal_height_cm=84.0,      # ~33 inches
-        wall_material="monel",
+        wall_material="steel",
         max_fill_kg=25.0,
         tare_weight_kg=27.0,
         description="Small sample cylinder for HALEU (up to 100% enrichment)",
     ),
 
-    # Medium cylinders (HALEU, carbon steel)
+    # Medium cylinders
     "30b": CylinderSpec(
         name="30B Cylinder",
         outer_diameter_cm=76.2,       # 30 inch OD
         wall_thickness_cm=0.79375,    # 5/16 inch minimum
         internal_height_cm=170.0,     # Per ORNL/TM-2021/2043
-        wall_material="carbon_steel",
+        wall_material="steel",
         max_fill_kg=2277.0,
         tare_weight_kg=635.0,
         description="HALEU transport cylinder (up to 20% enrichment)",
     ),
 
-    # Large cylinders (LEU, carbon steel)
+    # Large cylinders
     "48x": CylinderSpec(
         name="48X Cylinder",
         outer_diameter_cm=121.92,     # 48 inch OD
         wall_thickness_cm=1.27,       # 1/2 inch
         internal_height_cm=302.26,    # ~119 inches
-        wall_material="carbon_steel",
+        wall_material="steel",
         max_fill_kg=9539.0,
         tare_weight_kg=1814.0,
         description="Large storage cylinder (up to 5% enrichment)",
@@ -106,7 +106,7 @@ CYLINDER_REGISTRY = {
         outer_diameter_cm=121.92,     # 48 inch OD
         wall_thickness_cm=1.5875,     # 5/8 inch
         internal_height_cm=302.26,    # ~119 inches
-        wall_material="carbon_steel",
+        wall_material="steel",
         max_fill_kg=12501.0,
         tare_weight_kg=2041.0,
         description="Large LEU transport cylinder (up to 5% enrichment)",
@@ -116,7 +116,7 @@ CYLINDER_REGISTRY = {
         outer_diameter_cm=121.92,     # 48 inch OD
         wall_thickness_cm=1.5875,     # 5/8 inch
         internal_height_cm=302.26,    # ~119 inches
-        wall_material="carbon_steel",
+        wall_material="steel",
         max_fill_kg=12501.0,
         tare_weight_kg=2359.0,
         description="Large transport cylinder with lifting attachments",

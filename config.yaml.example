@@ -8,12 +8,9 @@
 conda_env: openmc-env
 
 # OpenMC cross-sections path (path to cross_sections.xml, not the directory)
-# Reuse a copied/shared HDF5 library when available, or download with:
-# python -c "import openmc.data; openmc.data.download_nndc_data('endfb71')"
+# Reuse a copied/shared HDF5 library when available, or download/extract with:
+# mkdir -p ~/openmc_data
+# cd ~/openmc_data
+# wget -O endfb-vii.1-hdf5.tar.xz https://anl.box.com/shared/static/9igk353zpy8fn9ttvtrqgzvw1vtejoz6.xz
+# tar -xJf endfb-vii.1-hdf5.tar.xz
 openmc_cross_sections: /path/to/endfb-vii.1-hdf5/cross_sections.xml
-
-# MCNP configuration (optional - only needed if using MCNP solver)
-mcnp:
-  executable: /path/to/mcnp6
-  tasks: 4
-  timeout: 3600

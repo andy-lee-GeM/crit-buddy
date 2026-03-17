@@ -85,7 +85,10 @@ def _generate_markdown_report(
 
     # Extract info
     name = config.get("name", experiment_yaml.stem)
-    problem = config.get("problem", "unknown")
+    model = config.get("model")
+    problem = config.get("problem")
+    definition_kind = "Model" if model else "Problem Template"
+    definition_name = model or problem or "unknown"
     timestamp = run_dir.name
 
     # Identify swept and fixed parameters
@@ -157,7 +160,7 @@ def _generate_markdown_report(
     # Experiment Configuration
     lines.append(f"## Experiment Configuration")
     lines.append(f"")
-    lines.append(f"**Problem Template:** `{problem}`")
+    lines.append(f"**{definition_kind}:** `{definition_name}`")
     lines.append(f"")
 
     # Swept parameters
