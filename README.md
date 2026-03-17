@@ -104,10 +104,9 @@ studies/centrifuge-unit-cell-parity/
 
 ## Materials and Physics
 
-`UO2F2` density and composition logic live in `critbuddy/core/uo2f2_physics.py`
-and `critbuddy/core/materials.py`. The current implementation follows the
-project's hydrated uranyl fluoride model and is covered by the dedicated physics
-tests.
+`UO2F2` density and composition logic live under `critbuddy/core/materials/`.
+The current implementation follows the project's hydrated uranyl fluoride model
+and is covered by the dedicated physics tests.
 
 ## Setup
 
@@ -121,6 +120,29 @@ conda activate openmc-env
 conda install -c conda-forge openmc
 python -m pip install -r requirements.txt
 ```
+
+### Codex Environment
+
+In the Codex execution environment used for repo work, OpenMC is installed and
+available from:
+
+```bash
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python
+```
+
+Future coding sessions should use that interpreter for any OpenMC-backed import,
+script, or test instead of assuming `openmc` is unavailable on the path.
+
+Examples:
+
+```bash
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -c "import openmc; print(openmc.__version__)"
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_builders tests.unit.materials.test_properties tests.unit.materials.test_uo2f2_physics
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python scripts/get_mcnp_density.py water
+```
+
+That path is specific to this Codex environment and should not be assumed to
+match a developer's local machine.
 
 ### 2. Configure Nuclear Data
 
@@ -150,11 +172,17 @@ python -c "import openmc, yaml; print(openmc.__version__); from pathlib import P
 The lean test suite covers:
 
 - canonical model construction
-- shared material factories
+- shared material and geometry unit coverage
 - `UO2F2` physics utilities
 
 Example:
 
 ```bash
-python -m unittest tests.test_centrifuge_unit_cell_model tests.test_material_factories tests.test_uo2f2_physics
+python -m unittest tests.integration.models.test_centrifuge_unit_cell tests.unit.materials.test_builders tests.unit.materials.test_uo2f2_physics
+```
+
+In the Codex environment, use:
+
+```bash
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_builders tests.unit.materials.test_properties tests.unit.materials.test_uo2f2_physics tests.unit.geometry.test_cylinders tests.unit.geometry.test_pipes tests.integration.models.test_cylinder_unit_cell tests.integration.models.test_cascade_array tests.integration.models.test_centrifuge_unit_cell
 ```

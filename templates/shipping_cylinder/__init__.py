@@ -8,7 +8,7 @@ For user-specified dimensions, use the cylinder template instead.
 """
 
 from critbuddy.core.template import ProblemTemplate, ParameterSpec
-from critbuddy.core.cylinders import CYLINDER_REGISTRY
+from critbuddy.core.geometry.cylinders import CYLINDER_REGISTRY
 
 
 class ShippingCylinderTemplate(ProblemTemplate):
@@ -115,7 +115,7 @@ class ShippingCylinderTemplate(ProblemTemplate):
         2. Cylinder wall (material from registry)
         3. External reflector (optional)
         """
-        from critbuddy.core.cylinders import get_cylinder, get_inner_radius
+        from critbuddy.core.geometry.cylinders import get_cylinder, get_inner_radius
         from critbuddy.core.materials import get_density
 
         # Get cylinder specs from registry

@@ -1,8 +1,5 @@
 """
-Utilities for converting and summarizing OpenMC materials.
-
-The primary entry point is summarize_openmc_material(), which derives the
-resolved nuclide-level composition and density terms from an OpenMC material.
+Derived material properties and composition conversions for OpenMC materials.
 """
 
 from __future__ import annotations

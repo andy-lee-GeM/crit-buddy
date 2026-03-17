@@ -1,4 +1,5 @@
 import os
+import sys
 from pathlib import Path
 
 import openmc
@@ -21,7 +22,12 @@ def render_openmc_plots(
             path.unlink()
 
     previous_cwd = Path.cwd()
+    previous_path = os.environ.get("PATH", "")
     try:
+        interpreter_dir = str(Path(sys.executable).resolve().parent)
+        path_entries = previous_path.split(os.pathsep) if previous_path else []
+        if interpreter_dir not in path_entries:
+            os.environ["PATH"] = os.pathsep.join([interpreter_dir, *path_entries])
         os.chdir(output_dir)
         materials.export_to_xml()
         geometry.export_to_xml()
@@ -48,3 +54,4 @@ def render_openmc_plots(
             )
     finally:
         os.chdir(previous_cwd)
+        os.environ["PATH"] = previous_path

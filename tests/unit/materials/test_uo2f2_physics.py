@@ -1,6 +1,6 @@
 import unittest
 
-from critbuddy.core.uo2f2_physics import (
+from critbuddy.core.materials.uo2f2_physics import (
     uranyl_fluoride_density,
     uo2f2_density,
     uo2f2_stoichiometry,

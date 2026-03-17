@@ -6,14 +6,13 @@ from critbuddy.core.template_loader import load_template_class, load_template_mo
 from tests._openmc_plot_assertions import render_openmc_plots
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 TEMPLATES = ROOT / "templates"
 VISUALIZATIONS = ROOT / "tests" / "_visualizations"
 
 
 class CascadeArrayModelTests(unittest.TestCase):
     def _base_params(self) -> dict:
-        # Intentionally whole-number geometry for easy mental math.
         return {
             "enrichment": 5.0,
             "fissile_material": "uf6",
