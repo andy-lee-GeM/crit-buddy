@@ -51,12 +51,20 @@ def get_atomic_masses(nuclides: Mapping[str, float]) -> dict[str, float]:
     return {nuclide: species_mass_g_mol(nuclide) for nuclide in nuclides}
 
 
+def _is_nuclide_species(name: str) -> bool:
+    """Return True when the species key names a specific nuclide."""
+    return any(char.isdigit() for char in name)
+
+
 def species_mass_g_mol(name: str) -> float:
-    """Return the nuclide atomic mass or elemental atomic weight in g/mol."""
-    try:
+    """Return g/mol mass for either a nuclide key or an element key.
+
+    Nuclides are specific isotopes like Fe56, U235, or O16.
+    Elements are symbols like Fe, O, or AL with no isotope attached.
+    """
+    if _is_nuclide_species(name):
         return atomic_mass(name)
-    except Exception:
-        return atomic_weight(name)
+    return atomic_weight(name)
 
 
 def weight_to_atom_fractions(weight_fractions: Mapping[str, float]) -> dict[str, float]:
