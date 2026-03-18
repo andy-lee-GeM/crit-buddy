@@ -5,7 +5,7 @@ Provides configuration loading and shared material definitions.
 """
 
 from .config import ExperimentConfig, Case, generate_cases, expand_sweeps
-from .material_conversions import (
+from .materials.material_properties import (
     AVOGADRO,
     ATOMS_PER_BARN_CM_TO_ATOMS_PER_CM3,
     ATOMS_PER_CM3_TO_ATOMS_PER_BARN_CM,
@@ -23,6 +23,7 @@ from .material_conversions import (
     weight_fractions_to_atom_densities,
     weight_to_atom_fractions,
 )
+from .materials.material_specs import MATERIAL_ALIASES, MATERIAL_DENSITIES, MaterialSpec
 from .template import ProblemTemplate, ParameterSpec
 from .template_loader import (
     load_model_class,
@@ -34,18 +35,21 @@ from .materials import (
     aluminum,
     air_dry,
     concrete_ordinary,
-    create_uf6,
     create_fissile_material,
     create_environment_material,
+    create_uf6,
+    create_vacuum,
     get_material,
     get_density,
     humid_air,
     MATERIAL_LIBRARY,
     MATERIAL_DENSITIES,
+    MATERIAL_ALIASES,
     MATERIAL_REGISTRY,
     stainless_steel_304,
     stainless_steel_316,
     uo2f2,
+    uf6,
     vacuum,
     void,
     water,
@@ -78,19 +82,23 @@ __all__ = [
     "aluminum",
     "air_dry",
     "concrete_ordinary",
-    "create_uf6",
     "create_fissile_material",
     "create_environment_material",
+    "create_uf6",
+    "create_vacuum",
     "get_material",
     "get_density",
     "humid_air",
     "MATERIAL_LIBRARY",
     "MATERIAL_DENSITIES",
+    "MATERIAL_ALIASES",
     "MATERIAL_REGISTRY",
+    "MaterialSpec",
     "stainless_steel_304",
     "stainless_steel_316",
     "summarize_openmc_material",
     "uo2f2",
+    "uf6",
     "vacuum",
     "void",
     "water",

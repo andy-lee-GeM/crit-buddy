@@ -16,7 +16,7 @@ if str(ROOT) not in sys.path:
 
 try:
     from critbuddy.core import materials as lib
-    from critbuddy.core.material_conversions import summarize_openmc_material
+    from critbuddy.core.materials.material_properties import summarize_openmc_material
 except Exception as exc:
     raise SystemExit(
         "Failed to import critbuddy.core materials. Run this script with the openmc-env interpreter."
@@ -38,8 +38,8 @@ def _builders() -> dict[str, Builder]:
         "humid_air": lambda a: lib.humid_air(),
         "void": lambda a: lib.void(),
         "vacuum": lambda a: lib.vacuum(),
-        "uf6": lambda a: lib.create_uf6(a.enrichment, density=a.uf6_density),
-        "uo2f2": lambda a: lib.uo2f2(a.enrichment, density=a.uo2f2_density),
+        "uf6": lambda a: lib.uf6(a.enrichment, density=a.uf6_density),
+        "uo2f2": lambda a: lib.uo2f2(a.enrichment, h_to_u=a.h_to_u, density=a.uo2f2_density),
     }
 
 
@@ -185,6 +185,12 @@ def main() -> int:
         help="Dry UO2F2 density in g/cc",
     )
     parser.add_argument(
+        "--h-to-u",
+        type=float,
+        default=0.0,
+        help="UO2F2 hydrogen-to-uranium ratio used when building UO2F2 materials",
+    )
+    parser.add_argument(
         "--no-default-sweeps",
         action="store_false",
         dest="use_default_sweeps",
@@ -211,7 +217,7 @@ def main() -> int:
         return 2
 
     _print_section_header("MCNP Material Helper Output")
-    print("Source                : critbuddy/core/materials.py via summarize_openmc_material()")
+    print("Source                : critbuddy/core/materials/ via critbuddy.core.materials.material_properties")
     print("Static materials      : no extra inputs required")
     print(f"Default UF6 enr (wt%) : {_format_float_list(DEFAULT_UF6_ENRICHMENTS)}")
     print(f"Default UO2F2 enr     : {_format_float_list(DEFAULT_UO2F2_ENRICHMENTS)}")

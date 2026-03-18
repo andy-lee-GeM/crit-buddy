@@ -1,16 +1,40 @@
 """
-OpenMC material factory library used across crit-buddy templates.
-
-The module is intentionally OpenMC-only. Common engineering materials are
-represented as element-based weight-fraction factories. Chemistry-driven
-materials can also expose domain-specific constructors when that makes the call
-site easier to read.
+OpenMC material builders and package-facing material helpers.
 """
 
 from __future__ import annotations
 
 import openmc
-from critbuddy.core.uo2f2_physics import uo2f2_stoichiometry, uo2f2_density
+from critbuddy.core.materials.material_specs import (
+    MATERIAL_ALIASES,
+    MATERIAL_DENSITIES,
+    STATIC_MATERIAL_SPECS,
+    MaterialSpec,
+)
+from critbuddy.core.materials.uo2f2_physics import uo2f2_stoichiometry, uo2f2_density
+
+
+def _is_nuclide_species(name: str) -> bool:
+    """Return True when the species key names a specific nuclide."""
+    return any(char.isdigit() for char in name)
+
+
+def _build_material_from_spec(spec: MaterialSpec) -> openmc.Material:
+    """Build an OpenMC material from a static spec."""
+    mat = openmc.Material(name=spec.name)
+    mat.set_density("g/cm3", spec.density_g_cm3)
+
+    for species, fraction in spec.components.items():
+        if _is_nuclide_species(species):
+            mat.add_nuclide(species, fraction, percent_type=spec.fraction_basis)
+        else:
+            mat.add_element(species, fraction, percent_type=spec.fraction_basis)
+
+    for sab_name in spec.sab:
+        mat.add_s_alpha_beta(sab_name)
+
+    return mat
+
 
 def _uranium_fractions(enrichment_pct: float) -> tuple[float, float]:
     """Convert U-235 weight percent to uranium atom fractions."""
@@ -29,46 +53,22 @@ def _uranium_fractions(enrichment_pct: float) -> tuple[float, float]:
 
 def aluminum() -> openmc.Material:
     """Create pure aluminum."""
-    mat = openmc.Material(name="Aluminum")
-    mat.set_density("g/cm3", 2.70)
-    mat.add_element("Al", 1.0, percent_type="wo")
-    return mat
+    return _build_material_from_spec(STATIC_MATERIAL_SPECS["aluminum"])
 
 
 def stainless_steel_304() -> openmc.Material:
     """Create SS304 using the explicit isotope mix used by the Andy MCNP deck."""
-    mat = openmc.Material(name="Stainless_Steel_304")
-    mat.set_density("g/cm3", 7.93)
-    mat.add_nuclide("Fe56", 0.70, percent_type="wo")
-    mat.add_nuclide("Cr52", 0.19, percent_type="wo")
-    mat.add_nuclide("Ni58", 0.10, percent_type="wo")
-    mat.add_nuclide("Mn55", 0.01, percent_type="wo")
-    return mat
+    return _build_material_from_spec(STATIC_MATERIAL_SPECS["stainless_steel_304"])
 
 
 def stainless_steel_316() -> openmc.Material:
     """Create simplified nominal stainless steel 316."""
-    mat = openmc.Material(name="Stainless_Steel_316")
-    mat.set_density("g/cm3", 8.00)
-    mat.add_element("Fe", 0.68, percent_type="wo")
-    mat.add_element("Cr", 0.17, percent_type="wo")
-    mat.add_element("Ni", 0.12, percent_type="wo")
-    mat.add_element("Mo", 0.025, percent_type="wo")
-    mat.add_element("Mn", 0.005, percent_type="wo")
-    return mat
+    return _build_material_from_spec(STATIC_MATERIAL_SPECS["stainless_steel_316"])
 
 
 def concrete() -> openmc.Material:
     """Create ordinary concrete using weight fractions."""
-    mat = openmc.Material(name="Concrete")
-    mat.set_density("g/cm3", 2.30)
-    mat.add_element("H", 0.01, percent_type="wo")
-    mat.add_element("O", 0.53, percent_type="wo")
-    mat.add_element("Si", 0.34, percent_type="wo")
-    mat.add_element("Ca", 0.04, percent_type="wo")
-    mat.add_element("Al", 0.03, percent_type="wo")
-    mat.add_element("Fe", 0.01, percent_type="wo")
-    return mat
+    return _build_material_from_spec(STATIC_MATERIAL_SPECS["concrete_ordinary"])
 
 
 def concrete_ordinary() -> openmc.Material:
@@ -78,54 +78,32 @@ def concrete_ordinary() -> openmc.Material:
 
 def water(density_g_cm3: float = 1.0) -> openmc.Material:
     """Create water with thermal scattering."""
-    mat = openmc.Material(name="Water")
+    mat = _build_material_from_spec(STATIC_MATERIAL_SPECS["water"])
     mat.set_density("g/cm3", density_g_cm3)
-    mat.add_nuclide("H1", 2.0, percent_type="ao")
-    mat.add_nuclide("O16", 1.0, percent_type="ao")
-    mat.add_s_alpha_beta("c_H_in_H2O")
     return mat
 
 
 def air_dry() -> openmc.Material:
     """Create dry air at STP using cross-section-safe isotopes."""
-    mat = openmc.Material(name="Air")
-    mat.set_density("g/cm3", 0.001225)
-    mat.add_nuclide("N14", 0.78, percent_type="ao")
-    mat.add_nuclide("O16", 0.21, percent_type="ao")
-    mat.add_nuclide("Ar40", 0.01, percent_type="ao")
-    return mat
+    return _build_material_from_spec(STATIC_MATERIAL_SPECS["air_dry"])
 
 
 def humid_air() -> openmc.Material:
     """Create a conservative humid air composition."""
-    mat = openmc.Material(name="Humid_Air")
-    mat.set_density("g/cm3", 0.0011)
-    mat.add_nuclide("N14", 0.702, percent_type="ao")
-    mat.add_nuclide("O16", 0.223, percent_type="ao")
-    mat.add_nuclide("Ar40", 0.004, percent_type="ao")
-    mat.add_nuclide("H1", 0.071, percent_type="ao")
-    return mat
+    return _build_material_from_spec(STATIC_MATERIAL_SPECS["humid_air"])
 
 
 def vacuum() -> openmc.Material:
     """Create a near-zero density material for evacuated regions."""
-    mat = openmc.Material(name="Vacuum")
-    mat.set_density("g/cm3", 1.0e-10)
-    mat.add_nuclide("N14", 1.0, percent_type="ao")
-    return mat
+    return _build_material_from_spec(STATIC_MATERIAL_SPECS["vacuum"])
 
 
 def void() -> openmc.Material:
     """Create very low-density air for headspace/void modeling."""
-    mat = openmc.Material(name="Void")
-    mat.set_density("g/cm3", 0.0001)
-    mat.add_nuclide("N14", 0.78, percent_type="ao")
-    mat.add_nuclide("O16", 0.21, percent_type="ao")
-    mat.add_nuclide("Ar40", 0.01, percent_type="ao")
-    return mat
+    return _build_material_from_spec(STATIC_MATERIAL_SPECS["void"])
 
 
-def create_uf6(enrichment_pct: float, density: float = 5.09) -> openmc.Material:
+def uf6(enrichment_pct: float, density: float = 5.09) -> openmc.Material:
     """Create UF6 using explicit uranium isotopics."""
     u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
     mat = openmc.Material(name="UF6")
@@ -147,8 +125,8 @@ def create_hf() -> openmc.Material:
 
 def uo2f2(
     enrichment_pct: float,
-    density: float = 4.4,
-    h_to_u: float = 6.0,
+    h_to_u: float,
+    density: float,
 ) -> openmc.Material:
     """Create UO2F2 with an explicit H/U ratio."""
     u235_frac, u238_frac = _uranium_fractions(enrichment_pct)
@@ -176,14 +154,14 @@ def create_fissile_material(
 
     if key == "uf6":
         density = 5.09 if fissile_density is None else fissile_density
-        return create_uf6(enrichment_pct, density=density)
+        return uf6(enrichment_pct, density=density)
     if key == "uo2f2":
-        ratio = 6.0 if h_to_u is None else h_to_u
-        if fissile_density is None:
-            density = 4.4 if h_to_u is None else uo2f2_density(ratio, enrichment_pct=enrichment_pct)
-        else:
-            density = fissile_density
-        return uo2f2(enrichment_pct, density=density, h_to_u=ratio)
+        if h_to_u is None:
+            raise ValueError("UO2F2 material creation requires an explicit h_to_u")
+        density = fissile_density
+        if density is None:
+            density = uo2f2_density(h_to_u, enrichment_pct=enrichment_pct)
+        return uo2f2(enrichment_pct, h_to_u=h_to_u, density=density)
 
     raise ValueError(f"Unsupported fissile_material '{fissile_material}'")
 
@@ -199,6 +177,16 @@ def create_environment_material(
     return mat
 
 
+def create_uf6(enrichment_pct: float, density: float = 5.09) -> openmc.Material:
+    """Compatibility wrapper for the normalized uf6 constructor."""
+    return uf6(enrichment_pct, density=density)
+
+
+def create_vacuum() -> openmc.Material:
+    """Compatibility wrapper for templates that import create_vacuum."""
+    return vacuum()
+
+
 MATERIAL_LIBRARY = {
     "aluminum": aluminum,
     "stainless_steel_304": stainless_steel_304,
@@ -209,28 +197,6 @@ MATERIAL_LIBRARY = {
     "humid_air": humid_air,
     "void": void,
     "vacuum": vacuum,
-}
-
-
-MATERIAL_DENSITIES = {
-    "aluminum": 2.70,
-    "stainless_steel_304": 7.93,
-    "stainless_steel_316": 8.00,
-    "water": 1.0,
-    "concrete_ordinary": 2.30,
-    "air_dry": 0.001225,
-    "humid_air": 0.0011,
-    "void": 0.0001,
-    "vacuum": 1.0e-10,
-}
-
-
-MATERIAL_ALIASES = {
-    "air": "air_dry",
-    "aluminum_6061": "aluminum",
-    "concrete": "concrete_ordinary",
-    "ss304": "stainless_steel_304",
-    "steel": "stainless_steel_316",
 }
 
 

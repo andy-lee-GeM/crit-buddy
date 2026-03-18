@@ -161,7 +161,7 @@ class PipeTemplate(ProblemTemplate):
 
     def derive_params(self, p: dict) -> dict:
         """Compute geometry parameters from user inputs."""
-        from critbuddy.core.pipes import get_pipe
+        from critbuddy.core.geometry.pipes import get_pipe
         from critbuddy.core.materials import get_density
 
         # Array dimensions (default to single pipe)

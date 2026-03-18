@@ -7,7 +7,7 @@ from critbuddy.core.template_loader import load_model_class, load_model_module
 from tests._openmc_plot_assertions import render_openmc_plots
 
 
-ROOT = Path(__file__).resolve().parents[1]
+ROOT = Path(__file__).resolve().parents[3]
 MODELS = ROOT / "models"
 VISUALIZATIONS = ROOT / "tests" / "_visualizations"
 

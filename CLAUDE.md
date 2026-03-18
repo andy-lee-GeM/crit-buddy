@@ -64,11 +64,34 @@ name: ORNL benchmark
 The maintained test suite is intentionally small:
 
 - one test per model
-- shared material factory tests
+- shared material and geometry unit tests
 - `UO2F2` physics tests
 
 Model-local visualization artifacts should not be committed as documentation.
 If geometry construction matters, cover it in tests or a study report.
+
+## Codex Environment
+
+OpenMC is installed in the Codex repo-work environment. Do not assume
+`ModuleNotFoundError: openmc` means OpenMC is unavailable before checking the
+dedicated interpreter:
+
+```bash
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python
+```
+
+Use that interpreter for OpenMC-backed commands in this environment, for
+example:
+
+```bash
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -c "import openmc; print(openmc.__version__)"
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_builders tests.unit.materials.test_properties tests.unit.materials.test_uo2f2_physics tests.unit.geometry.test_cylinders tests.unit.geometry.test_pipes tests.integration.models.test_cylinder_unit_cell tests.integration.models.test_cascade_array tests.integration.models.test_centrifuge_unit_cell
+/home/gem/.local/miniforge3/envs/openmc-env/bin/python scripts/get_mcnp_density.py water
+```
+
+If a plain `python` or `python3` command cannot import OpenMC, retry with the
+explicit OpenMC interpreter above before concluding the environment is missing
+dependencies.
 
 ## Documentation Conventions
 

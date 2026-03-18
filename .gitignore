@@ -49,7 +49,6 @@ config.yaml
 Thumbs.db
 
 # Docs
-docs/*
 !docs/openmc-data-setup.md
 
 # Experiments (local only)
