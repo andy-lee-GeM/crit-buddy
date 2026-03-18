@@ -26,16 +26,26 @@ class IsotopicMasses:
 
 @dataclass(frozen=True)
 class UranylFluorideModel:
-    """Constants for the Appendix A uranyl-fluoride density relationship."""
+    """Constants for ORNL/TM-12292 Appendix A uranyl-fluoride density relationship.
 
-    u_atoms_per_formula_unit: float = 1.0
-    h_atoms_per_water: float = 2.0
-    waters_of_hydration: float = 2.0
-    hydrated_salt_branch_limit_h_over_u: float = 4.0
-    hydrated_salt_intercept_g_cm3: float = 4.96
-    hydrated_salt_slope_g_cm3_per_h_over_u: float = 0.32
-    uo2f2_dihydrate_molar_volume_cm3_per_mol: float = 72.2809
-    h2o_molar_volume_cm3_per_mol: float = 18.0574
+    Variable names follow ORNL notation from Eq. (A.1):
+        ρu = Mu / [(Vuc/N) + (H/U - M*Y) * (Vm/M)]
+
+    For H/U < 4 (Eq. A.2):
+        ρu = rho_u_intercept - slope * (H/U)
+    """
+
+    # Eq. A.1 parameters
+    N: float = 1.0          # uranium atoms per formula unit
+    M: float = 2.0          # hydrogen atoms per water molecule
+    Y: float = 2.0          # waters of hydration (UO2F2·2H2O)
+    Vuc: float = 72.2809    # molar volume of UO2F2·2H2O [cm³/mol]
+    Vm: float = 18.0574     # molar volume of H2O [cm³/mol]
+
+    # Eq. A.2 parameters (H/U < 4 region)
+    h_over_u_transition: float = 4.0    # transition point between Eq. A.2 and A.3
+    rho_u_intercept: float = 4.96       # uranium density at H/U=0 [g/cm³]
+    slope: float = 0.32                 # linear fit slope [g/cm³ per H/U]
 
 
 ATOMIC_MASSES = IsotopicMasses()
@@ -57,6 +67,8 @@ class UO2F2Stoichiometry:
     fluorine_atoms_per_u: float
     hydrogen_atoms_per_u: float
     water_weight_fraction: float
+    uo2f2_component_density_g_cm3: float
+    h2o_component_density_g_cm3: float
 
 
 def _uranium_atom_fractions(enrichment_pct: float) -> tuple[float, float]:
@@ -101,29 +113,25 @@ def uranium_density(
 def uranyl_fluoride_density(
     H_over_U: float,
     Mu: float,
-    V_uc: float = UO2F2_MODEL.uo2f2_dihydrate_molar_volume_cm3_per_mol,
-    V_H2O: float = UO2F2_MODEL.h2o_molar_volume_cm3_per_mol,
+    V_uc: float = UO2F2_MODEL.Vuc,
+    V_H2O: float = UO2F2_MODEL.Vm,
 ) -> float:
     """
-    Return uranium density for uranyl-fluoride mixtures.
+    Return uranium density for uranyl-fluoride mixtures per ORNL/TM-12292.
 
-    For H/U below 4, use the Appendix A hydrated-salt linear fit.
-    For H/U of 4 and above, use the ORNL/TM-12292 Eq. (A.1) aqueous-solution
-    form with the UO2F2·2H2O and H2O molar volumes captured in ``UO2F2_MODEL``.
+    For H/U < 4, use Eq. (A.2) hydrated-salt linear fit.
+    For H/U ≥ 4, use Eq. (A.3) aqueous-solution volume-additive form.
     """
-    if H_over_U < UO2F2_MODEL.hydrated_salt_branch_limit_h_over_u:
-        return (
-            UO2F2_MODEL.hydrated_salt_intercept_g_cm3
-            - UO2F2_MODEL.hydrated_salt_slope_g_cm3_per_h_over_u * H_over_U
-        )
+    if H_over_U < UO2F2_MODEL.h_over_u_transition:
+        return UO2F2_MODEL.rho_u_intercept - UO2F2_MODEL.slope * H_over_U
 
     return uranium_density(
         Mu=Mu,
         Vuc=V_uc,
-        N=UO2F2_MODEL.u_atoms_per_formula_unit,
+        N=UO2F2_MODEL.N,
         H_over_U=H_over_U,
-        M=UO2F2_MODEL.h_atoms_per_water,
-        Y=UO2F2_MODEL.waters_of_hydration,
+        M=UO2F2_MODEL.M,
+        Y=UO2F2_MODEL.Y,
         Vm=V_H2O,
     )
 
@@ -145,7 +153,7 @@ def uo2f2_density(h_to_u: float = 0.0, enrichment_pct: float = 20.0) -> float:
     mu = _uranium_molar_mass(enrichment_pct)
     rho_u = uranyl_fluoride_density(h_to_u, mu)
     total_mass = _uo2f2_molar_mass(mu) + (
-        h_to_u / UO2F2_MODEL.h_atoms_per_water
+        h_to_u / UO2F2_MODEL.M
     ) * ATOMIC_MASSES.h2o_g_per_mol
 
     return rho_u * total_mass / mu
@@ -162,12 +170,16 @@ def uo2f2_stoichiometry(
         raise ValueError("Enrichment must be positive")
 
     mu = _uranium_molar_mass(enrichment_pct)
-    n_water = h_to_u / UO2F2_MODEL.h_atoms_per_water
+    n_water = h_to_u / UO2F2_MODEL.M
     dry_uo2f2_mass = _uo2f2_molar_mass(mu)
     total_mass = dry_uo2f2_mass + n_water * ATOMIC_MASSES.h2o_g_per_mol
     water_mass = n_water * ATOMIC_MASSES.h2o_g_per_mol
     density = uo2f2_density(h_to_u, enrichment_pct=enrichment_pct)
     total_volume = total_mass / density if density > 0.0 else 0.0
+
+    # Component densities: mass of each component per unit total volume
+    uo2f2_component_density = dry_uo2f2_mass / total_volume if total_volume > 0.0 else 0.0
+    h2o_component_density = water_mass / total_volume if total_volume > 0.0 else 0.0
 
     return UO2F2Stoichiometry(
         enrichment_pct=enrichment_pct,
@@ -181,4 +193,6 @@ def uo2f2_stoichiometry(
         fluorine_atoms_per_u=2.0,
         hydrogen_atoms_per_u=h_to_u,
         water_weight_fraction=water_mass / total_mass if total_mass > 0.0 else 0.0,
+        uo2f2_component_density_g_cm3=uo2f2_component_density,
+        h2o_component_density_g_cm3=h2o_component_density,
     )

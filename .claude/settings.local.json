@@ -85,7 +85,16 @@
       "WebFetch(domain:medium.com)",
       "WebFetch(domain:docs.ollama.com)",
       "Bash(PYTHONPATH=/mnt/c/Users/AndyLee/Projects/crit-buddy:$PYTHONPATH python:*)",
-      "WebFetch(domain:ncsp.llnl.gov)"
+      "WebFetch(domain:ncsp.llnl.gov)",
+      "Bash(/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_uo2f2_ornl_validation -v)",
+      "Bash(/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_uo2f2_ornl_validation::TestUO2F2DensityORNLTableA3 -v)",
+      "Bash(/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_uo2f2_ornl_validation)",
+      "Read(//home/gem/Projects/crit-buddy/**)",
+      "Read(//tmp/**)",
+      "Bash(/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m pytest tests/unit/materials/test_uo2f2_ornl_validation.py::TestUO2F2DensityORNLTableA3::test_100_percent_enriched -v)",
+      "Bash(/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_uo2f2_ornl_validation.TestUO2F2DensityORNLTableA3.test_100_percent_enriched)",
+      "Bash(/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_uo2f2_ornl_validation.TestUO2F2DensityORNLTableA3.test_100_percent_enriched -v)",
+      "Bash(/home/gem/.local/miniforge3/envs/openmc-env/bin/python:*)"
     ]
   }
 }
