@@ -1,0 +1,9 @@
+model: pipe-unit-cell
+name: AD-7 single pipe NPS size sweep
+
+params:
+  pipe_size: ["2", "2-1/2", "3", "4", "5", "6", "8"]
+  solution_radius_cm: null
+  solution_gap_cm: 1.0
+  fill_fraction: 1.0
+  boundary_type: vacuum

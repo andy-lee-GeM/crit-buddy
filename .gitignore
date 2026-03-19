@@ -54,8 +54,9 @@ Thumbs.db
 # Experiments (local only)
 experiments/
 
-# Operational requests (local only)
-requests/
+# Operational request outputs
+requests/*/runs/
+requests/*/_validation/
 
 # Scratch / archived engineering work
 workbench/
