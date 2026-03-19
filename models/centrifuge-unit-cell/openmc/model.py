@@ -12,7 +12,7 @@ Geometry represented here:
 - air outside the vessel but inside the square unit cell
 
 Materials represented here:
-- ``m1`` exact fuel card
+- ``m1`` UO2F2 fuel (physics-based density from ORNL/TM-12292)
 - ``m2`` exact wall card
 - ``m3`` exact water card
 - ``m4`` exact air card
@@ -27,17 +27,16 @@ from critbuddy.core.materials import (
     get_color_legend,
     get_color_mapping,
 )
+from critbuddy.core.materials.builders import uo2f2
+from critbuddy.core.materials.uo2f2_physics import uo2f2_density
 
-def _create_materials():
-    # Reproduce the current centrifuge unit cell material cards directly.
-    fuel = openmc.Material(name="Fuel")
-    fuel.set_density("g/cm3", 4.33)
-    fuel.add_nuclide("U235", 0.001496, percent_type="ao")
-    fuel.add_nuclide("U238", 0.00591035, percent_type="ao")
-    fuel.add_nuclide("O16", 0.0333, percent_type="ao")
-    fuel.add_nuclide("F19", 0.0148, percent_type="ao")
-    fuel.add_nuclide("H1", 0.037, percent_type="ao")
-    fuel.add_s_alpha_beta("c_H_in_H2O")
+def _create_materials(p):
+    # Create UO2F2 fuel using physics-based density calculations.
+    enrichment = p["ENRICHMENT_PCT"]
+    h_to_u = p["H_TO_U"]
+    density = uo2f2_density(h_to_u=h_to_u, enrichment_pct=enrichment)
+    fuel = uo2f2(enrichment_pct=enrichment, h_to_u=h_to_u, density=density)
+    fuel.name = "Fuel"
 
     wall = openmc.Material(name="Wall")
     wall.set_density("g/cm3", 8.0)
@@ -65,7 +64,7 @@ def _create_materials():
 
 def build_model(p):
     """Build the centrifuge unit-cell model with parameterized boundary types."""
-    materials, m_fuel, m_wall, m_water, m_air = _create_materials()
+    materials, m_fuel, m_wall, m_water, m_air = _create_materials(p)
 
     fuel_radius = p["FUEL_RADIUS_CM"]
     water_outer = p["WATER_OUTER_RADIUS_CM"]
