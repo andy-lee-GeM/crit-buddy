@@ -13,6 +13,21 @@ class CentrifugeThinFilmTemplate(ProblemTemplate):
     """Single unit cell matching the canonical centrifuge unit cell deck."""
 
     PARAMETERS = {
+        "enrichment_pct": ParameterSpec(
+            type="float",
+            default=20.2,
+            min=0.1,
+            max=100.0,
+            unit="%",
+            description="U-235 weight percent enrichment",
+        ),
+        "h_to_u": ParameterSpec(
+            type="float",
+            default=5.0,
+            min=0.0,
+            max=20.0,
+            description="Hydrogen to uranium atomic ratio",
+        ),
         "fill_z_cm": ParameterSpec(
             type="float",
             default=20.0,
@@ -65,6 +80,8 @@ class CentrifugeThinFilmTemplate(ProblemTemplate):
         h_inner = z_vessel_top - z_vessel_bottom
 
         return {
+            "ENRICHMENT_PCT": float(p.get("enrichment_pct", 20.2)),
+            "H_TO_U": float(p.get("h_to_u", 5.0)),
             "FILL_Z_CM": fill_z,
             "FILL_HEIGHT_CM": fill_z - z_vessel_bottom,
             "FILL_FRACTION": (fill_z - z_vessel_bottom) / h_inner,
