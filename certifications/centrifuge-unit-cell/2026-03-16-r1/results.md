@@ -39,5 +39,7 @@ Maximum absolute delta keff: `0.00264`.
 
 Notes:
 - `openmc/study.yaml` is the sweep definition.
+- `openmc/cases/` contains the exported OpenMC model files for each case:
+  `materials.xml`, `geometry.xml`, and `settings.xml`.
 - `openmc/results/` contains the copied OpenMC run outputs kept with this checkpoint.
 - `fill_10` uses a manual MCNP source adjustment to keep the source inside the fuel region.

@@ -11,6 +11,11 @@ from the same git commit.
 certifications/<model>/<yyyy-mm-dd-rN>/
   openmc/
     study.yaml
+    cases/
+      <case>/
+        materials.xml
+        geometry.xml
+        settings.xml
     results/
       results.csv
       REPORT.md
@@ -25,11 +30,13 @@ certifications/<model>/<yyyy-mm-dd-rN>/
 ## Contents
 
 - Keep the OpenMC sweep config in `openmc/study.yaml`.
+- Keep deterministic per-case OpenMC model exports in `openmc/cases/`.
 - Keep lightweight OpenMC outputs in `openmc/results/`.
 - Keep only rerunnable MCNP case artifacts: `input.inp` and `out`.
 - Keep a short `results.md` with reproduction commands and the comparison table.
 - Do not keep heavy scratch artifacts such as `runtpe`, `srctp`, `xsdir`, or
-  OpenMC statepoints unless there is a specific reason to bless them.
+  regenerated OpenMC statepoints unless there is a specific reason to bless
+  them.
 
 ## Workflow
 

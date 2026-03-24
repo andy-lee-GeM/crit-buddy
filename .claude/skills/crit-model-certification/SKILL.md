@@ -18,10 +18,11 @@ Read `references/format.md` when you need the exact directory tree, the
 1. Identify the source artifacts.
 2. Create or update `certifications/<model>/<yyyy-mm-dd-rN>/`.
 3. Copy the OpenMC sweep config into `openmc/study.yaml`.
-4. Copy lightweight OpenMC outputs into `openmc/results/`.
-5. Copy each MCNP case with only `input.inp` and `out`.
-6. Write or refresh `results.md`.
-7. Update the repo docs that point to the blessed checkpoint.
+4. Store deterministic per-case OpenMC exports in `openmc/cases/`.
+5. Copy lightweight OpenMC outputs into `openmc/results/`.
+6. Copy each MCNP case with only `input.inp` and `out`.
+7. Write or refresh `results.md`.
+8. Update the repo docs that point to the blessed checkpoint.
 
 ## Source Artifacts
 
@@ -32,6 +33,9 @@ rewrite them unless explicitly asked to regenerate them.
 Keep:
 
 - `openmc/study.yaml`
+- `openmc/cases/<case>/materials.xml`
+- `openmc/cases/<case>/geometry.xml`
+- `openmc/cases/<case>/settings.xml`
 - `openmc/results/results.csv`
 - `openmc/results/REPORT.md`
 - useful plots under `openmc/results/plots/`
@@ -45,7 +49,7 @@ Drop unless explicitly requested:
 - `srctp`
 - `xsdir`
 - archived MCNP rerun outputs
-- OpenMC statepoints and other heavy scratch
+- regenerated OpenMC statepoints and other heavy scratch
 
 ## results.md Requirements
 

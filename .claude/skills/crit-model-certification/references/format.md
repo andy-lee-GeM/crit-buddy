@@ -6,6 +6,11 @@
 certifications/<model>/<yyyy-mm-dd-rN>/
   openmc/
     study.yaml
+    cases/
+      <case>/
+        materials.xml
+        geometry.xml
+        settings.xml
     results/
       results.csv
       REPORT.md
@@ -20,6 +25,7 @@ certifications/<model>/<yyyy-mm-dd-rN>/
 ## File Rules
 
 - Keep the OpenMC sweep definition in `openmc/study.yaml`.
+- Keep deterministic per-case OpenMC exports in `openmc/cases/`.
 - Keep lightweight OpenMC outputs in `openmc/results/`.
 - Keep only `input.inp` and `out` for MCNP case directories unless explicitly
   asked for more.

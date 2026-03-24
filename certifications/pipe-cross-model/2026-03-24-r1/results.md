@@ -38,5 +38,7 @@ Maximum absolute delta keff: `0.00988`.
 
 Notes:
 - `openmc/study.yaml` is the sweep definition.
+- `openmc/cases/` contains the exported OpenMC model files for each case:
+  `materials.xml`, `geometry.xml`, and `settings.xml`.
 - `openmc/results/` contains the copied OpenMC run outputs kept with this checkpoint.
 - The MCNP cases in this certification use OpenMC builder materials for the parity comparison.

@@ -102,6 +102,7 @@ for example:
 certifications/centrifuge-unit-cell/2026-03-16-r1/
   openmc/
     study.yaml
+    cases/
     results/
   mcnp/
     fill_10/

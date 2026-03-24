@@ -1,0 +1,22 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<geometry>
+  <cell id="1" material="2" name="z_gas_core" region="-7 1 -2 3 -4 5 -6" universe="1"/>
+  <cell id="2" material="1" name="z_fuel" region="7 -8 1 -2 3 -4 5 -6" universe="1"/>
+  <cell id="3" material="3" name="z_wall" region="8 -9 1 -2 3 -4 5 -6" universe="1"/>
+  <cell id="4" material="2" name="x_gas_core" region="-10 1 -2 3 -4 5 -6" universe="1"/>
+  <cell id="5" material="1" name="x_fuel" region="10 -11 1 -2 3 -4 5 -6" universe="1"/>
+  <cell id="6" material="3" name="x_wall" region="11 -12 1 -2 3 -4 5 -6" universe="1"/>
+  <cell id="7" material="4" name="moderator" region="1 -2 3 -4 5 -6 9 12" universe="1"/>
+  <surface boundary="reflective" coeffs="-8.715" id="1" name="x_min" type="x-plane"/>
+  <surface boundary="reflective" coeffs="8.815" id="2" name="x_max" type="x-plane"/>
+  <surface boundary="reflective" coeffs="-8.715" id="3" name="y_min" type="y-plane"/>
+  <surface boundary="reflective" coeffs="25.945" id="4" name="y_max" type="y-plane"/>
+  <surface boundary="reflective" coeffs="-8.715" id="5" name="z_min" type="z-plane"/>
+  <surface boundary="reflective" coeffs="8.715" id="6" name="z_max" type="z-plane"/>
+  <surface coeffs="0.0 0.0 4.4102" id="7" name="s_z_gas" type="z-cylinder"/>
+  <surface coeffs="0.0 0.0 5.4102" id="8" name="s_z_fuel_outer" type="z-cylinder"/>
+  <surface coeffs="0.0 0.0 5.715" id="9" name="s_z_outer" type="z-cylinder"/>
+  <surface coeffs="17.23 0.0 4.4102" id="10" name="s_x_gas" type="x-cylinder"/>
+  <surface coeffs="17.23 0.0 5.4102" id="11" name="s_x_fuel_outer" type="x-cylinder"/>
+  <surface coeffs="17.23 0.0 5.715" id="12" name="s_x_outer" type="x-cylinder"/>
+</geometry>

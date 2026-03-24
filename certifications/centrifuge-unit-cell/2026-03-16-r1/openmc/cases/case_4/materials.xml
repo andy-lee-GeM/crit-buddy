@@ -1,0 +1,33 @@
+<?xml version='1.0' encoding='utf-8'?>
+<materials>
+  <material depletable="true" id="1" name="Fuel">
+    <density units="g/cm3" value="4.334908881167439"/>
+    <nuclide ao="0.2040569211267283" name="U235"/>
+    <nuclide ao="0.7959430788732718" name="U238"/>
+    <nuclide ao="5.0" name="H1"/>
+    <nuclide ao="4.5" name="O16"/>
+    <nuclide ao="2.0" name="F19"/>
+    <sab name="c_H_in_H2O"/>
+  </material>
+  <material id="2" name="Wall">
+    <density units="g/cm3" value="8.0"/>
+    <nuclide ao="0.0017" name="Ni58"/>
+    <nuclide ao="0.0777" name="Fe56"/>
+    <nuclide ao="0.00043" name="Mn55"/>
+    <nuclide ao="0.000208" name="Mo96"/>
+    <nuclide ao="0.0138" name="Cr52"/>
+  </material>
+  <material id="3" name="Water">
+    <density units="g/cm3" value="1.0"/>
+    <nuclide ao="0.067" name="H1"/>
+    <nuclide ao="0.033" name="O16"/>
+    <sab name="c_H_in_H2O"/>
+  </material>
+  <material id="4" name="Air">
+    <density units="atom/b-cm" value="0.033"/>
+    <nuclide ao="3.9e-05" name="N14"/>
+    <nuclide ao="1.05e-05" name="O16"/>
+    <nuclide ao="0.00024" name="Ar40"/>
+    <nuclide ao="1.1e-06" name="H1"/>
+  </material>
+</materials>

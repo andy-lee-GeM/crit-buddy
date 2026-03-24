@@ -4,6 +4,14 @@ summary.h5
 tallies.out
 *.xml
 
+# Certification OpenMC artifacts
+certifications/**/openmc/runs/
+!certifications/**/openmc/cases/
+!certifications/**/openmc/cases/**/
+!certifications/**/openmc/cases/**/materials.xml
+!certifications/**/openmc/cases/**/geometry.xml
+!certifications/**/openmc/cases/**/settings.xml
+
 # Experiment run outputs
 experiments/*/runs/
 
