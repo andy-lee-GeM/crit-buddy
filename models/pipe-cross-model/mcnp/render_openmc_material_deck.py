@@ -56,12 +56,6 @@ c
 
 c Data Cards
 c
-c Source Term
-c
-mode n
-kcode 4800 1.0 50 200
-ksrc 0 0 0
-
 c Material Cards
 c
 """
@@ -134,6 +128,11 @@ def render_deck(
             moderator_density_g_cm3=moderator_density_g_cm3,
             xs_suffix=xs_suffix,
         ),
+        "c Source Term",
+        "c",
+        "mode n",
+        "kcode 4800 1.0 50 200",
+        "ksrc 0 0 0",
         "print",
         "",
     ]

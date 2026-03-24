@@ -1,0 +1,19 @@
+model: pipe-cross-model
+name: Pipe Cross Andy Reference - OpenMC parity sweep
+
+params:
+  cross_mode: xz
+  enrichment_pct: 20.19
+  pipe_size: custom
+  pipe_outer_radius_cm: 5.715
+  pipe_wall_thickness_cm: 0.3048
+  gas_core_radius_cm: 4.4102
+  fuel_outer_radius_cm: 5.4102
+  uf6_density_g_cm3: 0.0127
+  uo2f2_density_g_cm3: 6.37
+  separation_cm: [0.0, 5.8, 6.5, 7.0]
+  wall_material: aluminum
+  moderator_density_g_cm3: 1.0
+  x_boundary_type: reflective
+  y_boundary_type: reflective
+  z_boundary_type: reflective

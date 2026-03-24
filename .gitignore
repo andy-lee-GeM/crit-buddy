@@ -8,16 +8,24 @@ tallies.out
 experiments/*/runs/
 
 # Study run outputs
-studies/*/runs/
-studies/*/openmc/runs/
+studies/**/runs/
+studies/**/openmc/runs/
+studies/**/_validation/
+studies/**/results.csv
+studies/**/report.md
 
 # Manual MCNP study artifacts
-studies/*/mcnp/*/out
-studies/*/mcnp/*/runtpe
-studies/*/mcnp/*/srctp
-studies/*/mcnp/*/mctal
-studies/*/mcnp/*/meshtal*
-studies/*/mcnp/*/outp*
+studies/**/mcnp/*/out
+studies/**/mcnp/*/ou?
+studies/**/mcnp/*/runtpe
+studies/**/mcnp/*/runtp*
+studies/**/mcnp/*/srctp
+studies/**/mcnp/*/srct?
+studies/**/mcnp/*/xsdir*
+studies/**/mcnp/*/archive/
+studies/**/mcnp/*/mctal
+studies/**/mcnp/*/meshtal*
+studies/**/mcnp/*/outp*
 
 # MCNP output files
 runtpe*

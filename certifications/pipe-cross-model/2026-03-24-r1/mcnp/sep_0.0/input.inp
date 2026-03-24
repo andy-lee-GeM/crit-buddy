@@ -1,4 +1,4 @@
-Piping Model- Infinite Lattice (OpenMC builder materials)
+Piping Model- Infinite Lattice (OpenMC builder materials, sep=0.0cm)
 c
 c Cell Cards
 c
@@ -29,9 +29,9 @@ c Data Cards
 c
 c Material Cards
 c
-m1 9019.80c 1.3057798519e-04
-     92235.80c 4.4408902708e-06
-     92238.80c 1.7322107261e-05
+m1 9019.80c 1.3057787262e-04
+     92235.80c 4.4386936477e-06
+     92238.80c 1.7324285122e-05
 c
 m2 13027.80c 6.0262612925e-02
 c
@@ -39,10 +39,10 @@ m3 1001.80c 6.6873425303e-02
      8016.80c 3.3436712652e-02
 mt3 lwtr.01t
 c
-m5 9019.80c 2.4956447832e-02
-     8016.80c 2.4956447832e-02
-     92235.80c 2.5462679534e-03
-     92238.80c 9.9319559624e-03
+m5 9019.80c 2.4956423237e-02
+     8016.80c 2.4956423237e-02
+     92235.80c 2.5450081641e-03
+     92238.80c 9.9332034544e-03
 c
 c Source Term
 c

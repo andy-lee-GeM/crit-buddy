@@ -33,8 +33,8 @@ shared baseline for OpenMC development and MCNP reference runs.
 
 ## Validation
 
-- Cross-solver comparison is documented in
-  `studies/centrifuge-unit-cell-parity/`.
+- The current lightweight cross-solver checkpoint lives under
+  `certifications/centrifuge-unit-cell/2026-03-16-r1/`.
 - Model geometry and material construction are covered by the test suite.
 - Additional benchmark-style validation can be added as separate studies.
 

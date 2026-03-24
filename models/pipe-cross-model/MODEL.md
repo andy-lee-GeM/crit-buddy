@@ -22,21 +22,42 @@ Material regions:
 
 ## Parameters
 
-- `enrichment_pct`
-- `cross_mode`
-- `pipe_size`
-- `pipe_outer_radius_cm`
-- `pipe_wall_thickness_cm`
-- `gas_core_radius_cm`
-- `fuel_outer_radius_cm`
-- `uf6_density_g_cm3`
-- `uo2f2_density_g_cm3`
-- `separation_cm`
-- `wall_material`
-- `moderator_density_g_cm3`
-- `x_boundary_type`
-- `y_boundary_type`
-- `z_boundary_type`
+- `enrichment_pct` - U-235 weight percent enrichment (0.1-100.0%, default: 20.2)
+- `cross_mode` - Crossing pattern: `xz` or `xyz` (default: `xz`)
+- `pipe_size` - Standard NPS size or `custom` (default: `custom`)
+- `pipe_outer_radius_cm` - Outer pipe radius for custom sizing (0.5-50.0 cm, default: 5.715)
+- `pipe_wall_thickness_cm` - Pipe wall thickness for custom sizing (0.05-5.0 cm, default: 0.3048)
+- `gas_core_radius_cm` - Radius of central UF6 gas core (0.05-50.0 cm, default: 4.4102)
+- `fuel_outer_radius_cm` - Outer radius of annular UO2F2 layer (0.05-50.0 cm, default: 5.4102)
+- `uf6_density_g_cm3` - UF6 gas density (1.0e-6-20.0 g/cm³, default: 0.0127)
+- `uo2f2_density_g_cm3` - Dry UO2F2 density (0.01-20.0 g/cm³, default: 6.37)
+- `separation_cm` - Edge-to-edge separation to reflected neighbors (0.0-100.0 cm, default: 7.0)
+- `wall_material` - Pipe wall material: `aluminum` or `ss304` (default: `aluminum`)
+- `moderator_density_g_cm3` - Water moderator density (0.01-2.0 g/cm³, default: 1.0)
+- `x_boundary_type` - Boundary at x-min/max: `reflective` or `vacuum` (default: `reflective`)
+- `y_boundary_type` - Boundary at y-min/max: `reflective` or `vacuum` (default: `reflective`)
+- `z_boundary_type` - Boundary at z-min/max: `reflective` or `vacuum` (default: `reflective`)
+
+## Config File Usage
+
+This model uses the standard config-driven workflow. Create a YAML config file:
+
+```yaml
+model: pipe-cross-model
+name: Your Study Name
+
+params:
+  cross_mode: xz
+  enrichment_pct: 20.19
+  separation_cm: [0.0, 5.8, 6.0, 6.5, 7.0]  # List for parameter sweep
+  # ... other parameters
+```
+
+Run with:
+
+```bash
+python3 run_study.py path/to/config.yaml
+```
 
 ## Validation Intent
 
@@ -61,24 +82,25 @@ the source of truth, use `mcnp/openmc_builder_materials.inp`. Regenerate it
 locally with:
 
 ```bash
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python \
-  models/pipe-cross-model/mcnp/render_openmc_material_deck.py
+python3 models/pipe-cross-model/mcnp/render_openmc_material_deck.py
 ```
 
 Quick local validation flow for the exact `xz`, `gap = 0` case:
 
 ```bash
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python \
-  run_study.py requests/AD-7/configs/13_cross_model_reference_gap0.yaml
+python3 run_study.py path/to/gap0_config.yaml
 
 cd models/pipe-cross-model/mcnp
 $MCNP_EXECUTABLE i=openmc_builder_materials.inp o=openmc_builder_materials.out tasks 4
 ```
 
-Compare the OpenMC `k-eff` from `requests/AD-7/runs/13_cross_model_reference_gap0/.../results.csv`
-against the MCNP `k-eff` reported in `openmc_builder_materials.out`. This check
-isolates geometry plus shared-material parity before reintroducing the
-historical MCNP deck materials.
+Compare the OpenMC `k-eff` from your one-case run `results.csv` against the
+MCNP `k-eff` reported in `openmc_builder_materials.out`. This check isolates
+geometry plus shared-material parity before reintroducing the historical MCNP
+deck materials.
+
+The current lightweight solver-to-solver checkpoint for the separation sweep
+lives under `certifications/pipe-cross-model/2026-03-24-r1/`.
 
 ## Notes
 

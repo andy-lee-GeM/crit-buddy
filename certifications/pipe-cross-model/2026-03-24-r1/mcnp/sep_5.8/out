@@ -1,0 +1,264 @@
+          Code Name & Version = mcnp6, 6.3.0, production
+  
+     _/      _/        _/_/_/       _/      _/       _/_/_/         _/_/_/ 
+    _/_/  _/_/      _/             _/_/    _/       _/    _/     _/        
+   _/  _/  _/      _/             _/  _/  _/       _/_/_/       _/_/_/     
+  _/      _/      _/             _/    _/_/       _/           _/    _/    
+ _/      _/        _/_/_/       _/      _/       _/             _/_/       
+  
+  +------------------------------------------------------------------------------------------------------------------+
+  | Copyright (c) 2018. Triad National Security, LLC. All rights reserved.                                           |
+  |   This program was produced under U.S. Government contract 89233218CNA000001 for Los Alamos National Laboratory  |
+  | (LANL), which is operated by Triad National Security, LLC for the U.S. Department of Energy/National Nuclear     |
+  | Security Administration.                                                                                         |
+  |   For a period of five years from February 14, 2018, the U.S. Government is granted for itself and others acting |
+  | on its behalf a nonexclusive, paid-up, irrevocable, worldwide license in this data to reproduce, prepare         |
+  | derivative works, and perform publicly and display publicly, by or on behalf of the U.S. Government.             |
+  |   Subsequent to the specified period or any extension granted, the U.S. Government is granted for itself and     |
+  | others acting on its behalf a nonexclusive, paid-up, irrevocable worldwide license in this material to           |
+  | reproduce, prepare derivative works, distribute copies to the public, perform publicly and display publicly, and |
+  | to permit others to do so. The specific term of the license can be identified by inquiry made to the Contractor  |
+  | or DOE/NNSA.                                                                                                     |
+  |   User is subject to applicable United States and foreign laws, regulations, rules and decrees with respect to   |
+  | any transfer of the Intellectual Property and related technical data to foreign countries, including the U.S.    |
+  | Foreign Corrupt Practices Act, the Arms Control Act, the Export Administration Act, the U.S. Anti-Boycott Laws,  |
+  | and any regulations promulgated thereunder, including the International Traffic in Arms Regulations (ITAR), the  |
+  | U.S. Export Administration Regulations (EAR) and explicitly Title 10, Part 810 of the United States Code of      |
+  | Federal Regulations. FAILURE TO CONFORM TO SUCH LAWS, REGULATIONS, RULES, AND DECREES MAY RESULT IN CRIMINAL     |
+  | LIABILITY UNDER U.S. LAW.                                                                                        |
+  |   NO EXPRESS OR IMPLIED LICENSES TO ANY PARTY'S PATENT RIGHTS ARE GRANTED BY THIS NOTICE. THIS SOFTWARE IS       |
+  | PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT |
+  | NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.   |
+  | NEITHER THE UNITED STATES NOR THE UNITED STATES DEPARTMENT OF ENERGY/NATIONAL NUCLEAR SECURITY ADMINSTRATION,    |
+  | NOR TRIAD NATIONAL SECURITY, LLC, NOR ANY OF THEIR EMPLOYEES, MAKES ANY WARRANTY, EXPRESS OR IMPLIED, OR ASSUMES |
+  | ANY LEGAL LIABILITY OR RESPONSIBILITY FOR THE ACCURACY, COMPLETENESS, OR USEFULNESS OF ANY INFORMATION,          |
+  | APPARATUS, PRODUCT, OR PROCESS DISCLOSED, OR REPRESENTS THAT ITS USE WOULD NOT INFRINGE PRIVATELY OWNED RIGHTS.  |
+  +------------------------------------------------------------------------------------------------------------------+
+  
+1mcnp6 version 6.3.0 ld=01/26/23                     03/24/26 12:39:42 
+ *************************************************************************                 probid =  03/24/26 12:39:42 
+Source version = release/6.3-55762725c4
+ i=input.inp o=out tasks 4
+
+ 
+  comment.  Physics models disabled.
+         1-       Piping Model- Infinite Lattice (OpenMC builder materials, sep=5.8cm)
+         2-       c
+         3-       c Cell Cards
+         4-       c
+         5-       1 2 -2.70 2 -1 16 -15 imp:n=1
+  fatal error.  no m card for material no. 2
+         6-       3 3 -1.0 -7 8 1 -17 18 13 16 -15 imp:n=1
+  fatal error.  no m card for material no. 3
+         7-       4 5 -6.37 11 -2 16 -15 imp:n=1
+  fatal error.  no m card for material no. 5
+         8-       5 1 -0.0127 -11 16 -15 imp:n=1
+  fatal error.  no m card for material no. 1
+         9-       6 5 -6.37 14 -12 -17 18 imp:n=1
+  fatal error.  no m card for material no. 5
+        10-       7 1 -0.0127 -14 -17 18 imp:n=1
+  fatal error.  no m card for material no. 1
+        11-       8 2 -2.70 12 -13 -17 18 imp:n=1
+  fatal error.  no m card for material no. 2
+        12-       
+        13-       c Surface Cards
+        14-       c
+        15-       1 cz 5.715
+        16-       2 cz 5.4102
+        17-       *7 py 25.945
+        18-       *8 py -8.715
+        19-       11 cz 4.4102
+        20-       12 c/x 17.23 0 5.4102
+        21-       13 c/x 17.23 0 5.715
+        22-       14 c/x 17.23 0 4.4102
+        23-       *15 pz 8.715
+        24-       *16 pz -8.715
+        25-       *17 px 8.815
+        26-       *18 px -8.715
+        27-       
+        28-       c Data Cards
+        29-       c
+        30-       c Source Term
+        31-       c
+        32-       mode n
+        33-       kcode 4800 1.0 50 200
+  warning.  Using <10k neuts/cycle can give significant renormalization bias.
+        34-       ksrc 0 0 0
+        35-       
+
+ ***************************************************
+ * Random Number Generator  =                    1 *
+ * Random Number Seed       =       19073486328125 *
+ * Random Number Multiplier =       19073486328125 *
+ * Random Number Adder      =                    0 *
+ * Random Number Bits Used  =                   48 *
+ * Random Number Stride     =               152917 *
+ ***************************************************
+
+ 
+  comment.  total fission nubar data are being used.
+1     initial source from ksrc card.                                                                    print table 90
+
+ original number of points                             1
+    points not in any cell                       0
+    points in cells of zero importance           0
+    points in void cells                         0
+    points in ambiguous cells                    0
+ total points rejected                                 0
+ points remaining                                      1
+ points after expansion or contraction              4800
+ nominal source size                                4800
+
+ initial guess for k(eff.)                      1.000000
+
+ cycles to skip before tallying                       50
+
+ number of keff cycles that can be stored           2500
+
+ 
+  warning.  no cross-section tables are called for in this problem.
+1cell volumes and masses                                                                                print table 50
+
+              cell     atom          gram         input       calculated                            reason volume
+                      density       density       volume        volume         mass       pieces    not calculated
+
+        1        1 -2.70000E+00   0.00000E+00   0.00000E+00   1.85682E+02   0.00000E+00      1                      
+        2        3 -1.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00   0.00000E+00      0      asymmetric      
+        3        4 -6.37000E+00   0.00000E+00   0.00000E+00   5.37745E+02   0.00000E+00      1                      
+        4        5 -1.27000E-02   0.00000E+00   0.00000E+00   1.06503E+03   0.00000E+00      1                      
+        5        6 -6.37000E+00   0.00000E+00   0.00000E+00   5.40830E+02   0.00000E+00      1                      
+        6        7 -1.27000E-02   0.00000E+00   0.00000E+00   1.07115E+03   0.00000E+00      1                      
+        7        8 -2.70000E+00   0.00000E+00   0.00000E+00   1.86747E+02   0.00000E+00      1                      
+1surface areas                                                                                          print table 50
+
+           surface      input      calculated    reason area
+                        area          area       not calculated
+
+        1        1      0.00000E+00   6.25883E+02                   
+        2        2      0.00000E+00   5.92503E+02                   
+        3        7      0.00000E+00   0.00000E+00                   
+        4        8      0.00000E+00   0.00000E+00                   
+        5       11      0.00000E+00   4.82987E+02                   
+        6       12      0.00000E+00   5.95902E+02                   
+        7       13      0.00000E+00   6.29474E+02                   
+        8       14      0.00000E+00   4.85758E+02                   
+        9       15      0.00000E+00   0.00000E+00                   
+       10       16      0.00000E+00   0.00000E+00                   
+       11       17      0.00000E+00   0.00000E+00                   
+       12       18      0.00000E+00   0.00000E+00                   
+1cells                                                                                                  print table 60
+
+                               atom        gram                                            neutron                                     
+              cell      mat   density     density     volume       mass            pieces importance                                   
+
+        1        1        0 -2.70000E+00 0.00000E+00 1.85682E+02 0.00000E+00           1  1.0000E+00                                   
+        2        3        0 -1.00000E+00 0.00000E+00 0.00000E+00 0.00000E+00           0  1.0000E+00                                   
+        3        4        0 -6.37000E+00 0.00000E+00 5.37745E+02 0.00000E+00           1  1.0000E+00                                   
+        4        5        0 -1.27000E-02 0.00000E+00 1.06503E+03 0.00000E+00           1  1.0000E+00                                   
+        5        6        0 -6.37000E+00 0.00000E+00 5.40830E+02 0.00000E+00           1  1.0000E+00                                   
+        6        7        0 -1.27000E-02 0.00000E+00 1.07115E+03 0.00000E+00           1  1.0000E+00                                   
+        7        8        0 -2.70000E+00 0.00000E+00 1.86747E+02 0.00000E+00           1  1.0000E+00                                   
+
+ total                                               3.58718E+03 0.00000E+00
+1surfaces                                                                                               print table 70
+
+           surface        trans  type   surface coefficients
+
+        1        1                cz    5.7150000E+00
+        2        2                cz    5.4102000E+00
+        3        7   refl.        py    2.5945000E+01
+        4        8   refl.        py   -8.7150000E+00
+        5       11                cz    4.4102000E+00
+        6       12                c/x   1.7230000E+01   0.0000000E+00   5.4102000E+00
+        7       13                c/x   1.7230000E+01   0.0000000E+00   5.7150000E+00
+        8       14                c/x   1.7230000E+01   0.0000000E+00   4.4102000E+00
+        9       15   refl.        pz    8.7150000E+00
+       10       16   refl.        pz   -8.7150000E+00
+       11       17   refl.        px    8.8150000E+00
+       12       18   refl.        px   -8.7150000E+00
+ 
+  comment.  threading will be used when possible in portions of mcnp6.
+ 
+  comment.  threading will be used for n/p/e table physics.
+ 
+  comment.  threading will generally not be used for model physics.
+
+         2 warning messages so far.
+
+         7 fatal errors so far.
+1physical constants                                                                                     print table 98
+
+
+       name                    value     description
+
+ huge_float      1.0000000000000E+36     infinity
+        pie      3.1415926535898E+00     pi
+      euler      5.7721566490153E-01     euler constant
+     avogad      6.0220434469282E+23     avogadro number (molecules/mole)
+      aneut      1.0086649670000E+00     neutron mass (amu)
+      avgdn      5.9703109000000E-01     avogadro number/neutron mass (1.e-24*molecules/mole/amu)
+      slite      2.9979250000000E+02     speed of light (cm/shake)
+     planck      4.1357320000000E-13     planck constant (mev shake)
+      fscon      1.3703930000000E+02     inverse fine structure constant h*c/(2*pi*e**2)
+
+ particle masses:   ipt       mass (mev)           particle      anti-particle
+
+                      1    9.3958000000000E+02     neutron        5   Aneutron
+                      3    5.1100800000000E-01     electron       8   positron
+                      4    1.0565835700000E+02     mu_minus      16   mu_plus 
+                      9    9.3827199800000E+02     proton        19   Aproton 
+                     10    1.1156830000000E+03     lambda0       25   Alambda0
+                     11    1.1893700000000E+03     sigma+        26   Asigma+ 
+                     12    1.1974490000000E+03     sigma-        27   Asigma- 
+                     13    1.3148300000000E+03     xi0           28   Axi0    
+                     14    1.3213100000000E+03     xi_minus      29   xi_plus 
+                     15    1.6724500000000E+03     omega-        30   Aomega- 
+                     20    1.3957018000000E+02     pi_plus       35   pi_minus
+                     21    1.3497660000000E+02     pi_zero 
+                     22    4.9367700000000E+02     k_plus        36   k_minus 
+                     23    4.9767200000000E+02     k0_short
+                     24    4.9767200000000E+02     k0_long 
+                     31    1.8756127600000E+03     deuteron
+                     32    2.8089208600000E+03     triton  
+                     33    2.8083913200000E+03     helion  
+                     34    3.7273790400000E+03     alpha   
+
+
+ fission q-values:     nuclide    q(mev)   nuclide    q(mev)
+                         90232    171.91     91233    175.57
+                         92233    180.84     92234    179.45
+                         92235    180.88     92236    179.50
+                         92237    180.40     92238    181.31
+                         92239    180.40     92240    180.40
+                         93237    183.67     94238    186.65
+                         94239    189.44     94240    186.36
+                         94241    188.99     94242    185.98
+                         94243    187.48     95241    190.83
+                         95242    190.54     95243    190.25
+                         96242    190.49     96244    190.49
+                         other    180.00
+
+ parallel options:
+
+     omp
+
+     default datapath: C:\Users\AndyLee\MCNP_DATA
+                       DATAPATH must be set by user
+
+ the following conditional compilation symbols were defined:
+
+     OMP_ENABLED
+     PLOT
+     WIN32
+     XLIB
+
+         2 warning messages so far.
+
+         7 fatal errors so far.
+
+
+ run terminated because of fatal errors.
+
+ computer time =    0.00 minutes
+
+ mcnp6 version 6.3.0 01/26/23                     03/24/26 12:39:42                     probid =  03/24/26 12:39:42 
