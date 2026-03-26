@@ -19,23 +19,32 @@ from critbuddy.core.materials.builders import (
     uf6,
     water,
 )
+from critbuddy.core.materials.uo2f2_physics import uo2f2_density
 
 
 def _create_materials(p):
+    fuel_density = p.get("UO2F2_DENSITY_G_CM3")
+    if fuel_density is None:
+        fuel_density = uo2f2_density(
+            h_to_u=p.get("H_TO_U", 0.0),
+            enrichment_pct=p["ENRICHMENT_PCT"],
+        )
     fuel = uo2f2(
         enrichment_pct=p["ENRICHMENT_PCT"],
-        h_to_u=0.0,
-        density=p["UO2F2_DENSITY_G_CM3"],
+        h_to_u=p.get("H_TO_U", 0.0),
+        density=fuel_density,
     )
     fuel.name = "Fuel"
 
     gas = uf6(enrichment_pct=p["ENRICHMENT_PCT"], density=p["UF6_DENSITY_G_CM3"])
     gas.name = "Gas"
 
-    if p["WALL_MATERIAL"] == "ss304":
+    if p["WALL_MATERIAL"] == "aluminum":
+        wall = aluminum()
+    elif p["WALL_MATERIAL"] == "ss304":
         wall = stainless_steel_304()
     else:
-        wall = aluminum()
+        raise ValueError(f"Unsupported wall material: {p['WALL_MATERIAL']}")
     wall.name = "Wall"
 
     moderator = water(density_g_cm3=p["MODERATOR_DENSITY_G_CM3"])

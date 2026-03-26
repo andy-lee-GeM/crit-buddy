@@ -21,6 +21,7 @@ studies/**/openmc/runs/
 studies/**/_validation/
 studies/**/results.csv
 studies/**/report.md
+!studies/pipe-cross-hu-sweep/report.md
 
 # Manual MCNP study artifacts
 studies/**/mcnp/*/out

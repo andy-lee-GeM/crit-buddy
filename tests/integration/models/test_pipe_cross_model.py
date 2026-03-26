@@ -5,6 +5,7 @@ from pathlib import Path
 
 import openmc
 from critbuddy.core.template_loader import load_model_class, load_model_module
+from critbuddy.core.materials.uo2f2_physics import uo2f2_density
 
 ROOT = Path(__file__).resolve().parents[3]
 MODELS_ROOT = ROOT / "models"
@@ -117,6 +118,57 @@ class PipeCrossModelTests(unittest.TestCase):
 
         # Verify enrichment matches MCNP reference
         self.assertAlmostEqual(all_params["ENRICHMENT_PCT"], 20.19, places=2)
+
+    def test_h_to_u_drives_uo2f2_density(self):
+        """Test that H/U sweeps derive the fuel density from the shared physics helper."""
+        template = load_model_class("pipe-cross-model")
+
+        params = {
+            "enrichment_pct": 20.19,
+            "h_to_u": 10.0,
+            "uf6_density_g_cm3": 0.0127,
+            "separation_cm": 0.0,
+            "wall_material": "aluminum",
+            "moderator_density_g_cm3": 1.0,
+        }
+
+        derived = template.derive_params(params)
+
+        self.assertAlmostEqual(derived["H_TO_U"], 10.0, places=6)
+        self.assertAlmostEqual(
+            derived["UO2F2_DENSITY_G_CM3"],
+            uo2f2_density(h_to_u=10.0, enrichment_pct=20.19),
+            places=6,
+        )
+        self.assertEqual(derived["UO2F2_DENSITY_MODE"], "derived_from_h_to_u")
+
+    def test_h_to_u_and_legacy_density_cannot_both_be_set(self):
+        """Test that the new H/U path and legacy explicit density are mutually exclusive."""
+        template = load_model_class("pipe-cross-model")
+
+        params = {
+            "enrichment_pct": 20.19,
+            "h_to_u": 5.0,
+            "uo2f2_density_g_cm3": 6.37,
+        }
+
+        with self.assertRaises(ValueError):
+            template.derive_params(params)
+
+    def test_invalid_wall_material_raises_in_model_builder(self):
+        """Test that the model builder does not silently fall back on wall materials."""
+        template = load_model_class("pipe-cross-model")
+        model = load_model_module(MODELS_ROOT / "pipe-cross-model")
+
+        params = {
+            "wall_material": "not-a-material",
+        }
+        derived = template.derive_params(template.apply_defaults(params))
+        all_params = {**params, **derived, **template.get_simulation_params()}
+
+        openmc.reset_auto_ids()
+        with self.assertRaises(ValueError):
+            model.build_model(all_params)
 
     def test_reflective_boundaries(self):
         """Test that reflective boundaries are set correctly."""

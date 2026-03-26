@@ -29,8 +29,9 @@ Material regions:
 - `pipe_wall_thickness_cm` - Pipe wall thickness for custom sizing (0.05-5.0 cm, default: 0.3048)
 - `gas_core_radius_cm` - Radius of central UF6 gas core (0.05-50.0 cm, default: 4.4102)
 - `fuel_outer_radius_cm` - Outer radius of annular UO2F2 layer (0.05-50.0 cm, default: 5.4102)
+- `h_to_u` - Hydrogen-to-uranium atomic ratio for the UO2F2 layer (0.0-50.0, preferred for new studies)
 - `uf6_density_g_cm3` - UF6 gas density (1.0e-6-20.0 g/cm³, default: 0.0127)
-- `uo2f2_density_g_cm3` - Dry UO2F2 density (0.01-20.0 g/cm³, default: 6.37)
+- `uo2f2_density_g_cm3` - Legacy explicit UO2F2 density override (0.01-20.0 g/cm³, use only when replaying historical dry-fuel parity cases)
 - `separation_cm` - Edge-to-edge separation to reflected neighbors (0.0-100.0 cm, default: 7.0)
 - `wall_material` - Pipe wall material: `aluminum` or `ss304` (default: `aluminum`)
 - `moderator_density_g_cm3` - Water moderator density (0.01-2.0 g/cm³, default: 1.0)
@@ -49,6 +50,7 @@ name: Your Study Name
 params:
   cross_mode: xz
   enrichment_pct: 20.19
+  h_to_u: [0, 1, 2, 3, 4, 5]
   separation_cm: [0.0, 5.8, 6.0, 6.5, 7.0]  # List for parameter sweep
   # ... other parameters
 ```
@@ -77,34 +79,23 @@ The exact `gap = 0` MCNP reference deck for the reflected `x-z` crossing lives
 under `mcnp/reference.inp`, with companion notes in
 `mcnp/REFERENCE_ANALYSIS.md`.
 
-For solver-to-solver sanity checks using the current OpenMC builder materials as
-the source of truth, use `mcnp/openmc_builder_materials.inp`. Regenerate it
-locally with:
+When you need to inspect the shared OpenMC builder materials or the MCNP
+density forms they produce, use:
 
 ```bash
-python3 models/pipe-cross-model/mcnp/render_openmc_material_deck.py
+python3 scripts/get_mcnp_density.py uo2f2 -e 20.2 -hu 3
 ```
-
-Quick local validation flow for the exact `xz`, `gap = 0` case:
-
-```bash
-python3 run_study.py path/to/gap0_config.yaml
-
-cd models/pipe-cross-model/mcnp
-$MCNP_EXECUTABLE i=openmc_builder_materials.inp o=openmc_builder_materials.out tasks 4
-```
-
-Compare the OpenMC `k-eff` from your one-case run `results.csv` against the
-MCNP `k-eff` reported in `openmc_builder_materials.out`. This check isolates
-geometry plus shared-material parity before reintroducing the historical MCNP
-deck materials.
 
 The current lightweight solver-to-solver checkpoint for the separation sweep
 lives under `certifications/pipe-cross-model/2026-03-24-r1/`.
+
+The staged H/U optimization setup for the original `xz`, `gap = 0` geometry
+lives under `studies/pipe-cross-hu-sweep/`.
 
 ## Notes
 
 - Default boundaries are reflective in `x/y/z`.
 - Default mode is `xz`.
-- Pipe models use canonical shared builders: `uf6(...)` and `uo2f2(..., h_to_u=0.0, ...)`.
-- Both fissile material densities are explicit model inputs.
+- Pipe models use canonical shared builders: `uf6(...)` and `uo2f2(...)`.
+- New studies should specify `h_to_u` and let the model derive `UO2F2` density from the shared ORNL/TM-12292 helper.
+- `uo2f2_density_g_cm3` remains only for historical parity/certification reruns where the dry-fuel density was frozen explicitly.

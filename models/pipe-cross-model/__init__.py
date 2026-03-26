@@ -3,7 +3,9 @@ Reflected orthogonal pipe-crossing model for AD-7 parity work.
 
 The model supports two workbook-aligned crossing patterns and follows the
 original MCNP piping reference material layout: central UF6 gas core, annular
-UO2F2 layer, aluminum wall, and water moderator.
+UO2F2 layer, aluminum wall, and water moderator. New studies should specify
+UO2F2 chemistry through ``h_to_u``; the legacy explicit density override is
+kept only so historical parity configs can still be replayed.
 
 - ``xz``: one x-directed pipe crossing one z-directed pipe
 - ``xyz``: mutually orthogonal x/y/z pipes crossing at the origin
@@ -11,6 +13,7 @@ UO2F2 layer, aluminum wall, and water moderator.
 
 from critbuddy.core.template import ProblemTemplate, ParameterSpec
 from critbuddy.core.geometry.pipes import PIPE_REGISTRY, get_pipe
+from critbuddy.core.materials.uo2f2_physics import uo2f2_density as compute_uo2f2_density
 
 
 class PipeCrossModelTemplate(ProblemTemplate):
@@ -26,6 +29,12 @@ class PipeCrossModelTemplate(ProblemTemplate):
             max=100.0,
             unit="%",
             description="U-235 weight percent enrichment",
+        ),
+        "h_to_u": ParameterSpec(
+            type="float",
+            min=0.0,
+            max=50.0,
+            description="Hydrogen to uranium atomic ratio for the UO2F2 layer",
         ),
         "cross_mode": ParameterSpec(
             type="enum",
@@ -81,11 +90,10 @@ class PipeCrossModelTemplate(ProblemTemplate):
         ),
         "uo2f2_density_g_cm3": ParameterSpec(
             type="float",
-            default=6.37,
             min=0.01,
             max=20.0,
             unit="g/cm3",
-            description="Dry UO2F2 density",
+            description="Legacy explicit UO2F2 density override when h_to_u is omitted",
         ),
         "separation_cm": ParameterSpec(
             type="float",
@@ -163,6 +171,30 @@ class PipeCrossModelTemplate(ProblemTemplate):
         half_pitch = outer_radius + 3.0
         center_offset = 2.0 * outer_radius + separation
         cross_mode = p.get("cross_mode", "xz")
+        enrichment_pct = float(p.get("enrichment_pct", 20.2))
+
+        raw_h_to_u = p.get("h_to_u")
+        raw_uo2f2_density = p.get("uo2f2_density_g_cm3")
+        if raw_h_to_u is not None and raw_uo2f2_density is not None:
+            raise ValueError("Specify either h_to_u or uo2f2_density_g_cm3, not both")
+        if raw_h_to_u is not None:
+            h_to_u = float(raw_h_to_u)
+            uo2f2_density = compute_uo2f2_density(
+                h_to_u=h_to_u,
+                enrichment_pct=enrichment_pct,
+            )
+            uo2f2_density_mode = "derived_from_h_to_u"
+        elif raw_uo2f2_density is not None:
+            h_to_u = 0.0
+            uo2f2_density = float(raw_uo2f2_density)
+            uo2f2_density_mode = "legacy_explicit_density"
+        else:
+            h_to_u = 0.0
+            uo2f2_density = compute_uo2f2_density(
+                h_to_u=h_to_u,
+                enrichment_pct=enrichment_pct,
+            )
+            uo2f2_density_mode = "derived_default_dry"
 
         x_min = -half_pitch
         x_max = half_pitch + 0.1
@@ -174,7 +206,8 @@ class PipeCrossModelTemplate(ProblemTemplate):
         z_max = half_pitch
 
         return {
-            "ENRICHMENT_PCT": float(p.get("enrichment_pct", 20.2)),
+            "ENRICHMENT_PCT": enrichment_pct,
+            "H_TO_U": h_to_u,
             "CROSS_MODE": cross_mode,
             "PIPE_SIZE": pipe_size,
             "PIPE_OUTER_RADIUS_CM": outer_radius,
@@ -183,7 +216,8 @@ class PipeCrossModelTemplate(ProblemTemplate):
             "GAS_CORE_RADIUS_CM": gas_core_radius,
             "FUEL_OUTER_RADIUS_CM": fuel_outer_radius,
             "UF6_DENSITY_G_CM3": float(p.get("uf6_density_g_cm3", 0.0127)),
-            "UO2F2_DENSITY_G_CM3": float(p.get("uo2f2_density_g_cm3", 6.37)),
+            "UO2F2_DENSITY_G_CM3": uo2f2_density,
+            "UO2F2_DENSITY_MODE": uo2f2_density_mode,
             "SEPARATION_CM": separation,
             "HALF_PITCH_CM": half_pitch,
             "PIPE_CENTER_OFFSET_CM": center_offset,

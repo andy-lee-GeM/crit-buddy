@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
@@ -17,14 +18,31 @@ if str(ROOT) not in sys.path:
 try:
     from critbuddy.core import materials as lib
     from critbuddy.core.materials.material_properties import summarize_openmc_material
+    from critbuddy.core.materials.uo2f2_physics import uo2f2_density as derive_uo2f2_density
 except Exception as exc:
     raise SystemExit(
         "Failed to import critbuddy.core materials. Run this script with the openmc-env interpreter."
     ) from exc
 
 Builder = Callable[[argparse.Namespace], object]
+DEFAULT_SINGLE_ENRICHMENT = 5.0
 DEFAULT_UF6_ENRICHMENTS = [5.0, 10.0, 15.0, 20.0]
 DEFAULT_UO2F2_ENRICHMENTS = [5.0, 10.0, 15.0, 20.0]
+DEFAULT_UF6_DENSITY = 5.09
+DEFAULT_DRY_UO2F2_DENSITY = 6.37
+
+NOTE_LABELS = {
+    "enrichment_wt_pct": "Enrichment Wt Pct",
+    "density_basis": "Density Basis",
+    "h_to_u": "H/U",
+}
+
+
+@dataclass(frozen=True)
+class MaterialJob:
+    label: str
+    material: object
+    notes: tuple[str, ...] = ()
 
 
 def _builders() -> dict[str, Builder]:
@@ -38,13 +56,11 @@ def _builders() -> dict[str, Builder]:
         "humid_air": lambda a: lib.humid_air(),
         "void": lambda a: lib.void(),
         "vacuum": lambda a: lib.vacuum(),
-        "uf6": lambda a: lib.uf6(a.enrichment, density=a.uf6_density),
-        "uo2f2": lambda a: lib.uo2f2(a.enrichment, h_to_u=a.h_to_u, density=a.uo2f2_density),
     }
 
 
 def _all_names() -> list[str]:
-    return list(_builders().keys())
+    return [*_builders().keys(), "uf6", "uo2f2"]
 
 
 def _zaid(nuclide: str, suffix: str) -> str:
@@ -62,55 +78,85 @@ def _format_float_list(values: list[float]) -> str:
     return ", ".join(f"{value:g}" for value in values)
 
 
-def _requested_enrichments(args: argparse.Namespace) -> list[float]:
+def _single_point_enrichment(args: argparse.Namespace) -> float:
+    return DEFAULT_SINGLE_ENRICHMENT if args.enrichment is None else args.enrichment
+
+
+def _requested_enrichments(material_name: str, args: argparse.Namespace) -> list[float]:
     if args.enrichments:
         return args.enrichments
-    if not args.use_default_sweeps:
+    if (
+        material_name == "uo2f2"
+        and args.h_to_u is not None
+        and args.enrichment is not None
+    ):
         return [args.enrichment]
-    if getattr(args, "_current_material", None) == "uo2f2":
+    if not args.use_default_sweeps:
+        return [_single_point_enrichment(args)]
+    if material_name == "uo2f2":
         return DEFAULT_UO2F2_ENRICHMENTS
     return DEFAULT_UF6_ENRICHMENTS
 
 
-def _material_jobs(args: argparse.Namespace) -> list[tuple[str, object]]:
+def _resolve_uo2f2_inputs(
+    args: argparse.Namespace,
+    enrichment: float,
+) -> tuple[float, float, str]:
+    h_to_u = 0.0 if args.h_to_u is None else args.h_to_u
+    if args.uo2f2_density is not None:
+        return h_to_u, args.uo2f2_density, "user_specified_uo2f2_density"
+    if args.h_to_u is not None:
+        return (
+            h_to_u,
+            derive_uo2f2_density(h_to_u, enrichment_pct=enrichment),
+            "derived_from_h_to_u",
+        )
+    return h_to_u, DEFAULT_DRY_UO2F2_DENSITY, "default_dry_uo2f2_density"
+
+
+def _material_jobs(args: argparse.Namespace) -> list[MaterialJob]:
     builders = _builders()
     names = _all_names() if "all" in args.materials else args.materials
 
-    jobs: list[tuple[str, object]] = []
+    jobs: list[MaterialJob] = []
     for name in names:
-        args._current_material = name
         if name == "uf6":
-            for enrichment in _requested_enrichments(args):
-                args.enrichment = enrichment
+            for enrichment in _requested_enrichments(name, args):
                 label = f"uf6_enr_{enrichment:.1f}wt"
-                jobs.append((label, builders["uf6"](args)))
+                notes = (
+                    f"enrichment_wt_pct: {enrichment}",
+                    "density_basis: dry_uf6_default",
+                )
+                jobs.append(
+                    MaterialJob(
+                        label=label,
+                        material=lib.uf6(enrichment, density=args.uf6_density),
+                        notes=notes,
+                    )
+                )
             continue
 
         if name == "uo2f2":
-            for enrichment in _requested_enrichments(args):
-                args.enrichment = enrichment
+            for enrichment in _requested_enrichments(name, args):
+                h_to_u, density, density_basis = _resolve_uo2f2_inputs(args, enrichment)
                 label = f"uo2f2_enr_{enrichment:.1f}wt"
-                jobs.append((label, builders["uo2f2"](args)))
+                notes = (
+                    f"enrichment_wt_pct: {enrichment}",
+                    f"h_to_u: {h_to_u}",
+                    f"density_basis: {density_basis}",
+                )
+                jobs.append(
+                    MaterialJob(
+                        label=label,
+                        material=lib.uo2f2(enrichment, h_to_u=h_to_u, density=density),
+                        notes=notes,
+                    )
+                )
             continue
 
-        jobs.append((name, builders[name](args)))
+        jobs.append(MaterialJob(label=name, material=builders[name](args)))
 
     return jobs
-
-
-def _case_notes(name: str) -> list[str]:
-    notes: list[str] = []
-
-    if name.startswith("uf6_enr_"):
-        enrichment = name.removeprefix("uf6_enr_").removesuffix("wt")
-        notes.append(f"enrichment_wt_pct: {enrichment}")
-        notes.append("density_basis: dry_uf6_default")
-    elif name.startswith("uo2f2_enr_"):
-        enrichment = name.removeprefix("uo2f2_enr_").removesuffix("wt")
-        notes.append(f"enrichment_wt_pct: {enrichment}")
-        notes.append("density_basis: user_specified_or_default_dry_uo2f2")
-
-    return notes
 
 
 def _print_section_header(title: str) -> None:
@@ -120,17 +166,28 @@ def _print_section_header(title: str) -> None:
     print(line)
 
 
-def _print_material_block(name: str, mat_num: int, mat, xs_suffix: str) -> None:
+def _format_note(note: str) -> str:
+    label, value = note.split(": ", maxsplit=1)
+    display_label = NOTE_LABELS.get(label, label.replace("_", " ").title())
+    return f"{display_label:20s}: {value}"
+
+
+def _print_material_block(
+    name: str,
+    mat_num: int,
+    mat,
+    xs_suffix: str,
+    notes: tuple[str, ...] = (),
+) -> None:
     summary = summarize_openmc_material(mat)
-    notes = _case_notes(name)
 
     _print_section_header(f"{name}  |  m{mat_num}")
     print(f"OpenMC name           : {summary.name}")
+    print(f"Bulk density          : {float(summary.density_g_cm3):.8e}  g/cc")
     print(f"MCNP cell density     : {-float(summary.density_g_cm3):.8e}  g/cc")
     print(f"MCNP atom density     : {float(summary.total_atom_density_bcm):.8e}  atoms/b-cm")
     for note in notes:
-        label, value = note.split(": ", maxsplit=1)
-        print(f"{label.replace('_', ' ').title():20s}: {value}")
+        print(_format_note(note))
 
     print("\nNuclide Table")
     print("-" * 88)
@@ -156,9 +213,14 @@ def main() -> int:
     )
     parser.add_argument(
         "--enrichment",
+        "-enrichment",
+        "-e",
         type=float,
-        default=5.0,
-        help="Single U-235 wt%% value for UF6/UO2F2 when not using default sweeps",
+        default=None,
+        help=(
+            "Single U-235 wt%% value for single-point UF6/UO2F2 cases. "
+            "Defaults to 5.0 wt%% when --no-default-sweeps is used without an explicit value."
+        ),
     )
     parser.add_argument(
         "--enrichments",
@@ -169,7 +231,7 @@ def main() -> int:
     parser.add_argument(
         "--uf6-density",
         type=float,
-        default=5.09,
+        default=DEFAULT_UF6_DENSITY,
         help="UF6 density in g/cc (default is dry UF6 density)",
     )
     parser.add_argument(
@@ -181,14 +243,23 @@ def main() -> int:
     parser.add_argument(
         "--uo2f2-density",
         type=float,
-        default=6.37,
-        help="Dry UO2F2 density in g/cc",
+        default=None,
+        help=(
+            "Explicit UO2F2 bulk density in g/cc. If omitted and H/U is supplied, "
+            "density is derived from crit-buddy's ORNL UO2F2 model."
+        ),
     )
     parser.add_argument(
         "--h-to-u",
+        "--hu",
+        "-hu",
         type=float,
-        default=0.0,
-        help="UO2F2 hydrogen-to-uranium ratio used when building UO2F2 materials",
+        dest="h_to_u",
+        default=None,
+        help=(
+            "UO2F2 hydrogen-to-uranium ratio. When paired with enrichment, "
+            "UO2F2 bulk density is derived automatically unless overridden."
+        ),
     )
     parser.add_argument(
         "--no-default-sweeps",
@@ -210,7 +281,7 @@ def main() -> int:
     args = parser.parse_args()
 
     names = _all_names() if "all" in args.materials else args.materials
-    unknown = [name for name in names if name not in _builders()]
+    unknown = [name for name in names if name not in _all_names()]
     if unknown:
         print(f"Unknown material(s): {', '.join(unknown)}")
         print(f"Available: {', '.join(_all_names())}")
@@ -222,13 +293,13 @@ def main() -> int:
     print(f"Default UF6 enr (wt%) : {_format_float_list(DEFAULT_UF6_ENRICHMENTS)}")
     print(f"Default UO2F2 enr     : {_format_float_list(DEFAULT_UO2F2_ENRICHMENTS)}")
     print("UF6 density model     : dry default 5.09 g/cc unless overridden")
-    print("UO2F2 density model   : dry default 6.37 g/cc unless overridden")
+    print("UO2F2 density model   : derived from H/U when supplied, else dry default 6.37 g/cc")
     print("MCNP density forms    : use either -g/cc or +atoms/b-cm")
 
     jobs = _material_jobs(args)
-    for idx, (name, mat) in enumerate(jobs):
+    for idx, job in enumerate(jobs):
         mat_num = args.mat_start + idx
-        _print_material_block(name, mat_num, mat, args.xs_suffix)
+        _print_material_block(job.label, mat_num, job.material, args.xs_suffix, job.notes)
 
     return 0
 
