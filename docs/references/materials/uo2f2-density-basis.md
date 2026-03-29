@@ -211,15 +211,25 @@ def uo2f2_bulk_density(h_to_u: float, enrichment_pct: float) -> float:
 ### Example 1: Anhydrous UO₂F₂ (H/U = 0)
 
 For 20% enriched uranium:
-- Mᵤ = 237.933 g/mol
+- Mᵤ = 237.443 g/mol
 - ρᵤ = 4.96 g/cm³ (from Eq. A.2)
-- Bulk ρ = 4.96 × (308.03) / 237.933 = **6.42 g/cm³**
+- Bulk ρ = 4.96 × (307.44) / 237.443 = **6.42 g/cm³**
+
+### Example 1a: Hydrated Salt Distinction (H/U = 3)
+
+For 20% enriched uranium:
+- Mᵤ = 237.443 g/mol
+- ρᵤ = 4.96 - 0.32 × 3 = **4.00 g/cm³**
+- This `ρᵤ` value is the **uranium density**, not the total mixture density
+- Bulk ρ = 4.00 × (334.46) / 237.443 = **5.63 g/cm³**
+- Dry UO₂F₂ component density = **5.18 g/cm³**
+- H₂O component density = **0.46 g/cm³**
 
 ### Example 2: UO₂F₂·2H₂O (H/U = 4)
 
 For 20% enriched uranium at H/U = 4:
 - From Eq. A.2: ρᵤ = 4.96 - 0.32 × 4 = **3.68 g/cm³**
-- From Eq. A.3: ρᵤ = 237.933 / [72.2809 + (4-4) × 9.0287] = **3.29 g/cm³**
+- From Eq. A.3: ρᵤ = 237.443 / [72.2809 + (4-4) × 9.0287] = **3.29 g/cm³**
 
 **Note**: The discontinuity at H/U = 4 is expected and conservative (Eq. A.2 predicts higher density).
 

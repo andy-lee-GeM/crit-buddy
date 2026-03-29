@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
 """Standalone UO2F2 density sweep using crit-buddy's current ORNL-based physics.
 
+The script reports bulk mixture density and component densities against H/U.
+When cross-checking ORNL/TM-12292 Table A.3, compare against the table's H/U
+column rather than the leading H/X column.
+
 This file is plain text and runnable as a Python script:
 
     python scripts/uo2f2_density_hu_sweep.py
@@ -14,49 +18,24 @@ Optional:
 from __future__ import annotations
 
 import argparse
-from dataclasses import dataclass
+import sys
 from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from critbuddy.core.materials.uo2f2_physics import UO2F2_MODEL, uo2f2_stoichiometry
 
 
 DEFAULT_ENRICHMENTS = [5.0, 10.0, 20.0, 50.0, 100.0]
 DEFAULT_HU_START = 1.0
 DEFAULT_HU_STOP = 30.0
 DEFAULT_HU_STEP = 1.0
-
-
-@dataclass(frozen=True)
-class IsotopicMasses:
-    u235_g_per_mol: float = 235.044
-    u238_g_per_mol: float = 238.051
-    o16_g_per_mol: float = 15.999
-    f19_g_per_mol: float = 18.998403163
-    h2o_g_per_mol: float = 18.015
-
-
-@dataclass(frozen=True)
-class UranylFluorideModel:
-    n_u_per_formula: float = 1.0
-    h_per_h2o: float = 2.0
-    waters_of_hydration: float = 2.0
-    dihydrate_molar_volume_cm3_per_mol: float = 72.2809
-    water_molar_volume_cm3_per_mol: float = 18.0574
-    h_over_u_transition: float = 4.0
-    rho_u_intercept_g_cm3: float = 4.96
-    rho_u_slope_g_cm3_per_hu: float = 0.32
-
-
-@dataclass(frozen=True)
-class UO2F2Stoichiometry:
-    enrichment_pct: float
-    h_to_u: float
-    density_g_cm3: float
-    uo2f2_component_density_g_cm3: float
-    h2o_component_density_g_cm3: float
-    water_weight_fraction: float
-
-
-ATOMIC_MASSES = IsotopicMasses()
-UO2F2_MODEL = UranylFluorideModel()
+CSV_HEADER = (
+    "enr_wt_pct,h_to_u,rho_u_g_cm3,bulk_mix_g_cm3,dry_uo2f2_g_cm3,"
+    "h2o_g_cm3,water_wt_frac,region"
+)
 
 
 def _parse_float_list(value: str) -> list[float]:
@@ -74,93 +53,19 @@ def _float_range(start: float, stop: float, step: float) -> list[float]:
     return values
 
 
-def _uranium_atom_fractions(enrichment_pct: float) -> tuple[float, float]:
-    w235 = enrichment_pct / 100.0
-    w238 = 1.0 - w235
-
-    n235 = w235 / ATOMIC_MASSES.u235_g_per_mol
-    n238 = w238 / ATOMIC_MASSES.u238_g_per_mol
-    total = n235 + n238
-
-    return n235 / total, n238 / total
-
-
-def _uranium_molar_mass(enrichment_pct: float) -> float:
-    x235, x238 = _uranium_atom_fractions(enrichment_pct)
-    return (
-        x235 * ATOMIC_MASSES.u235_g_per_mol
-        + x238 * ATOMIC_MASSES.u238_g_per_mol
-    )
-
-
-def _uranium_density(mu: float, h_to_u: float) -> float:
-    specific_uc = (
-        UO2F2_MODEL.dihydrate_molar_volume_cm3_per_mol
-        / UO2F2_MODEL.n_u_per_formula
-    )
-    specific_water = (
-        UO2F2_MODEL.water_molar_volume_cm3_per_mol
-        / UO2F2_MODEL.h_per_h2o
-    )
-    denominator = specific_uc + (
-        h_to_u
-        - UO2F2_MODEL.h_per_h2o * UO2F2_MODEL.waters_of_hydration
-    ) * specific_water
-    return mu / denominator
-
-
-def _uranyl_fluoride_density(mu: float, h_to_u: float) -> float:
-    if h_to_u < UO2F2_MODEL.h_over_u_transition:
-        return (
-            UO2F2_MODEL.rho_u_intercept_g_cm3
-            - UO2F2_MODEL.rho_u_slope_g_cm3_per_hu * h_to_u
-        )
-    return _uranium_density(mu, h_to_u)
-
-
-def _dry_uo2f2_molar_mass(mu: float) -> float:
-    return mu + 2.0 * ATOMIC_MASSES.o16_g_per_mol + 2.0 * ATOMIC_MASSES.f19_g_per_mol
-
-
-def uo2f2_stoichiometry(h_to_u: float, enrichment_pct: float) -> UO2F2Stoichiometry:
-    if h_to_u < 0.0:
-        raise ValueError("H/U ratio must be non-negative")
-    if enrichment_pct <= 0.0:
-        raise ValueError("enrichment must be positive")
-
-    mu = _uranium_molar_mass(enrichment_pct)
-    n_water = h_to_u / UO2F2_MODEL.h_per_h2o
-    dry_uo2f2_mass = _dry_uo2f2_molar_mass(mu)
-    water_mass = n_water * ATOMIC_MASSES.h2o_g_per_mol
-    total_mass = dry_uo2f2_mass + water_mass
-
-    rho_u = _uranyl_fluoride_density(mu, h_to_u)
-    density = rho_u * total_mass / mu
-    total_volume = total_mass / density if density > 0.0 else 0.0
-
-    uo2f2_component_density = dry_uo2f2_mass / total_volume if total_volume > 0.0 else 0.0
-    h2o_component_density = water_mass / total_volume if total_volume > 0.0 else 0.0
-
-    return UO2F2Stoichiometry(
-        enrichment_pct=enrichment_pct,
-        h_to_u=h_to_u,
-        density_g_cm3=density,
-        uo2f2_component_density_g_cm3=uo2f2_component_density,
-        h2o_component_density_g_cm3=h2o_component_density,
-        water_weight_fraction=water_mass / total_mass if total_mass > 0.0 else 0.0,
-    )
-
-
 def _region_name(h_to_u: float) -> str:
     return "hydrated_salt" if h_to_u < UO2F2_MODEL.h_over_u_transition else "slurry_or_solution"
 
 
+def _table_region_name(h_to_u: float) -> str:
+    return "hydrated salt" if h_to_u < UO2F2_MODEL.h_over_u_transition else "slurry/solution"
+
+
 def _print_table(enrichments: list[float], h_values: list[float]) -> None:
-    print("UO2F2 density sweep using the current crit-buddy ORNL-based physics")
+    print("UO2F2 density sweep")
     print(
-        "Default enrichments are the validated points in tests: "
-        + ", ".join(f"{value:g}" for value in enrichments)
-        + " wt% U-235"
+        "rho_u = uranium density from ORNL Eq. A.2/A.3 | "
+        "bulk = total UO2F2 + H2O mixture density"
     )
     print(
         f"H/U range: {h_values[0]:g} to {h_values[-1]:g} by "
@@ -169,39 +74,40 @@ def _print_table(enrichments: list[float], h_values: list[float]) -> None:
 
     for enrichment in enrichments:
         print()
-        print("=" * 114)
-        print(f"Enrichment = {enrichment:g} wt% U-235")
-        print("=" * 114)
+        title = f"Enrichment: {enrichment:g} wt% U-235"
+        print(title)
+        print("-" * len(title))
         print(
-            " H/U    Bulk Density    UO2F2 Comp.    H2O Comp.    Water wt frac    Region"
+            f"{'H/U':>5}  {'rho_u':>8}  {'bulk':>8}  {'dry UO2F2':>10}  "
+            f"{'H2O':>8}  {'H2O wt%':>8}  region"
         )
         print(
-            "        (g/cm3)         (g/cm3)        (g/cm3)"
+            f"{'':>5}  {'g/cc':>8}  {'g/cc':>8}  {'g/cc':>10}  "
+            f"{'g/cc':>8}  {'%':>8}"
         )
-        print("-" * 114)
+        print("-" * 82)
 
         for h_to_u in h_values:
             case = uo2f2_stoichiometry(h_to_u=h_to_u, enrichment_pct=enrichment)
             print(
                 f"{h_to_u:5.1f}  "
-                f"{case.density_g_cm3:13.6f}  "
-                f"{case.uo2f2_component_density_g_cm3:13.6f}  "
-                f"{case.h2o_component_density_g_cm3:11.6f}  "
-                f"{case.water_weight_fraction:14.6f}  "
-                f"{_region_name(h_to_u)}"
+                f"{case.uranium_density_g_cm3:8.4f}  "
+                f"{case.density_g_cm3:8.4f}  "
+                f"{case.uo2f2_component_density_g_cm3:10.4f}  "
+                f"{case.h2o_component_density_g_cm3:8.4f}  "
+                f"{100.0 * case.water_weight_fraction:7.2f}%  "
+                f"{_table_region_name(h_to_u)}"
             )
 
 
 def _print_csv(enrichments: list[float], h_values: list[float]) -> None:
-    print(
-        "enrichment_wt_pct,h_to_u,bulk_density_g_cm3,uo2f2_component_density_g_cm3,"
-        "h2o_component_density_g_cm3,water_weight_fraction,region"
-    )
+    print(CSV_HEADER)
     for enrichment in enrichments:
         for h_to_u in h_values:
             case = uo2f2_stoichiometry(h_to_u=h_to_u, enrichment_pct=enrichment)
             print(
-                f"{enrichment:.6g},{h_to_u:.6g},{case.density_g_cm3:.8f},"
+                f"{enrichment:.6g},{h_to_u:.6g},{case.uranium_density_g_cm3:.8f},"
+                f"{case.density_g_cm3:.8f},"
                 f"{case.uo2f2_component_density_g_cm3:.8f},"
                 f"{case.h2o_component_density_g_cm3:.8f},"
                 f"{case.water_weight_fraction:.8f},{_region_name(h_to_u)}"
@@ -209,15 +115,13 @@ def _print_csv(enrichments: list[float], h_values: list[float]) -> None:
 
 
 def _csv_lines(enrichments: list[float], h_values: list[float]) -> list[str]:
-    lines = [
-        "enrichment_wt_pct,h_to_u,bulk_density_g_cm3,uo2f2_component_density_g_cm3,"
-        "h2o_component_density_g_cm3,water_weight_fraction,region"
-    ]
+    lines = [CSV_HEADER]
     for enrichment in enrichments:
         for h_to_u in h_values:
             case = uo2f2_stoichiometry(h_to_u=h_to_u, enrichment_pct=enrichment)
             lines.append(
-                f"{enrichment:.6g},{h_to_u:.6g},{case.density_g_cm3:.8f},"
+                f"{enrichment:.6g},{h_to_u:.6g},{case.uranium_density_g_cm3:.8f},"
+                f"{case.density_g_cm3:.8f},"
                 f"{case.uo2f2_component_density_g_cm3:.8f},"
                 f"{case.h2o_component_density_g_cm3:.8f},"
                 f"{case.water_weight_fraction:.8f},{_region_name(h_to_u)}"

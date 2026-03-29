@@ -58,6 +58,7 @@ class UO2F2Stoichiometry:
 
     enrichment_pct: float
     h_to_u: float
+    uranium_density_g_cm3: float
     water_moles_per_u: float
     uo2f2_weight_fraction: float
     molar_mass_g_per_mol: float
@@ -90,6 +91,13 @@ def _uranium_molar_mass(enrichment_pct: float) -> float:
         x235 * ATOMIC_MASSES.u235_g_per_mol
         + x238 * ATOMIC_MASSES.u238_g_per_mol
     )
+
+
+def uranium_molar_mass(enrichment_pct: float) -> float:
+    """Return `mu` from ORNL/TM-12292 Eq. (A.1) for the requested enrichment."""
+    if enrichment_pct <= 0.0:
+        raise ValueError("Enrichment must be positive")
+    return _uranium_molar_mass(enrichment_pct)
 
 
 def uranium_density(
@@ -150,7 +158,7 @@ def uo2f2_density(h_to_u: float = 0.0, enrichment_pct: float = 20.0) -> float:
     if enrichment_pct <= 0.0:
         raise ValueError("Enrichment must be positive")
 
-    mu = _uranium_molar_mass(enrichment_pct)
+    mu = uranium_molar_mass(enrichment_pct)
     rho_u = uranyl_fluoride_density(h_to_u, mu)
     total_mass = _uo2f2_molar_mass(mu) + (
         h_to_u / UO2F2_MODEL.M
@@ -169,11 +177,12 @@ def uo2f2_stoichiometry(
     if enrichment_pct <= 0.0:
         raise ValueError("Enrichment must be positive")
 
-    mu = _uranium_molar_mass(enrichment_pct)
+    mu = uranium_molar_mass(enrichment_pct)
     n_water = h_to_u / UO2F2_MODEL.M
     dry_uo2f2_mass = _uo2f2_molar_mass(mu)
     total_mass = dry_uo2f2_mass + n_water * ATOMIC_MASSES.h2o_g_per_mol
     water_mass = n_water * ATOMIC_MASSES.h2o_g_per_mol
+    uranium_density_value = uranyl_fluoride_density(h_to_u, mu)
     density = uo2f2_density(h_to_u, enrichment_pct=enrichment_pct)
     total_volume = total_mass / density if density > 0.0 else 0.0
 
@@ -184,6 +193,7 @@ def uo2f2_stoichiometry(
     return UO2F2Stoichiometry(
         enrichment_pct=enrichment_pct,
         h_to_u=h_to_u,
+        uranium_density_g_cm3=uranium_density_value,
         water_moles_per_u=n_water,
         uo2f2_weight_fraction=dry_uo2f2_mass / total_mass if total_mass > 0.0 else 0.0,
         molar_mass_g_per_mol=total_mass,
