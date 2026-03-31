@@ -89,7 +89,49 @@ class CentrifugeUnitCellTests(unittest.TestCase):
         self.assertIn("outer_air", cell_names)
 
         self.assertAlmostEqual(dims["FUEL_RADIUS_CM"], 11.70, places=6)
+        self.assertAlmostEqual(dims["WATER_OUTER_RADIUS_CM"], 12.70, places=6)
         self.assertAlmostEqual(dims["OUTER_RADIUS_CM"], 13.0175, places=6)
+        self.assertAlmostEqual(dims["WALL_THICKNESS_CM"], 0.3175, places=6)
+
+    def test_geometry_derives_from_design_inputs(self):
+        """Test that geometry-first inputs drive the derived vessel dimensions."""
+        template = load_model_class("centrifuge-unit-cell")
+
+        derived = template.derive_params(
+            {
+                "inner_radius_cm": 10.0,
+                "water_film_thickness_cm": 1.5,
+                "wall_thickness_cm": 0.4,
+                "vessel_height_cm": 120.0,
+                "fill_height_cm": 30.0,
+            }
+        )
+
+        self.assertAlmostEqual(derived["INNER_RADIUS_CM"], 10.0, places=6)
+        self.assertAlmostEqual(derived["FUEL_RADIUS_CM"], 10.0, places=6)
+        self.assertAlmostEqual(derived["WATER_OUTER_RADIUS_CM"], 11.5, places=6)
+        self.assertAlmostEqual(derived["OUTER_RADIUS_CM"], 11.9, places=6)
+        self.assertAlmostEqual(derived["WALL_THICKNESS_CM"], 0.4, places=6)
+        self.assertAlmostEqual(derived["FILL_HEIGHT_CM"], 30.0, places=6)
+        self.assertAlmostEqual(derived["FILL_Z_CM"], 30.0, places=6)
+        self.assertAlmostEqual(derived["Z_CAP_BOTTOM_CM"], -0.4, places=6)
+        self.assertAlmostEqual(derived["Z_CAP_TOP_CM"], 120.4, places=6)
+        self.assertAlmostEqual(derived["HALF_PITCH_XY_CM"], 12.4, places=6)
+        self.assertAlmostEqual(derived["TOTAL_X"], 24.8, places=6)
+        self.assertAlmostEqual(derived["TOTAL_Y"], 24.8, places=6)
+        self.assertAlmostEqual(derived["TOTAL_Z"], 220.0, places=6)
+
+    def test_fill_height_cannot_exceed_vessel_height(self):
+        """Test that impossible axial geometry is rejected."""
+        template = load_model_class("centrifuge-unit-cell")
+
+        with self.assertRaises(ValueError):
+            template.derive_params(
+                {
+                    "vessel_height_cm": 20.0,
+                    "fill_height_cm": 25.0,
+                }
+            )
 
     def test_invalid_air_material_raises(self):
         """Test that unsupported air material changes fail loudly."""

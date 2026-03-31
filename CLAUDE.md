@@ -48,7 +48,10 @@ model: centrifuge-unit-cell
 name: Example Sweep
 
 params:
-  fill_z_cm: [10, 20, 30]
+  inner_radius_cm: 11.70
+  water_film_thickness_cm: 1.0
+  wall_thickness_cm: 0.3175
+  fill_height_cm: [10, 20, 30]
   source_z_cm: 10
 ```
 

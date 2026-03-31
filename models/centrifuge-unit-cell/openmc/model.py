@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """
-Exact OpenMC reconstruction of the canonical centrifuge unit cell deck.
+Geometry-first OpenMC centrifuge unit-cell model.
 
 Geometry represented here:
-- fuel inside r < 11.70 cm from z = 0 to z = fill_z_cm
-- headspace inside r < 11.70 cm from z = fill_z_cm to z = 100 cm
-- water annulus from r = 11.70 to 12.70 cm for 0 < z < 100 cm
-- steel wall from r = 12.70 to 13.0175 cm for 0 < z < 100 cm
-- steel end caps from -0.3175 to 0 cm and from 100 to 100.3175 cm
-- air inside r < 13.0175 cm above and below the capped vessel
+- fuel inside r < inner_radius from z = 0 to z = fill_height
+- headspace inside r < inner_radius from z = fill_height to z = vessel_height
+- water annulus from r = inner_radius to water_outer_radius
+- steel wall from r = water_outer_radius to outer_radius
+- steel end caps use the same thickness as the wall
+- air inside r < outer_radius above and below the capped vessel
 - air outside the vessel but inside the square unit cell
 
 Materials represented here:
@@ -134,6 +134,9 @@ def build_model(p):
         "FILL_FRACTION": p["FILL_FRACTION"],
         "FILL_HEIGHT_CM": p["FILL_HEIGHT_CM"],
         "FILL_Z_CM": fill_z,
+        "INNER_RADIUS_CM": p["INNER_RADIUS_CM"],
+        "WATER_FILM_THICKNESS_CM": p["WATER_FILM_THICKNESS_CM"],
+        "WALL_THICKNESS_CM": p["WALL_THICKNESS_CM"],
         "FUEL_RADIUS_CM": fuel_radius,
         "WATER_OUTER_RADIUS_CM": water_outer,
         "OUTER_RADIUS_CM": outer_radius,
@@ -143,6 +146,7 @@ def build_model(p):
         "TOTAL_Z": p["TOTAL_Z"],
         "Z_VESSEL_BOTTOM_CM": z_vessel_bottom,
         "Z_VESSEL_TOP_CM": z_vessel_top,
+        "VESSEL_HEIGHT_CM": z_vessel_top - z_vessel_bottom,
         "Z_CAP_BOTTOM_CM": z_cap_bottom,
         "Z_CAP_TOP_CM": z_cap_top,
         "Z_BOUNDARY_BOTTOM_CM": z_boundary_bottom,
