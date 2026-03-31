@@ -99,8 +99,9 @@ Study-specific reports or merged solver comparisons can live at the study root,
 for example:
 
 ```text
-certifications/centrifuge-unit-cell/2026-03-16-r1/
+certifications/centrifuge-unit-cell/2026-03-30-r1/
   openmc/
+    model.py
     study.yaml
     cases/
     results/

@@ -87,7 +87,8 @@ python3 scripts/get_mcnp_density.py uo2f2 -e 20.2 -hu 3
 ```
 
 The current lightweight solver-to-solver checkpoint for the separation sweep
-lives under `certifications/pipe-cross-model/2026-03-24-r1/`.
+lives under `certifications/pipe-cross-model/2026-03-30-r1/` and includes the
+frozen `openmc/model.py` source snapshot alongside the exported cases.
 
 The staged H/U optimization setup for the original `xz`, `gap = 0` geometry
 lives under `studies/pipe-cross-hu-sweep/`.

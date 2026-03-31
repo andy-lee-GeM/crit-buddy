@@ -8,6 +8,7 @@ from .builders import (
     MATERIAL_REGISTRY,
     air_dry,
     aluminum,
+    centrifuge_air,
     concrete,
     concrete_ordinary,
     create_environment_material,
@@ -30,3 +31,4 @@ from .builders import (
     water,
 )
 from .material_specs import MATERIAL_ALIASES, MATERIAL_DENSITIES, MaterialSpec
+from .mcnp_conversion import MCNPMaterial, MCNPNuclide

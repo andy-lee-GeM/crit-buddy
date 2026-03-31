@@ -1,0 +1,12 @@
+model: centrifuge-unit-cell
+name: Centrifuge unit cell OpenMC parity sweep
+
+params:
+  enrichment_pct: 20.2
+  h_to_u: 5.0
+  vessel_height_cm: 100.0
+  fill_z_cm: [10.0, 20.0, 30.0, 40.0, 50.0]
+  source_z_cm: 10.0
+  x_boundary_type: reflective
+  y_boundary_type: reflective
+  z_boundary_type: reflective

@@ -6,11 +6,14 @@ tallies.out
 
 # Certification OpenMC artifacts
 certifications/**/openmc/runs/
+certifications/**/openmc/**/*.h5
+certifications/**/openmc/**/tallies.out
 !certifications/**/openmc/cases/
 !certifications/**/openmc/cases/**/
 !certifications/**/openmc/cases/**/materials.xml
 !certifications/**/openmc/cases/**/geometry.xml
 !certifications/**/openmc/cases/**/settings.xml
+!certifications/**/openmc/model.py
 
 # Experiment run outputs
 experiments/*/runs/
@@ -71,9 +74,8 @@ Thumbs.db
 # Experiments (local only)
 experiments/
 
-# Operational request outputs
-requests/*/runs/
-requests/*/_validation/
+# Operational requests (local only)
+requests/
 
 # Scratch / archived engineering work
 workbench/
