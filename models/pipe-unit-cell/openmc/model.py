@@ -20,59 +20,35 @@ from critbuddy.core.materials import (
     get_color_legend,
     get_color_mapping,
 )
+from critbuddy.core.materials.builders import (
+    uo2f2 as create_uo2f2,
+    uf6,
+    aluminum as create_aluminum,
+)
+from critbuddy.core.materials.uo2f2_physics import uo2f2_density
 
 
 def _create_materials(p):
-    """Create materials matching MCNP reference case."""
+    """Create materials using standard library."""
     enrichment = p["ENRICHMENT_PCT"]
 
-    # Material 5: UO2F2 solution (fixed density from MCNP)
-    # MCNP: U-235: 0.00252, U-238: 0.00996, O-16: 0.02496, F-19: 0.02496 atom/b-cm
-    uo2f2 = openmc.Material(name="UO2F2_Solution")
-    uo2f2.set_density("g/cm3", 6.37)
+    # UO2F2 solution (dry UO2F2 at default density 6.37 g/cm³)
+    h_to_u = 0.0  # Dry UO2F2
+    density = uo2f2_density(h_to_u=h_to_u, enrichment_pct=enrichment)
+    uo2f2_mat = create_uo2f2(enrichment_pct=enrichment, h_to_u=h_to_u, density=density)
+    uo2f2_mat.name = "UO2F2_Solution"
 
-    # Calculate atom fractions from MCNP atomic densities
-    # Enrichment ~20.19% from MCNP
-    u235_frac = enrichment / 100.0
-    u238_frac = 1.0 - u235_frac
-
-    # From MCNP total: U=0.01248, O=0.02496, F=0.02496 atom/b-cm
-    # Normalized: U:O:F = 1:2:2 (UO2F2 stoichiometry)
-    total_atoms = 1.0 + 2.0 + 2.0  # U + O + F
-    u_frac = 1.0 / total_atoms
-    o_frac = 2.0 / total_atoms
-    f_frac = 2.0 / total_atoms
-
-    uo2f2.add_nuclide("U235", u235_frac * u_frac, percent_type="ao")
-    uo2f2.add_nuclide("U238", u238_frac * u_frac, percent_type="ao")
-    uo2f2.add_nuclide("O16", o_frac, percent_type="ao")
-    uo2f2.add_nuclide("F19", f_frac, percent_type="ao")
-
-    # Material 1: UF6 gas (headspace/gap)
-    # MCNP: U-235: 5.06e-5, U-238: 3.32e-5, F-19: 1.5e-4 atom/b-cm
-    # Enrichment ~60.4%, density 0.0127 g/cm³
-    uf6_gas = openmc.Material(name="UF6_Gas")
-    uf6_gas.set_density("g/cm3", 0.0127)
-
-    # UF6 stoichiometry: 1 U : 6 F
-    uf6_total = 1.0 + 6.0
-    uf6_u_frac = 1.0 / uf6_total
-    uf6_f_frac = 6.0 / uf6_total
-
-    # Use high enrichment for headspace gas (from MCNP)
+    # UF6 gas (headspace/gap) - low density gas
+    # MCNP reference used 60.4% enrichment at 0.0127 g/cm³
     uf6_enrich = 60.4
-    uf6_gas.add_nuclide("U235", (uf6_enrich / 100.0) * uf6_u_frac, percent_type="ao")
-    uf6_gas.add_nuclide("U238", (1.0 - uf6_enrich / 100.0) * uf6_u_frac, percent_type="ao")
-    uf6_gas.add_nuclide("F19", uf6_f_frac, percent_type="ao")
-    # No thermal scattering for UF6 gas (no hydrogen)
+    uf6_gas = uf6(enrichment_pct=uf6_enrich, density=0.0127)
+    uf6_gas.name = "UF6_Gas"
 
-    # Material 2: Aluminum wall
-    # MCNP: Al-27: 0.06022 atom/b-cm, density 2.70 g/cm³
-    aluminum = openmc.Material(name="Aluminum")
-    aluminum.set_density("g/cm3", 2.70)
-    aluminum.add_nuclide("Al27", 1.0, percent_type="ao")
+    # Aluminum wall
+    aluminum = create_aluminum()
+    aluminum.name = "Aluminum"
 
-    return openmc.Materials([uo2f2, uf6_gas, aluminum]), uo2f2, uf6_gas, aluminum
+    return openmc.Materials([uo2f2_mat, uf6_gas, aluminum]), uo2f2_mat, uf6_gas, aluminum
 
 
 def build_model(p):

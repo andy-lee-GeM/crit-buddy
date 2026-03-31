@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Print MCNP-oriented material tables derived from OpenMC materials."""
+"""Print MCNP-oriented material tables derived from OpenMC materials.
+
+This script uses the MCNPMaterial API to convert OpenMC materials to MCNP format.
+"""
 
 from __future__ import annotations
 
@@ -9,15 +12,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable
 
-from openmc.data import zam
-
 ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 try:
     from critbuddy.core import materials as lib
-    from critbuddy.core.materials.material_properties import summarize_openmc_material
+    from critbuddy.core.materials import MCNPMaterial
     from critbuddy.core.materials.uo2f2_physics import uo2f2_density as derive_uo2f2_density
 except Exception as exc:
     raise SystemExit(
@@ -40,12 +41,14 @@ NOTE_LABELS = {
 
 @dataclass(frozen=True)
 class MaterialJob:
+    """Material to convert with optional metadata."""
     label: str
     material: object
     notes: tuple[str, ...] = ()
 
 
 def _builders() -> dict[str, Builder]:
+    """Map material names to builder functions."""
     return {
         "aluminum": lambda a: lib.aluminum(),
         "steel": lambda a: lib.stainless_steel_316(),
@@ -60,29 +63,27 @@ def _builders() -> dict[str, Builder]:
 
 
 def _all_names() -> list[str]:
+    """Return all available material names."""
     return [*_builders().keys(), "uf6", "uo2f2"]
 
 
-def _zaid(nuclide: str, suffix: str) -> str:
-    z, a, m = zam(nuclide)
-    if m != 0:
-        raise ValueError(f"Metastable nuclide not supported for ZAID conversion: {nuclide}")
-    return f"{1000 * z + a}.{suffix}"
-
-
 def _parse_float_list(value: str) -> list[float]:
+    """Parse comma-separated float list."""
     return [float(item.strip()) for item in value.split(",") if item.strip()]
 
 
 def _format_float_list(values: list[float]) -> str:
+    """Format float list as comma-separated string."""
     return ", ".join(f"{value:g}" for value in values)
 
 
 def _single_point_enrichment(args: argparse.Namespace) -> float:
+    """Get single enrichment value."""
     return DEFAULT_SINGLE_ENRICHMENT if args.enrichment is None else args.enrichment
 
 
 def _requested_enrichments(material_name: str, args: argparse.Namespace) -> list[float]:
+    """Determine enrichments to process based on arguments."""
     if args.enrichments:
         return args.enrichments
     if (
@@ -102,6 +103,7 @@ def _resolve_uo2f2_inputs(
     args: argparse.Namespace,
     enrichment: float,
 ) -> tuple[float, float, str]:
+    """Resolve UO2F2 H/U and density based on arguments."""
     h_to_u = 0.0 if args.h_to_u is None else args.h_to_u
     if args.uo2f2_density is not None:
         return h_to_u, args.uo2f2_density, "user_specified_uo2f2_density"
@@ -115,6 +117,7 @@ def _resolve_uo2f2_inputs(
 
 
 def _material_jobs(args: argparse.Namespace) -> list[MaterialJob]:
+    """Build list of materials to process."""
     builders = _builders()
     names = _all_names() if "all" in args.materials else args.materials
 
@@ -160,6 +163,7 @@ def _material_jobs(args: argparse.Namespace) -> list[MaterialJob]:
 
 
 def _print_section_header(title: str) -> None:
+    """Print section header."""
     line = "=" * 88
     print(f"\n{line}")
     print(title)
@@ -167,6 +171,7 @@ def _print_section_header(title: str) -> None:
 
 
 def _format_note(note: str) -> str:
+    """Format note with pretty label."""
     label, value = note.split(": ", maxsplit=1)
     display_label = NOTE_LABELS.get(label, label.replace("_", " ").title())
     return f"{display_label:20s}: {value}"
@@ -179,29 +184,42 @@ def _print_material_block(
     xs_suffix: str,
     notes: tuple[str, ...] = (),
 ) -> None:
-    summary = summarize_openmc_material(mat)
+    """Print MCNP material block using MCNPMaterial API.
 
+    This is the refactored version that uses MCNPMaterial instead of
+    manual summarize_openmc_material + _zaid conversions.
+    """
+    # Convert to MCNP format using the new API
+    mcnp = MCNPMaterial.from_openmc(mat, xs_suffix=xs_suffix)
+
+    # Print header
     _print_section_header(f"{name}  |  m{mat_num}")
-    print(f"OpenMC name           : {summary.name}")
-    print(f"Bulk density          : {float(summary.density_g_cm3):.8e}  g/cc")
-    print(f"MCNP cell density     : {-float(summary.density_g_cm3):.8e}  g/cc")
-    print(f"MCNP atom density     : {float(summary.total_atom_density_bcm):.8e}  atoms/b-cm")
+    print(f"OpenMC name           : {mcnp.name}")
+    print(f"Bulk density          : {mcnp.bulk_density_g_cm3:.8e}  g/cc")
+    print(f"MCNP cell density     : {mcnp.cell_density_g_cm3:.8e}  g/cc")
+    print(f"MCNP atom density     : {mcnp.cell_density_bcm:.8e}  atoms/b-cm")
+
+    # Print metadata notes
     for note in notes:
         print(_format_note(note))
 
+    # Print nuclide table
     print("\nNuclide Table")
     print("-" * 88)
     print("nuclide   zaid         atom_density(b-cm)   mass_density(g/cc)   atom_frac    weight_frac")
     print("-" * 88)
-    for row in summary.nuclides:
+
+    # Iterate over nuclides using MCNPMaterial API
+    for nuc in mcnp.nuclides:
         print(
-            f"{row.nuclide:8s}  {_zaid(row.nuclide, xs_suffix):12s}  "
-            f"{float(row.atom_density_bcm):17.8e}  {float(row.mass_density_g_cm3):18.8e}  "
-            f"{float(row.atom_fraction):11.8f}  {float(row.weight_fraction):12.8f}"
+            f"{nuc.nuclide:8s}  {nuc.zaid:12s}  "
+            f"{nuc.atom_density_bcm:17.8e}  {nuc.mass_density_g_cm3:18.8e}  "
+            f"{nuc.atom_fraction:11.8f}  {nuc.weight_fraction:12.8f}"
         )
 
 
 def main() -> int:
+    """Main entry point."""
     parser = argparse.ArgumentParser(
         description="Print MCNP-oriented material summaries derived from OpenMC materials."
     )
@@ -280,6 +298,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
+    # Validate material names
     names = _all_names() if "all" in args.materials else args.materials
     unknown = [name for name in names if name not in _all_names()]
     if unknown:
@@ -287,8 +306,9 @@ def main() -> int:
         print(f"Available: {', '.join(_all_names())}")
         return 2
 
+    # Print header
     _print_section_header("MCNP Material Helper Output")
-    print("Source                : critbuddy/core/materials/ via critbuddy.core.materials.material_properties")
+    print("Source                : critbuddy/core/materials/ via MCNPMaterial API")
     print("Static materials      : no extra inputs required")
     print(f"Default UF6 enr (wt%) : {_format_float_list(DEFAULT_UF6_ENRICHMENTS)}")
     print(f"Default UO2F2 enr     : {_format_float_list(DEFAULT_UO2F2_ENRICHMENTS)}")
@@ -296,6 +316,7 @@ def main() -> int:
     print("UO2F2 density model   : derived from H/U when supplied, else dry default 6.37 g/cc")
     print("MCNP density forms    : use either -g/cc or +atoms/b-cm")
 
+    # Process materials
     jobs = _material_jobs(args)
     for idx, job in enumerate(jobs):
         mat_num = args.mat_start + idx
