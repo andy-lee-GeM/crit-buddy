@@ -101,7 +101,9 @@
       "Bash(ssh-add -l)",
       "Bash(/usr/local/bin/mcnp6 i=input.inp o=out tasks 4)",
       "Bash(/usr/local/bin/mcnp6 i=reference.inp o=reference_test.out tasks 4)",
-      "Bash(where python:*)"
+      "Bash(where python:*)",
+      "Bash(for ticket:*)",
+      "Bash(do echo:*)"
     ]
   }
 }

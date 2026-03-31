@@ -53,7 +53,7 @@ certifications/<model>/<yyyy-mm-dd-rN>/
 
 Existing examples:
 
-- `certifications/centrifuge-unit-cell/2026-03-30-r1/`
+- `certifications/centrifuge-unit-cell/2026-03-31-r1/`
 - `certifications/pipe-cross-model/2026-03-30-r1/`
 
 For future Codex sessions, use `$crit-model-certification` to create or update

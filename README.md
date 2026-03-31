@@ -49,7 +49,10 @@ model: centrifuge-unit-cell
 name: "Centrifuge Unit Cell Fill Sweep"
 
 params:
-  fill_z_cm: [10, 20, 30, 40, 50]
+  inner_radius_cm: 11.70
+  water_film_thickness_cm: 1.0
+  wall_thickness_cm: 0.3175
+  fill_height_cm: [10, 20, 30, 40, 50]
   source_z_cm: 10
   x_boundary_type: reflective
   y_boundary_type: reflective
@@ -99,7 +102,7 @@ Study-specific reports or merged solver comparisons can live at the study root,
 for example:
 
 ```text
-certifications/centrifuge-unit-cell/2026-03-30-r1/
+certifications/centrifuge-unit-cell/2026-03-31-r1/
   openmc/
     model.py
     study.yaml

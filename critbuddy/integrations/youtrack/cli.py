@@ -75,6 +75,15 @@ def cmd_create_form(args):
     print(f"URL: {client.url}/issue/{issue_id}")
 
 
+def cmd_sync_form(args):
+    """Sync a local form onto an existing template issue."""
+    client = YouTrackClient()
+    result = client.sync_form_to_issue(args.ticket_id, args.form_name)
+    issue_id = result.get("idReadable", args.ticket_id)
+    print(f"Synced: {issue_id}")
+    print(f"URL: {client.url}/issue/{issue_id}")
+
+
 def cmd_list_forms(args):
     """List available form templates."""
     client = YouTrackClient()
@@ -145,6 +154,16 @@ def build_parser() -> argparse.ArgumentParser:
     )
     p.add_argument("form_name", help="Form name (e.g., pipe, cylinder)")
     p.set_defaults(func=cmd_create_form)
+
+    p = subparsers.add_parser(
+        "sync-form", help="Sync a local form to an existing issue"
+    )
+    p.add_argument("ticket_id", help="Ticket ID (e.g., CB-10)")
+    p.add_argument(
+        "form_name",
+        help="Form name (e.g., centrifuge-unit-cell, pipe-cross-model)",
+    )
+    p.set_defaults(func=cmd_sync_form)
 
     p = subparsers.add_parser("list-forms", help="List available form templates")
     p.set_defaults(func=cmd_list_forms)

@@ -35,30 +35,19 @@ class YouTrackClient:
 
     # Single source of truth for YouTrack form templates.
     FORM_TEMPLATES = {
-        "pipe": {
-            "file": "pipe-form.md",
-            "summary": "[TEMPLATE] Criticality Analysis Request: Pipe Array",
+        "centrifuge-unit-cell": {
+            "file": "centrifuge-unit-cell-form.md",
+            "summary": "[TEMPLATE] Criticality Analysis Request: Centrifuge Unit Cell",
+            "assets": ["centrifuge-unit-cell-geometry.png"],
         },
-        "cylinder": {
-            "file": "cylinder-form.md",
-            "summary": "[TEMPLATE] Criticality Analysis Request: Cylinder",
-        },
-        "rectangular-box": {
-            "file": "rectangular-box-form.md",
-            "summary": "[TEMPLATE] Criticality Analysis Request: Rectangular Box",
-        },
-        "shipping-cylinder": {
-            "file": "shipping-cylinder-form.md",
-            "summary": "[TEMPLATE] Criticality Analysis Request: Shipping Cylinder",
-        },
-        # Keep maker-array registered for compatibility; availability depends on file presence.
-        "maker-array": {
-            "file": "maker-array-form.md",
-            "summary": "[TEMPLATE] Criticality Analysis Request: Maker Array",
+        "pipe-cross-model": {
+            "file": "pipe-cross-model-form.md",
+            "summary": "[TEMPLATE] Criticality Analysis Request: Pipe Cross Model",
         },
     }
     FORM_ALIASES = {
-        "parallel-pipes": "pipe",
+        "centrifuge": "centrifuge-unit-cell",
+        "pipe-cross": "pipe-cross-model",
     }
 
     def __init__(self, config_path: Optional[Path] = None):
@@ -108,6 +97,7 @@ class YouTrackClient:
 
         # Forms directory for templates
         self.forms_dir = self.root / "docs" / "doc-templates" / "youtrack-forms"
+        self.form_assets_dir = self.forms_dir / "assets"
 
     def _load_env(self) -> None:
         """Load .env file manually (no external dependencies)."""
@@ -194,7 +184,7 @@ class YouTrackClient:
 
     def get_ticket_attachments(self, ticket_id: str) -> List[dict]:
         """Get list of attachments on a ticket."""
-        return self._get(f"/api/issues/{ticket_id}/attachments")
+        return self._get(f"/api/issues/{ticket_id}/attachments?fields=name")
 
     # =========================================================================
     # WRITE OPERATIONS
@@ -273,6 +263,33 @@ class YouTrackClient:
                 "description": description,
             },
         )
+
+    def update_issue(
+        self,
+        ticket_id: str,
+        *,
+        summary: Optional[str] = None,
+        description: Optional[str] = None,
+    ) -> dict:
+        """
+        Update summary and/or description for an existing issue.
+
+        Args:
+            ticket_id: Ticket ID (e.g., "CB-10")
+            summary: New issue title
+            description: New issue description
+
+        Returns:
+            API response with updated issue details
+        """
+        payload = {}
+        if summary is not None:
+            payload["summary"] = summary
+        if description is not None:
+            payload["description"] = description
+        if not payload:
+            raise ValueError("update_issue requires summary and/or description")
+        return self._post(f"/api/issues/{ticket_id}", payload)
 
     # =========================================================================
     # CONVENIENCE METHODS
@@ -387,6 +404,68 @@ Results have been attached to this ticket.
     # FORM TEMPLATES
     # =========================================================================
 
+    def _resolve_form(self, form_name: str) -> tuple[str, dict]:
+        """Resolve a form name through aliases and return canonical metadata."""
+        resolved = self.FORM_ALIASES.get(form_name, form_name)
+        if resolved not in self.FORM_TEMPLATES:
+            available = ", ".join(sorted(self.FORM_TEMPLATES.keys()))
+            raise ValueError(f"Unknown form: {form_name}. Available: {available}")
+        return resolved, self.FORM_TEMPLATES[resolved]
+
+    def _load_form(self, form_name: str) -> tuple[str, str]:
+        """Load a local form template and return its summary and description."""
+        _, form_info = self._resolve_form(form_name)
+        form_path = self.forms_dir / form_info["file"]
+
+        if not form_path.exists():
+            available = ", ".join(self.get_available_forms())
+            raise FileNotFoundError(
+                f"Form template not found for '{form_name}': {form_path}. "
+                f"Available forms: {available or 'none'}"
+            )
+
+        return form_info["summary"], form_path.read_text()
+
+    def _load_form_assets(self, form_name: str) -> List[Path]:
+        """Load any local asset files associated with a form."""
+        _, form_info = self._resolve_form(form_name)
+        asset_names = form_info.get("assets", [])
+        assets: List[Path] = []
+
+        for asset_name in asset_names:
+            asset_path = self.form_assets_dir / asset_name
+            if not asset_path.exists():
+                raise FileNotFoundError(
+                    f"Form asset not found for '{form_name}': {asset_path}"
+                )
+            assets.append(asset_path)
+
+        return assets
+
+    def _prepare_form_description(self, description: str, assets: List[Path]) -> str:
+        """Rewrite repo-local asset paths to YouTrack attachment references."""
+        prepared = description
+        for asset in assets:
+            prepared = prepared.replace(
+                f"(assets/{asset.name})", f"({asset.name})"
+            ).replace(f"(./assets/{asset.name})", f"({asset.name})")
+        return prepared
+
+    def _attach_missing_files(self, ticket_id: str, files: List[Path]) -> None:
+        """Attach local files that are not already present on the ticket."""
+        if not files:
+            return
+
+        existing_names = {
+            attachment.get("name")
+            for attachment in self.get_ticket_attachments(ticket_id)
+            if attachment.get("name")
+        }
+
+        for file_path in files:
+            if file_path.name not in existing_names:
+                self.attach_file(ticket_id, file_path)
+
     def get_available_forms(self) -> List[str]:
         """Get list of available form template names."""
         if not self.forms_dir.exists():
@@ -407,20 +486,32 @@ Results have been attached to this ticket.
         Returns:
             API response with new issue details
         """
-        resolved = self.FORM_ALIASES.get(form_name, form_name)
-        if resolved not in self.FORM_TEMPLATES:
-            available = ", ".join(sorted(self.FORM_TEMPLATES.keys()))
-            raise ValueError(f"Unknown form: {form_name}. Available: {available}")
+        summary, description = self._load_form(form_name)
+        assets = self._load_form_assets(form_name)
+        prepared_description = self._prepare_form_description(description, assets)
+        result = self.create_issue(summary, prepared_description)
+        issue_id = result.get("idReadable", result.get("id"))
+        if issue_id:
+            self._attach_missing_files(issue_id, assets)
+        return result
 
-        form_info = self.FORM_TEMPLATES[resolved]
-        form_path = self.forms_dir / form_info["file"]
+    def sync_form_to_issue(self, ticket_id: str, form_name: str) -> dict:
+        """
+        Overwrite an existing issue summary/description from a local form file.
 
-        if not form_path.exists():
-            available = ", ".join(self.get_available_forms())
-            raise FileNotFoundError(
-                f"Form template not found for '{form_name}': {form_path}. "
-                f"Available forms: {available or 'none'}"
-            )
+        Args:
+            ticket_id: Ticket ID to update
+            form_name: Form name (e.g., "centrifuge-unit-cell")
 
-        description = form_path.read_text()
-        return self.create_issue(form_info["summary"], description)
+        Returns:
+            API response with updated issue details
+        """
+        summary, description = self._load_form(form_name)
+        assets = self._load_form_assets(form_name)
+        prepared_description = self._prepare_form_description(description, assets)
+        self._attach_missing_files(ticket_id, assets)
+        return self.update_issue(
+            ticket_id,
+            summary=summary,
+            description=prepared_description,
+        )

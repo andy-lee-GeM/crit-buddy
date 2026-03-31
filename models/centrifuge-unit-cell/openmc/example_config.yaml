@@ -1,0 +1,15 @@
+model: centrifuge-unit-cell
+name: "Centrifuge Geometry Sweep"
+
+params:
+  enrichment_pct: 20.2
+  inner_radius_cm: 11.70
+  water_film_thickness_cm: 1.0
+  wall_thickness_cm: 0.3175
+  vessel_height_cm: 100.0
+  fill_height_cm: [10.0, 20.0, 30.0, 40.0, 50.0]
+  h_to_u: 5.0
+  source_z_cm: 10.0
+  x_boundary_type: reflective
+  y_boundary_type: reflective
+  z_boundary_type: reflective

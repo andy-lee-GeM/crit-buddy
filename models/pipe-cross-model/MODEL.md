@@ -6,6 +6,17 @@ Reflected orthogonal pipe-crossing model for `AD-7` parity work. This model
 mirrors the explicit unit-cell style of `centrifuge-unit-cell` and supports
 two workbook-aligned crossing patterns.
 
+## Files
+
+- `openmc/model.py`: active OpenMC implementation used for development and
+  config-driven studies.
+- `openmc/example_config.yaml`: copy-pasteable OpenMC study config showing the
+  intended user-facing geometry inputs.
+- `openmc/visualization_config.yaml`: single-case preview config used for
+  `--validate` geometry renders and the template ticket image.
+- `mcnp/reference.inp`: canonical MCNP reference deck for the reflected `xz`
+  crossing parity case.
+
 ## Geometry
 
 Supported modes:
@@ -41,18 +52,25 @@ Material regions:
 
 ## Config File Usage
 
-This model uses the standard config-driven workflow. Create a YAML config file:
+This model uses the standard config-driven workflow. A copy-pasteable example
+config lives at `openmc/example_config.yaml`.
+
+Representative shape:
 
 ```yaml
 model: pipe-cross-model
-name: Your Study Name
+name: Pipe Cross Geometry Sweep
 
 params:
   cross_mode: xz
-  enrichment_pct: 20.19
-  h_to_u: [0, 1, 2, 3, 4, 5]
-  separation_cm: [0.0, 5.8, 6.0, 6.5, 7.0]  # List for parameter sweep
-  # ... other parameters
+  enrichment_pct: 20.2
+  pipe_size: custom
+  pipe_outer_radius_cm: 5.715
+  pipe_wall_thickness_cm: 0.3048
+  wall_material: aluminum
+  separation_cm: [0.0, 5.8, 6.5, 7.0]
+  gas_core_radius_cm: 4.4102
+  fuel_outer_radius_cm: 5.4102
 ```
 
 Run with:

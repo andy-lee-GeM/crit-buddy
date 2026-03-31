@@ -11,14 +11,25 @@ shared baseline for OpenMC development and MCNP reference runs.
 
 - `openmc/model.py`: active OpenMC implementation used for development and
   config-driven studies.
+- `openmc/example_config.yaml`: copy-pasteable OpenMC study config showing the
+  intended user-facing geometry inputs.
+- `openmc/visualization_config.yaml`: single-case preview config used for
+  `--validate` geometry renders and the template ticket image.
 - `mcnp/model.inp`: canonical MCNP deck for manual reference runs.
 
 ## Geometry Summary
 
-- Fuel region: `r < 11.70 cm`
-- Water film: `11.70 < r < 12.70 cm`
-- Steel wall: `12.70 < r < 13.0175 cm`
-- Steel end caps close the vessel axially
+- Tunable geometry inputs:
+  - `inner_radius_cm`
+  - `water_film_thickness_cm`
+  - `wall_thickness_cm`
+  - `vessel_height_cm`
+  - `fill_height_cm`
+- Default certified geometry:
+  - Fuel region: `r < 11.70 cm`
+  - Water film: `11.70 < r < 12.70 cm`
+  - Steel wall: `12.70 < r < 13.0175 cm`
+- Steel end caps use the same thickness as the wall
 - Canonical parity case uses reflective square unit-cell boundaries in
   `x`, `y`, and `z`
 
@@ -38,7 +49,7 @@ shared baseline for OpenMC development and MCNP reference runs.
 ## Validation
 
 - The current lightweight cross-solver checkpoint lives under
-  `certifications/centrifuge-unit-cell/2026-03-30-r1/` and includes the
+  `certifications/centrifuge-unit-cell/2026-03-31-r1/` and includes the
   frozen `openmc/model.py` source snapshot alongside the exported cases.
 - Model geometry and material construction are covered by the test suite.
 - Additional benchmark-style validation can be added as separate studies.
