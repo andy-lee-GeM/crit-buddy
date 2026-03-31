@@ -1,46 +1,19 @@
 # Criticality Analysis Request: Pipe Cross Model
 
-## Scenario
+## Model
 
 Orthogonal pipe-crossing unit-cell request for the maintained
 `pipe-cross-model`. This is the current reflected crossing model used for AD-7
 style parity and follow-on sweep work.
 
-## What This Model Currently Explores
+## Visualization
 
-- Supported crossing modes:
-  - `xz`: one x-directed pipe crossing one z-directed pipe
-  - `xyz`: mutually orthogonal x/y/z pipes crossing at the origin
-- Pipe outer size and wall thickness
-- Open bore radius and retained deposit radius
-- Separation to neighboring reflected crossings
-- Wall material
-- Enrichment
+![Pipe cross geometry preview](assets/pipe-cross-model-geometry.png)
 
-## Simplification Rule for RE Use
+Preview generated from
+`models/pipe-cross-model/openmc/visualization_config.yaml` using `--validate`.
 
-The RE should describe the **part geometry and materials**:
-
-- crossing type
-- pipe size or custom dimensions
-- wall material
-- minimum spacing
-- bore/open-flow radius
-- retained deposit extent if known
-
-The RE should **not** be asked to choose H/U, explicit UO2F2 density, source
-placement, or boundary-condition details. Those are analysis assumptions owned
-by crit-buddy / the analyst.
-
-## Instructions
-
-1. Copy this issue to a working ticket. Do not edit the template directly.
-2. Fill in the **Design Inputs** table below.
-3. Use `[value1, value2, ...]` for parameter sweeps.
-4. Move the working ticket to **Ready for run** when complete.
-5. Use the notes section if the deposit geometry is uncertain and needs analyst interpretation.
-
-## Design Inputs
+## Parameters
 
 | Parameter | Value | Notes |
 |-----------|-------|-------|
@@ -54,22 +27,40 @@ by crit-buddy / the analyst.
 | `gas_core_radius_cm` | | Open inner bore radius after any retained deposit is accounted for |
 | `fuel_outer_radius_cm` | | Outer radius of the retained fissile annulus / deposit region |
 
-## Analysis-Managed Assumptions
+## Certified Baseline
 
-These are not intended RE inputs on the template:
+- `cross_mode = xz`
+- `pipe_size = custom`
+- `pipe_outer_radius_cm = 5.715`
+- `pipe_wall_thickness_cm = 0.3048`
+- `gas_core_radius_cm = 4.4102`
+- `fuel_outer_radius_cm = 5.4102`
+- `separation_cm = 7.0`
+- `wall_material = aluminum`
+- `enrichment_pct = 20.2`
+- Reflected unit-cell boundaries follow the certified baseline
 
-- H/U selection
-- explicit UO2F2 density entry
-- UF6 density overrides
-- moderator density overrides
-- boundary-condition overrides
+These baseline values reproduce the current blessed parity checkpoint, but the
+geometry inputs above are the intended RE-facing sweep surface.
+
+## Instructions
+
+1. Copy this issue to a working ticket. Do not edit the template directly.
+2. Fill in the **Parameters** table.
+3. Use `[value1, value2, ...]` for parameter sweeps.
+4. Add any geometry uncertainty or deposit interpretation notes below.
+5. Move the working ticket to **Ready for run** when complete.
 
 ## Notes
 
 - `fuel_outer_radius_cm` must not exceed the pipe inner radius.
 - `gas_core_radius_cm` must be smaller than `fuel_outer_radius_cm`.
+- Copy-paste study config:
+  `models/pipe-cross-model/openmc/example_config.yaml`
+- Validation preview config:
+  `models/pipe-cross-model/openmc/visualization_config.yaml`
 - Current certification checkpoint:
-  `certifications/pipe-cross-model/2026-03-30-r1/`
+  `certifications/pipe-cross-model/2026-03-30-r1/results.md`
 
 ## Outputs
 
