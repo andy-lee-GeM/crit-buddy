@@ -8,6 +8,8 @@ inside model folders when needed.
 
 ```text
 models/     canonical physical systems
+certifications/ lightweight frozen model checkpoints
+archive/    retired study scaffolding kept for reference
 studies/    formal analysis and validation work
 requests/   ticket-driven operational analyses
 workbench/  exploratory or archived engineering work
@@ -19,9 +21,11 @@ tests/      model and physics tests
 The preferred workflow is:
 
 1. Define a canonical model under `models/`.
-2. Run OpenMC studies from `studies/` or `requests/`.
-3. Keep generated runs outside the model directory.
-4. Keep manual MCNP decks under `models/<name>/mcnp/`.
+2. Create a lightweight checkpoint under `certifications/` when the model is
+   ready for solver-to-solver signoff.
+3. Run OpenMC studies from `studies/` or `requests/`.
+4. Keep generated runs outside the model directory.
+5. Keep manual MCNP decks under `models/<name>/mcnp/`.
 
 ## Running Studies
 
@@ -75,7 +79,8 @@ Each canonical model should include a `MODEL.md` file with this structure:
 - `History`
 
 This is the stable model handoff document for the team. Detailed validation
-results and solver comparisons belong under `studies/`.
+results and solver comparisons can be frozen under `certifications/`, while
+production or exploratory analyses belong under `studies/`.
 
 ## Outputs
 
@@ -94,13 +99,20 @@ Study-specific reports or merged solver comparisons can live at the study root,
 for example:
 
 ```text
-studies/centrifuge-unit-cell-parity/
-  study.yaml
-  report.md
-  results.csv
+certifications/centrifuge-unit-cell/2026-03-30-r1/
   openmc/
+    model.py
+    study.yaml
+    cases/
+    results/
   mcnp/
+    fill_10/
+    fill_20/
+    ...
+  results.md
 ```
+
+See `docs/model-certifications.md` for the lightweight certification format.
 
 ## Materials and Physics
 

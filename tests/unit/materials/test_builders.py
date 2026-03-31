@@ -91,6 +91,23 @@ class MaterialBuilderTests(unittest.TestCase):
             },
         )
 
+    def test_centrifuge_air_material_uses_library_defaults(self):
+        mat = get_material("centrifuge_air")
+        nuclides = {n.name: n.percent for n in mat.nuclides}
+
+        self.assertEqual(mat.name, "Air")
+        self.assertEqual(mat.density_units, "atom/b-cm")
+        self.assertAlmostEqual(mat.density, 3.3e-02, places=10)
+        self.assertEqual(
+            nuclides,
+            {
+                "N14": 3.9e-05,
+                "O16": 1.05e-05,
+                "Ar40": 2.4e-04,
+                "H1": 1.1e-06,
+            },
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

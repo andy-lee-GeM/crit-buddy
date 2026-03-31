@@ -1,0 +1,5 @@
+case,solver,keff,std,keff_2sigma,status,execution_time,cross_mode,enrichment_pct,fuel_outer_radius_cm,gas_core_radius_cm,moderator_density_g_cm3,pipe_outer_radius_cm,pipe_size,pipe_wall_thickness_cm,separation_cm,uf6_density_g_cm3,uo2f2_density_g_cm3,wall_material,x_boundary_type,y_boundary_type,z_boundary_type
+case_1,openmc,1.10710,0.00116,1.10943,CRITICAL,22.7,xz,20.19,5.4102,4.4102,1.0,5.715,custom,0.3048,0.0,0.0127,6.37,aluminum,reflective,reflective,reflective
+case_2,openmc,0.98513,0.00124,0.98761,MARGINAL,25.3,xz,20.19,5.4102,4.4102,1.0,5.715,custom,0.3048,5.8,0.0127,6.37,aluminum,reflective,reflective,reflective
+case_3,openmc,0.96435,0.00117,0.96668,MARGINAL,26.4,xz,20.19,5.4102,4.4102,1.0,5.715,custom,0.3048,6.5,0.0127,6.37,aluminum,reflective,reflective,reflective
+case_4,openmc,0.95080,0.00111,0.95302,MARGINAL,26.1,xz,20.19,5.4102,4.4102,1.0,5.715,custom,0.3048,7.0,0.0127,6.37,aluminum,reflective,reflective,reflective

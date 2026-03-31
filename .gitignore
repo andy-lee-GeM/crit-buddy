@@ -4,20 +4,40 @@ summary.h5
 tallies.out
 *.xml
 
+# Certification OpenMC artifacts
+certifications/**/openmc/runs/
+certifications/**/openmc/**/*.h5
+certifications/**/openmc/**/tallies.out
+!certifications/**/openmc/cases/
+!certifications/**/openmc/cases/**/
+!certifications/**/openmc/cases/**/materials.xml
+!certifications/**/openmc/cases/**/geometry.xml
+!certifications/**/openmc/cases/**/settings.xml
+!certifications/**/openmc/model.py
+
 # Experiment run outputs
 experiments/*/runs/
 
 # Study run outputs
-studies/*/runs/
-studies/*/openmc/runs/
+studies/**/runs/
+studies/**/openmc/runs/
+studies/**/_validation/
+studies/**/results.csv
+studies/**/report.md
+!studies/pipe-cross-hu-sweep/report.md
 
 # Manual MCNP study artifacts
-studies/*/mcnp/*/out
-studies/*/mcnp/*/runtpe
-studies/*/mcnp/*/srctp
-studies/*/mcnp/*/mctal
-studies/*/mcnp/*/meshtal*
-studies/*/mcnp/*/outp*
+studies/**/mcnp/*/out
+studies/**/mcnp/*/ou?
+studies/**/mcnp/*/runtpe
+studies/**/mcnp/*/runtp*
+studies/**/mcnp/*/srctp
+studies/**/mcnp/*/srct?
+studies/**/mcnp/*/xsdir*
+studies/**/mcnp/*/archive/
+studies/**/mcnp/*/mctal
+studies/**/mcnp/*/meshtal*
+studies/**/mcnp/*/outp*
 
 # MCNP output files
 runtpe*

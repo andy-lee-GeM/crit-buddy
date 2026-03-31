@@ -22,7 +22,12 @@ IMPORTANT - Model Limitation at Very Low H/U (< 1.0):
 import unittest
 from typing import NamedTuple
 
-from critbuddy.core.materials.uo2f2_physics import uo2f2_density, uo2f2_stoichiometry
+from critbuddy.core.materials.uo2f2_physics import (
+    ATOMIC_MASSES,
+    uo2f2_density,
+    uo2f2_stoichiometry,
+    uranium_molar_mass,
+)
 
 
 class ORNLCase(NamedTuple):
@@ -49,9 +54,16 @@ def h_x_to_h_u(h_x: float, enrichment_pct: float) -> float:
 
     Example:
         >>> h_x_to_h_u(500.0, 20.0)  # H/X=500, 20% enriched
-        100.0  # H/U = 500 × 0.20
+        101.02085591316444
     """
-    return h_x * (enrichment_pct / 100.0)
+    # ORNL Table A.3 uses H/X with X = U-235 atoms, so the conversion must use
+    # the U-235 atom fraction rather than the input weight-percent directly.
+    w235 = enrichment_pct / 100.0
+    w238 = 1.0 - w235
+    n235 = w235 / ATOMIC_MASSES.u235_g_per_mol
+    n238 = w238 / ATOMIC_MASSES.u238_g_per_mol
+    x235 = n235 / (n235 + n238)
+    return h_x * x235
 
 
 class TestUO2F2Density(unittest.TestCase):
@@ -66,6 +78,13 @@ class TestUO2F2Density(unittest.TestCase):
     ratios, some deviations from the table are expected due to the simplified
     approximation in the hydrated salt region.
     """
+
+    def test_h_x_to_h_u_uses_u235_atom_fraction(self):
+        self.assertAlmostEqual(h_x_to_h_u(5.0, 20.0), 1.0102085591316443, places=12)
+        self.assertAlmostEqual(h_x_to_h_u(100.0, 5.0), 5.06072956259366, places=12)
+
+    def test_uranium_molar_mass_returns_mu_for_20_percent_enrichment(self):
+        self.assertAlmostEqual(uranium_molar_mass(20.0), 237.4434605725382, places=9)
 
     def test_100_percent_enriched(self):
         """ORNL Table A.3 page 27: 100% enriched (H/X = H/U)."""

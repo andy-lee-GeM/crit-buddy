@@ -1,0 +1,6 @@
+case,solver,keff,std,keff_2sigma,status,execution_time,fill_z_cm,source_z_cm,x_boundary_type,y_boundary_type,z_boundary_type
+case_1,openmc,0.99294,0.00120,0.99535,MARGINAL,13.5,10.0,10.0,reflective,reflective,reflective
+case_2,openmc,1.21101,0.00112,1.21324,CRITICAL,11.3,20.0,10.0,reflective,reflective,reflective
+case_3,openmc,1.30184,0.00112,1.30407,CRITICAL,10.7,30.0,10.0,reflective,reflective,reflective
+case_4,openmc,1.35319,0.00108,1.35535,CRITICAL,10.4,40.0,10.0,reflective,reflective,reflective
+case_5,openmc,1.38309,0.00110,1.38529,CRITICAL,10.9,50.0,10.0,reflective,reflective,reflective

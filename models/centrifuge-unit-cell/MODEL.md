@@ -28,13 +28,18 @@ shared baseline for OpenMC development and MCNP reference runs.
   into one clean non-overlapping region.
 - The OpenMC model follows the cleaned canonical geometry intent rather than
   reproducing the malformed original cell decomposition.
+- Fuel, wall, and water now follow the shared config-to-library material path
+  used elsewhere in the repo.
+- Air now uses the shared `centrifuge_air` library material, which preserves
+  the legacy MCNP card for parity work.
 - OpenMC is the primary development implementation; MCNP is maintained as the
   canonical reference deck for downstream use.
 
 ## Validation
 
-- Cross-solver comparison is documented in
-  `studies/centrifuge-unit-cell-parity/`.
+- The current lightweight cross-solver checkpoint lives under
+  `certifications/centrifuge-unit-cell/2026-03-30-r1/` and includes the
+  frozen `openmc/model.py` source snapshot alongside the exported cases.
 - Model geometry and material construction are covered by the test suite.
 - Additional benchmark-style validation can be added as separate studies.
 

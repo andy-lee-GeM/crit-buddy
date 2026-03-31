@@ -25,8 +25,16 @@ class CentrifugeThinFilmTemplate(ProblemTemplate):
             type="float",
             default=5.0,
             min=0.0,
-            max=20.0,
+            max=100.0,
             description="Hydrogen to uranium atomic ratio",
+        ),
+        "vessel_height_cm": ParameterSpec(
+            type="float",
+            default=100.0,
+            min=1.0,
+            max=500.0,
+            unit="cm",
+            description="Total vessel height (from z=0 to z=vessel_height_cm)",
         ),
         "fill_z_cm": ParameterSpec(
             type="float",
@@ -34,7 +42,7 @@ class CentrifugeThinFilmTemplate(ProblemTemplate):
             min=0.01,
             max=100.0,
             unit="cm",
-            description="Axial z position of the fill surface inside the 100 cm vessel",
+            description="Axial z position of the fill surface inside the vessel",
         ),
         "source_z_cm": ParameterSpec(
             type="float",
@@ -76,12 +84,28 @@ class CentrifugeThinFilmTemplate(ProblemTemplate):
         """Compute exact deck dimensions from the sweepable fill surface."""
         fill_z = float(p.get("fill_z_cm", 20.0))
         z_vessel_bottom = 0.0
-        z_vessel_top = 100.0
+        vessel_height = float(p.get("vessel_height_cm", 100.0))
+        z_vessel_top = vessel_height
         h_inner = z_vessel_top - z_vessel_bottom
+
+        # End cap thickness
+        wall_thickness = 0.3175
+        z_cap_bottom = z_vessel_bottom - wall_thickness
+        z_cap_top = z_vessel_top + wall_thickness
+
+        # Boundary box extends beyond vessel
+        z_boundary_bottom = z_vessel_bottom - 50.0
+        z_boundary_top = z_vessel_top + 50.0
+        total_z = z_boundary_top - z_boundary_bottom
 
         return {
             "ENRICHMENT_PCT": float(p.get("enrichment_pct", 20.2)),
             "H_TO_U": float(p.get("h_to_u", 5.0)),
+            "FISSILE_MATERIAL": "uo2f2",
+            "WALL_MATERIAL": "stainless_steel_316",
+            "WATER_MATERIAL": "water",
+            "WATER_DENSITY_G_CM3": 1.0,
+            "AIR_MATERIAL": "centrifuge_air",
             "FILL_Z_CM": fill_z,
             "FILL_HEIGHT_CM": fill_z - z_vessel_bottom,
             "FILL_FRACTION": (fill_z - z_vessel_bottom) / h_inner,
@@ -92,13 +116,13 @@ class CentrifugeThinFilmTemplate(ProblemTemplate):
             "HALF_PITCH_XY_CM": 13.5175,
             "Z_VESSEL_BOTTOM_CM": z_vessel_bottom,
             "Z_VESSEL_TOP_CM": z_vessel_top,
-            "Z_CAP_BOTTOM_CM": -0.3175,
-            "Z_CAP_TOP_CM": 100.3175,
-            "Z_BOUNDARY_BOTTOM_CM": -50.0,
-            "Z_BOUNDARY_TOP_CM": 150.0,
+            "Z_CAP_BOTTOM_CM": z_cap_bottom,
+            "Z_CAP_TOP_CM": z_cap_top,
+            "Z_BOUNDARY_BOTTOM_CM": z_boundary_bottom,
+            "Z_BOUNDARY_TOP_CM": z_boundary_top,
             "TOTAL_X": 27.035,
             "TOTAL_Y": 27.035,
-            "TOTAL_Z": 200.0,
+            "TOTAL_Z": total_z,
             "X_BOUNDARY_TYPE": p.get("x_boundary_type", "reflective"),
             "Y_BOUNDARY_TYPE": p.get("y_boundary_type", "reflective"),
             "Z_BOUNDARY_TYPE": p.get("z_boundary_type", "reflective"),

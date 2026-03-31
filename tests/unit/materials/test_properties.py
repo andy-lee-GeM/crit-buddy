@@ -1,6 +1,6 @@
 import unittest
 
-from critbuddy.core.materials import get_material, uo2f2, water
+from critbuddy.core.materials import centrifuge_air, get_material, uo2f2, water
 from critbuddy.core.materials.material_properties import summarize_openmc_material
 
 
@@ -74,6 +74,18 @@ class MaterialPropertyTests(unittest.TestCase):
         print("  Manganese is lower because the repo SS304 is a simplified surrogate, not the full PNNL composition.")
 
         self.assertEqual(summary.name, "Stainless_Steel_304")
+
+    def test_centrifuge_air_summary_reproduces_canonical_mcnp_atom_densities(self):
+        mat = centrifuge_air()
+
+        summary = summarize_openmc_material(mat)
+        rows = {row.nuclide: row for row in summary.nuclides}
+
+        self.assertAlmostEqual(summary.total_atom_density_bcm, 0.033, places=9)
+        self.assertEqual(f"{rows['N14'].atom_density_bcm:.5f}", "0.00443")
+        self.assertEqual(f"{rows['O16'].atom_density_bcm:.5f}", "0.00119")
+        self.assertEqual(f"{rows['Ar40'].atom_density_bcm:.5f}", "0.02725")
+        self.assertEqual(f"{rows['H1'].atom_density_bcm:.5f}", "0.00012")
 
 
 if __name__ == "__main__":

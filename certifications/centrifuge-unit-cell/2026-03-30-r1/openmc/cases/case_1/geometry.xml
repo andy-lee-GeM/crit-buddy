@@ -1,0 +1,26 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<geometry>
+  <cell id="1" material="1" name="fuel" region="-1 4 -6" universe="1"/>
+  <cell id="2" material="4" name="headspace" region="-1 6 -5" universe="1"/>
+  <cell id="3" material="3" name="water_annulus" region="1 -2 4 -5" universe="1"/>
+  <cell id="4" material="2" name="material_wall" region="2 -3 4 -5" universe="1"/>
+  <cell id="5" material="2" name="top_cap" region="-3 5 -8" universe="1"/>
+  <cell id="6" material="2" name="bottom_cap" region="-3 7 -4" universe="1"/>
+  <cell id="7" material="4" name="top_internal_air" region="-3 8 -14" universe="1"/>
+  <cell id="8" material="4" name="bottom_internal_air" region="-3 13 -7" universe="1"/>
+  <cell id="9" material="4" name="outer_air" region="9 -10 11 -12 13 -14 (3 | -13 | 14)" universe="1"/>
+  <surface coeffs="0.0 0.0 11.7" id="1" name="s_fuel" type="z-cylinder"/>
+  <surface coeffs="0.0 0.0 12.7" id="2" name="s_water_outer" type="z-cylinder"/>
+  <surface coeffs="0.0 0.0 13.0175" id="3" name="s_outer" type="z-cylinder"/>
+  <surface coeffs="0.0" id="4" name="z0" type="z-plane"/>
+  <surface coeffs="100.0" id="5" name="z100" type="z-plane"/>
+  <surface coeffs="10.0" id="6" name="z_fill" type="z-plane"/>
+  <surface coeffs="-0.3175" id="7" name="z_cap_bottom" type="z-plane"/>
+  <surface coeffs="100.3175" id="8" name="z_cap_top" type="z-plane"/>
+  <surface boundary="reflective" coeffs="-13.5175" id="9" name="x_min" type="x-plane"/>
+  <surface boundary="reflective" coeffs="13.5175" id="10" name="x_max" type="x-plane"/>
+  <surface boundary="reflective" coeffs="-13.5175" id="11" name="y_min" type="y-plane"/>
+  <surface boundary="reflective" coeffs="13.5175" id="12" name="y_max" type="y-plane"/>
+  <surface boundary="reflective" coeffs="-50.0" id="13" name="z_min" type="z-plane"/>
+  <surface boundary="reflective" coeffs="150.0" id="14" name="z_max" type="z-plane"/>
+</geometry>

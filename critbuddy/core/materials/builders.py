@@ -93,6 +93,17 @@ def humid_air() -> openmc.Material:
     return _build_material_from_spec(STATIC_MATERIAL_SPECS["humid_air"])
 
 
+def centrifuge_air() -> openmc.Material:
+    """Create the legacy centrifuge MCNP air card for parity work."""
+    mat = openmc.Material(name="Air")
+    mat.set_density("atom/b-cm", 3.3e-02)
+    mat.add_nuclide("N14", 3.9e-05, percent_type="ao")
+    mat.add_nuclide("O16", 1.05e-05, percent_type="ao")
+    mat.add_nuclide("Ar40", 2.4e-04, percent_type="ao")
+    mat.add_nuclide("H1", 1.1e-06, percent_type="ao")
+    return mat
+
+
 def vacuum() -> openmc.Material:
     """Create a near-zero density material for evacuated regions."""
     return _build_material_from_spec(STATIC_MATERIAL_SPECS["vacuum"])
@@ -195,6 +206,7 @@ MATERIAL_LIBRARY = {
     "concrete_ordinary": concrete_ordinary,
     "air_dry": air_dry,
     "humid_air": humid_air,
+    "centrifuge_air": centrifuge_air,
     "void": void,
     "vacuum": vacuum,
 }
