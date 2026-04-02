@@ -79,3 +79,6 @@ requests/
 
 # Scratch / archived engineering work
 workbench/
+
+# Model handoff packages (local only)
+handoffs/

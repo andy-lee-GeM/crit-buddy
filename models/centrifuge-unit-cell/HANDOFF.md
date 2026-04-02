@@ -49,6 +49,13 @@ The model is intended to answer questions such as:
 - how sensitive the unit cell is to vessel geometry changes
 - how the maintained OpenMC implementation tracks the cleaned MCNP reference
 
+## Visualization
+
+![Centrifuge unit cell geometry preview](centrifuge-unit-cell-geometry.png)
+
+Preview generated from
+`models/centrifuge-unit-cell/openmc/visualization_config.yaml` using `--validate`.
+
 ## Configurable Parameters
 
 All parameters below are user-configurable through the standard model YAML

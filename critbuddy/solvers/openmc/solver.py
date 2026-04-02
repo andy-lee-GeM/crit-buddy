@@ -192,7 +192,7 @@ class OpenMCSolver(Solver):
         Returns:
             Path to validation image
         """
-        from critbuddy.reporting import create_geometry_plot
+        from critbuddy.visualization import create_geometry_plot
 
         template = self._load_template(template_dir)
 

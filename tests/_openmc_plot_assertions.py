@@ -3,7 +3,7 @@ import sys
 from pathlib import Path
 
 import openmc
-from critbuddy.reporting.geometry import create_geometry_plot
+from critbuddy.visualization.geometry import create_geometry_plot
 
 
 def render_openmc_plots(

@@ -19,10 +19,7 @@ from pathlib import Path
 
 import yaml
 
-from critbuddy.core.config import ExperimentConfig, generate_cases
-from critbuddy.core.template_loader import load_model_class, load_template_class
-from critbuddy.reporting import generate_report, plot_heatmap, plot_keff
-from critbuddy.solvers import OpenMCSolver
+from critbuddy.reporting import plot_keff
 from critbuddy.utils import Status, setup_logging, get_logger
 
 logger = get_logger(__name__)
@@ -71,6 +68,8 @@ def create_run_directory(experiment_dir: Path, run_name: str) -> Path:
 
 def create_solvers(solver_name: str = "openmc") -> list:
     """Create solver instances for config-driven runs."""
+    from critbuddy.solvers import OpenMCSolver
+
     if solver_name != "openmc":
         raise ValueError("Config-driven runs only support the OpenMC solver")
 
@@ -98,6 +97,8 @@ def _resolve_experiment_dir(config_path: Path) -> Path:
 
 
 def _resolve_definition(config: ExperimentConfig) -> tuple[object, Path]:
+    from critbuddy.core.template_loader import load_model_class, load_template_class
+
     root = Path(__file__).parent.parent
     if config.model:
         definition_dir = root / "models" / config.model
@@ -111,6 +112,8 @@ def _resolve_definition(config: ExperimentConfig) -> tuple[object, Path]:
 
 
 def _prepare_run_context(config_path: Path, solver: str, run_name: str | None) -> RunContext:
+    from critbuddy.core.config import ExperimentConfig, generate_cases
+
     config_path = Path(config_path).resolve()
     if not config_path.exists():
         raise FileNotFoundError(f"Config not found: {config_path}")
@@ -183,21 +186,29 @@ def _generate_outputs(context: RunContext, results_csv: Path) -> None:
         output_dir=context.run_dir / "plots",
         safety_limit=context.definition.SAFETY_LIMIT,
     )
-    heatmap_paths = plot_heatmap(
-        results_csv,
-        output_dir=context.run_dir / "plots",
-        safety_limit=context.definition.SAFETY_LIMIT,
-    )
-    plot_paths.extend(heatmap_paths)
 
     if plot_paths:
         print(f"\nPlots: {context.run_dir / 'plots'}")
 
-    try:
-        report_path = generate_report(context.run_dir, context.config_path)
-        print(f"Report: {report_path}")
-    except Exception as exc:
-        print(f"Warning: Could not generate report: {exc}")
+
+def _build_display_params(user_params: dict, derived_params: dict) -> dict:
+    """
+    Build user-facing result parameters with derived values overlaid when they
+    resolve an existing user key.
+
+    Example:
+    - user config provides `fill_fraction_percent`
+    - template derives the effective `FILL_HEIGHT_CM`
+    - results.csv should show the resolved `fill_height_cm`, not the default
+    """
+    display_params = dict(user_params)
+
+    for derived_key, derived_value in derived_params.items():
+        user_key = derived_key.lower()
+        if user_key in display_params:
+            display_params[user_key] = derived_value
+
+    return display_params
 
 
 def run_cases(solver_backend, cases, run_dir: Path, template_dir: Path, safety_limit: float) -> list[dict]:
@@ -239,6 +250,7 @@ def run_cases(solver_backend, cases, run_dir: Path, template_dir: Path, safety_l
                 "status": result.status,
                 "execution_time": result.execution_time,
                 "user_params": case.user_params,
+                "display_params": _build_display_params(case.user_params, case.derived_params),
             }
         )
 
@@ -284,7 +296,7 @@ def validate_geometry(
 
 
 def write_results(run_dir: Path, all_results: dict[str, list[dict]]) -> Path | None:
-    """Write results.csv with a union of all user parameter columns."""
+    """Write results.csv with a union of all display parameter columns."""
     results_path = run_dir / "results.csv"
 
     rows = [
@@ -302,7 +314,7 @@ def write_results(run_dir: Path, all_results: dict[str, list[dict]]) -> Path | N
         {
             key
             for row in rows
-            for key in row.get("user_params", {}).keys()
+            for key in row.get("display_params", row.get("user_params", {})).keys()
         }
     )
 
@@ -323,7 +335,8 @@ def write_results(run_dir: Path, all_results: dict[str, list[dict]]) -> Path | N
                 status_str,
                 f"{row['execution_time']:.1f}",
             ]
-            param_values = [row.get("user_params", {}).get(param, "") for param in param_names]
+            display_params = row.get("display_params", row.get("user_params", {}))
+            param_values = [display_params.get(param, "") for param in param_names]
             writer.writerow(base_values + param_values)
 
     print(f"\nResults written to: {results_path}")

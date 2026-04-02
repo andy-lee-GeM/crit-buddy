@@ -1,5 +1,6 @@
 """Integration test for pipe-unit-cell model."""
 
+import math
 import unittest
 from pathlib import Path
 
@@ -93,6 +94,16 @@ class PipeUnitCellModelTests(unittest.TestCase):
         self.assertAlmostEqual(
             derived["SOLUTION_RADIUS_CM"],
             derived["PIPE_INNER_RADIUS_CM"] - 1.0,
+            places=6,
+        )
+        self.assertAlmostEqual(
+            derived["TOTAL_FUEL_VOLUME_CM3"],
+            math.pi * derived["SOLUTION_RADIUS_CM"] ** 2 * derived["PIPE_HEIGHT_CM"],
+            places=6,
+        )
+        self.assertAlmostEqual(
+            derived["FILL_VOLUME_CM3"],
+            derived["TOTAL_FUEL_VOLUME_CM3"],
             places=6,
         )
 
