@@ -82,3 +82,6 @@ workbench/
 
 # Model handoff packages (local only)
 handoffs/
+
+# Certification packages (local only)
+certifications/
