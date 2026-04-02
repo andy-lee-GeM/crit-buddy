@@ -300,7 +300,7 @@ class PipeTemplate(ProblemTemplate):
 
     def get_plot_spec(self, dims: dict):
         """Provide custom PlotSpec for 3D visualization."""
-        from critbuddy.reporting.plot_spec import PlotSpec
+        from critbuddy.visualization.plot_spec import PlotSpec
 
         # Exclude environment materials from voxel plot
         environment = dims.get("environment", "humid_air")

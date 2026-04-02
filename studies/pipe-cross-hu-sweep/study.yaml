@@ -1,0 +1,22 @@
+model: pipe-cross-model
+name: Pipe Cross H/U Sweep
+
+params:
+  cross_mode: xz
+  enrichment_pct: 20.00
+  h_to_u: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50]
+
+  pipe_size: custom
+  pipe_outer_radius_cm: 5.715
+  pipe_wall_thickness_cm: 0.3048
+  gas_core_radius_cm: 4.4102
+  fuel_outer_radius_cm: 5.4102
+  separation_cm: 0.0
+
+  uf6_density_g_cm3: 0.0127
+  wall_material: aluminum
+  moderator_density_g_cm3: 1.0
+
+  x_boundary_type: reflective
+  y_boundary_type: reflective
+  z_boundary_type: reflective

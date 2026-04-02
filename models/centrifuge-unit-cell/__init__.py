@@ -6,6 +6,8 @@ certified centrifuge unit-cell defaults. The canonical boundary setup remains
 reflective in ``x/y/z``.
 """
 
+import math
+
 from critbuddy.core.template import ProblemTemplate, ParameterSpec
 
 
@@ -129,6 +131,8 @@ class CentrifugeUnitCellTemplate(ProblemTemplate):
         water_outer_radius = inner_radius + water_film_thickness
         outer_radius = water_outer_radius + wall_thickness
         half_pitch = outer_radius + 0.5
+        total_fuel_volume_cm3 = math.pi * inner_radius**2 * vessel_height
+        fill_volume_cm3 = math.pi * inner_radius**2 * fill_height
 
         z_cap_bottom = z_vessel_bottom - wall_thickness
         z_cap_top = z_vessel_top + wall_thickness
@@ -149,6 +153,10 @@ class CentrifugeUnitCellTemplate(ProblemTemplate):
             "FILL_Z_CM": fill_height,
             "FILL_HEIGHT_CM": fill_height,
             "FILL_FRACTION": fill_height / h_inner,
+            "TOTAL_FUEL_VOLUME_CM3": total_fuel_volume_cm3,
+            "TOTAL_FUEL_VOLUME_L": total_fuel_volume_cm3 / 1000.0,
+            "FILL_VOLUME_CM3": fill_volume_cm3,
+            "FILL_VOLUME_L": fill_volume_cm3 / 1000.0,
             "SOURCE_Z_CM": float(p.get("source_z_cm", 10.0)),
             "INNER_RADIUS_CM": inner_radius,
             "WATER_FILM_THICKNESS_CM": water_film_thickness,

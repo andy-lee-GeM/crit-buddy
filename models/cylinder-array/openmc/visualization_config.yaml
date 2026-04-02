@@ -1,0 +1,19 @@
+model: cylinder-array
+name: "Cylinder Array Geometry Preview"
+
+params:
+  enrichment_pct: 20.2
+  h_to_u: 5.0
+  inner_radius_cm: 11.70
+  water_film_thickness_cm: 1.0
+  wall_thickness_cm: 0.3175
+  vessel_height_cm: 100.0
+  fill_height_cm: 20.0
+  num_cylinders_x: 2
+  num_cylinders_y: 2
+  num_cylinders_z: 2
+  wall_to_wall_gap_cm: 1.0
+  edge_moderator_thickness_cm: 50.0
+  x_boundary_type: vacuum
+  y_boundary_type: vacuum
+  z_boundary_type: vacuum

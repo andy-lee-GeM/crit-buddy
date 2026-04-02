@@ -261,7 +261,7 @@ class RectangularBoxTemplate(ProblemTemplate):
 
     def get_plot_spec(self, dims: dict):
         """Custom PlotSpec for rectangular box visualization."""
-        from critbuddy.reporting.plot_spec import PlotSpec
+        from critbuddy.visualization.plot_spec import PlotSpec
 
         total_x = dims["total_x"]
         total_y = dims["total_y"]

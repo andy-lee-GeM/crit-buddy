@@ -7,6 +7,8 @@ automatically loaded from the ANSI N14.1 cylinder registry.
 For user-specified dimensions, use the cylinder template instead.
 """
 
+import math
+
 from critbuddy.core.template import ProblemTemplate, ParameterSpec
 from critbuddy.core.geometry.cylinders import CYLINDER_REGISTRY
 
@@ -130,6 +132,8 @@ class ShippingCylinderTemplate(ProblemTemplate):
         # Apply fill fraction to height (for over-fill scenarios)
         fill_fraction = p["fill_fraction"]
         uf6_height = h_internal * fill_fraction
+        total_fuel_volume_cm3 = math.pi * r_inner**2 * h_internal
+        fill_volume_cm3 = total_fuel_volume_cm3 * fill_fraction
 
         # Build up radii from inside out
         r_wall_outer = r_inner + wall_t
@@ -182,6 +186,10 @@ class ShippingCylinderTemplate(ProblemTemplate):
             "FISSILE_DENSITY": fissile_density,
             "H_TO_U": h_to_u,
             "FILL_FRACTION": fill_fraction,
+            "TOTAL_FUEL_VOLUME_CM3": total_fuel_volume_cm3,
+            "TOTAL_FUEL_VOLUME_L": total_fuel_volume_cm3 / 1000.0,
+            "FILL_VOLUME_CM3": fill_volume_cm3,
+            "FILL_VOLUME_L": fill_volume_cm3 / 1000.0,
 
             # Cylinder radii
             "R_INNER": r_inner,

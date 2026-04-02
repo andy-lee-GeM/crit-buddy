@@ -1,226 +1,301 @@
 """
 Simple plotting utilities for criticality results.
 
-Reads CSV directly and generates k-eff plots.
-Supports:
-- 1D line plots for single parameter sweeps
-- 2D heatmaps for two-parameter sweeps
+Reads a single results CSV and generates either:
+- one explicit line diagram via the CLI/helpers below
+- multiple default line plots for internal runner use
 """
 
+from __future__ import annotations
+
+import argparse
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Sequence
 
 import matplotlib.pyplot as plt
-import matplotlib.colors as mcolors
 import numpy as np
 import pandas as pd
 
 
-# Solver colors and markers
 SOLVER_STYLES = {
     "openmc": {"color": "#1f77b4", "marker": "o", "label": "OpenMC"},
     "mcnp": {"color": "#ff7f0e", "marker": "s", "label": "MCNP"},
 }
 
-# Status colors for heatmap
-STATUS_COLORS = {
-    "SAFE": "#2ecc71",      # Green
-    "MARGINAL": "#f39c12",  # Orange
-    "CRITICAL": "#e74c3c",  # Red
-}
+STANDARD_COLS = {"case", "solver", "keff", "std", "keff_2sigma", "status", "execution_time"}
 
 
 def plot_keff(
     results_csv: Path,
-    output_dir: Optional[Path] = None,
+    output_dir: Path | None = None,
     safety_limit: float = 0.95,
-) -> List[Path]:
+) -> list[Path]:
     """
-    Generate k-eff vs parameter plots from results CSV.
+    Generate default k-eff plots for a run.
 
-    For single-parameter sweeps: creates a simple line plot.
-    For two-parameter sweeps: creates grouped line plots where one parameter
-    is on the X-axis and the other is shown as separate colored lines.
-
-    Args:
-        results_csv: Path to results.csv file
-        output_dir: Directory to save plots (default: same as CSV)
-        safety_limit: k-eff safety limit line value
-
-    Returns:
-        List of paths to generated plot files
+    This is the multi-plot runner-facing helper. For one explicit diagram, use
+    `plot_keff_diagram()`.
     """
     results_csv = Path(results_csv)
-    df = pd.read_csv(results_csv)
-
-    if output_dir is None:
-        output_dir = results_csv.parent / "plots"
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # Find swept parameters (columns that aren't standard and have multiple values)
-    standard_cols = {"case", "solver", "keff", "std", "keff_2sigma", "status", "execution_time"}
-    param_cols = [c for c in df.columns if c not in standard_cols]
-
-    swept_params = []
-    for col in param_cols:
-        if df[col].nunique() > 1:
-            swept_params.append(col)
+    df = _load_results_frame(results_csv)
+    output_dir = _resolve_output_dir(results_csv, output_dir)
+    swept_params = _find_swept_params(df)
 
     if not swept_params:
         return []
 
-    generated = []
-
-    # Handle based on number of swept parameters
+    generated: list[Path] = []
     if len(swept_params) == 1:
-        # Single parameter sweep - simple line plot
-        generated.extend(_plot_single_sweep(df, swept_params[0], output_dir, safety_limit))
+        param = swept_params[0]
+        output_path = output_dir / f"keff_vs_{param}.png"
+        _save_single_sweep_plot(df, param, output_path, safety_limit=safety_limit)
+        generated.append(output_path)
     elif len(swept_params) == 2:
-        # Two parameter sweep - grouped line plots
-        # Create plot for each parameter as X-axis, grouped by the other
-        for i, x_param in enumerate(swept_params):
-            group_param = swept_params[1 - i]
-            generated.extend(_plot_grouped_sweep(df, x_param, group_param, output_dir, safety_limit))
+        if _are_one_to_one_companions(df, swept_params[0], swept_params[1]):
+            for param in swept_params:
+                output_path = output_dir / f"keff_vs_{param}.png"
+                _save_single_sweep_plot(df, param, output_path, safety_limit=safety_limit)
+                generated.append(output_path)
+        else:
+            for index, x_param in enumerate(swept_params):
+                group_param = swept_params[1 - index]
+                output_path = output_dir / f"keff_vs_{x_param}_by_{group_param}.png"
+                _save_grouped_sweep_plot(
+                    df,
+                    x_param,
+                    group_param,
+                    output_path,
+                    safety_limit=safety_limit,
+                )
+                generated.append(output_path)
     else:
-        # 3+ parameters - fall back to simple plots for each
         for param in swept_params:
-            generated.extend(_plot_single_sweep(df, param, output_dir, safety_limit))
+            output_path = output_dir / f"keff_vs_{param}.png"
+            _save_single_sweep_plot(df, param, output_path, safety_limit=safety_limit)
+            generated.append(output_path)
 
     return generated
 
 
-def _plot_single_sweep(
+def plot_keff_diagram(
+    results_csv: str | Path,
+    output_path: str | Path,
+    *,
+    x_param: str | None = None,
+    group_param: str | None = None,
+    safety_limit: float = 0.95,
+    title: str | None = None,
+) -> Path:
+    """Generate one line plot from one results CSV."""
+    results_csv = Path(results_csv)
+    output_path = Path(output_path)
+    df = _load_results_frame(results_csv)
+    swept_params = _find_swept_params(df)
+    x_param, group_param = _resolve_line_plot_params(
+        df,
+        swept_params,
+        x_param=x_param,
+        group_param=group_param,
+    )
+
+    if group_param is None:
+        _save_single_sweep_plot(df, x_param, output_path, safety_limit=safety_limit, title=title)
+    else:
+        _save_grouped_sweep_plot(
+            df,
+            x_param,
+            group_param,
+            output_path,
+            safety_limit=safety_limit,
+            title=title,
+        )
+
+    return output_path
+
+
+def _load_results_frame(results_csv: Path) -> pd.DataFrame:
+    return pd.read_csv(results_csv)
+
+
+def _resolve_output_dir(results_csv: Path, output_dir: Path | None) -> Path:
+    if output_dir is None:
+        output_dir = results_csv.parent / "plots"
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    return output_dir
+
+
+def _find_swept_params(df: pd.DataFrame) -> list[str]:
+    return [column for column in df.columns if column not in STANDARD_COLS and df[column].nunique() > 1]
+
+
+def _resolve_line_plot_params(
+    df: pd.DataFrame,
+    swept_params: Sequence[str],
+    *,
+    x_param: str | None,
+    group_param: str | None,
+) -> tuple[str, str | None]:
+    if not swept_params:
+        raise ValueError("No swept parameters found in results.csv")
+
+    if x_param is not None and x_param not in swept_params:
+        raise ValueError(f"x parameter '{x_param}' is not a swept parameter: {sorted(swept_params)}")
+
+    if group_param is not None and group_param not in swept_params:
+        raise ValueError(f"group parameter '{group_param}' is not a swept parameter: {sorted(swept_params)}")
+
+    if len(swept_params) == 1:
+        if group_param is not None:
+            raise ValueError("group_param cannot be used when only one parameter is swept")
+        return swept_params[0], None
+
+    if x_param is None and group_param is None:
+        raise ValueError(
+            "Line plot is ambiguous for multi-parameter results.csv; specify --x and optionally --group-by"
+        )
+
+    if x_param is None:
+        remaining = [param for param in swept_params if param != group_param]
+        if len(remaining) != 1:
+            raise ValueError("Could not infer x parameter uniquely")
+        x_param = remaining[0]
+
+    if group_param is None:
+        remaining = [param for param in swept_params if param != x_param]
+        if not remaining:
+            return x_param, None
+        if all(_are_one_to_one_companions(df, x_param, param) for param in remaining):
+            return x_param, None
+        if len(remaining) > 1:
+            raise ValueError(
+                "Line plot needs an explicit --group-by when more than one additional parameter is swept"
+            )
+        group_param = remaining[0]
+
+    extra = [param for param in swept_params if param not in {x_param, group_param}]
+    if extra:
+        raise ValueError(
+            "Line plot only supports one x parameter and one grouping parameter; extra swept parameters found: "
+            + ", ".join(extra)
+        )
+
+    return x_param, group_param
+
+
+def _save_single_sweep_plot(
     df: pd.DataFrame,
     param: str,
-    output_dir: Path,
+    output_path: Path,
+    *,
     safety_limit: float,
-) -> List[Path]:
-    """Create simple line plot for single-parameter sweep."""
-    solvers = df["solver"].unique().tolist()
-    generated = []
-
+    title: str | None = None,
+) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     fig, ax = plt.subplots(figsize=(10, 6))
 
-    for solver in solvers:
+    for solver in df["solver"].unique().tolist():
         solver_df = df[df["solver"] == solver].sort_values(param)
         style = SOLVER_STYLES.get(solver, {"color": "#2ca02c", "marker": "^", "label": solver.upper()})
-
         ax.errorbar(
             solver_df[param],
             solver_df["keff"],
             yerr=2 * solver_df["std"],
-            fmt=f"{style['marker']}-",
+            fmt="o-",
             color=style["color"],
             label=style["label"],
             capsize=4,
-            markersize=8,
+            markersize=6,
             linewidth=2,
         )
 
-    # Safety limit lines
-    ax.axhline(y=safety_limit, color="red", linestyle="--", linewidth=2,
-               label=f"Safety Limit ({safety_limit})", alpha=0.7)
-    ax.axhline(y=1.0, color="darkred", linestyle="-", linewidth=1.5,
-               label="Critical (1.0)", alpha=0.5)
-
+    ax.axhline(y=safety_limit, color="red", linestyle="--", linewidth=2, label=f"Safety Limit ({safety_limit})", alpha=0.7)
+    ax.axhline(y=1.0, color="darkred", linestyle="-", linewidth=1.5, label="Critical (1.0)", alpha=0.5)
     ax.set_xlabel(_format_param_label(param), fontsize=12, fontweight="bold")
     ax.set_ylabel("k-eff", fontsize=12, fontweight="bold")
-    ax.set_title(f"k-eff vs {_format_param_label(param)}", fontsize=14, fontweight="bold")
+    ax.set_title(title or f"k-eff vs {_format_param_label(param)}", fontsize=14, fontweight="bold")
     ax.legend(loc="best")
     ax.grid(True, alpha=0.3)
 
     plt.tight_layout()
-
-    output_path = output_dir / f"keff_vs_{param}.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
-    generated.append(output_path)
-    return generated
 
-
-def _plot_grouped_sweep(
+def _save_grouped_sweep_plot(
     df: pd.DataFrame,
     x_param: str,
     group_param: str,
-    output_dir: Path,
+    output_path: Path,
+    *,
     safety_limit: float,
-) -> List[Path]:
-    """Create grouped line plot with separate colored lines for each group value."""
-    generated = []
-
-    # Use first solver if multiple
-    solver = df["solver"].iloc[0]
-    solver_df = df[df["solver"] == solver]
-
-    # Get unique values for grouping
+    title: str | None = None,
+) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    solver_df = _single_solver_frame(df)
     group_values = sorted(solver_df[group_param].unique())
-    n_groups = len(group_values)
-
-    # Color palette
-    colors = plt.cm.viridis(np.linspace(0.15, 0.85, n_groups))
-
+    colors = plt.cm.viridis(np.linspace(0.15, 0.85, len(group_values)))
     fig, ax = plt.subplots(figsize=(10, 7))
 
-    for i, group_val in enumerate(group_values):
-        group_df = solver_df[solver_df[group_param] == group_val].sort_values(x_param)
-
-        # Format label based on parameter type
-        if group_param == "enrichment":
-            label = f"{group_val}% enrichment"
-        elif group_param in {"h_to_u_ratio", "h_to_u"}:
-            label = f"H/U = {group_val}"
-        elif group_param == "fill_fraction":
-            label = f"{group_val*100:.0f}% fill"
-        else:
-            label = f"{group_param} = {group_val}"
-
+    for index, group_value in enumerate(group_values):
+        group_df = solver_df[solver_df[group_param] == group_value].sort_values(x_param)
         ax.errorbar(
             group_df[x_param],
             group_df["keff"],
             yerr=2 * group_df["std"],
             fmt="o-",
-            color=colors[i],
-            label=label,
+            color=colors[index],
+            label=_format_group_label(group_param, group_value),
             capsize=4,
-            markersize=8,
+            markersize=6,
             linewidth=2,
         )
 
-    # Safety limit lines
-    ax.axhline(y=safety_limit, color="red", linestyle="--", linewidth=2,
-               label=f"Safety Limit (k={safety_limit})", alpha=0.8)
-    ax.axhline(y=1.0, color="darkred", linestyle="-", linewidth=2,
-               label="Critical (k=1.0)", alpha=0.6)
-
+    ax.axhline(y=safety_limit, color="red", linestyle="--", linewidth=2, label=f"Safety Limit (k={safety_limit})", alpha=0.8)
+    ax.axhline(y=1.0, color="darkred", linestyle="-", linewidth=2, label="Critical (k=1.0)", alpha=0.6)
     ax.set_xlabel(_format_param_label(x_param), fontsize=12, fontweight="bold")
     ax.set_ylabel("k-effective", fontsize=12, fontweight="bold")
-    ax.set_title(f"k-eff vs {_format_param_label(x_param)} by {_format_param_label(group_param)}",
-                 fontsize=14, fontweight="bold")
+    ax.set_title(
+        title or f"k-eff vs {_format_param_label(x_param)} by {_format_param_label(group_param)}",
+        fontsize=14,
+        fontweight="bold",
+    )
     ax.legend(loc="best", fontsize=10)
     ax.grid(True, alpha=0.3)
-
-    # Set reasonable y-axis limits
-    ymin = max(0.4, solver_df["keff"].min() - 0.1)
-    ymax = min(1.5, solver_df["keff"].max() + 0.1)
-    ax.set_ylim(ymin, ymax)
+    ax.set_ylim(max(0.4, solver_df["keff"].min() - 0.1), min(1.5, solver_df["keff"].max() + 0.1))
 
     plt.tight_layout()
-
-    output_path = output_dir / f"keff_vs_{x_param}_by_{group_param}.png"
     plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
     plt.close(fig)
 
-    generated.append(output_path)
-    return generated
+def _single_solver_frame(df: pd.DataFrame) -> pd.DataFrame:
+    solver = df["solver"].iloc[0]
+    return df[df["solver"] == solver]
+
+
+def _are_one_to_one_companions(df: pd.DataFrame, left_param: str, right_param: str) -> bool:
+    paired = df[[left_param, right_param]].drop_duplicates()
+    left_unique = paired.groupby(left_param)[right_param].nunique()
+    right_unique = paired.groupby(right_param)[left_param].nunique()
+    return bool(not left_unique.empty and left_unique.max() == 1 and right_unique.max() == 1)
+
+
+def _format_group_label(group_param: str, group_value: object) -> str:
+    if group_param == "enrichment":
+        return f"{group_value}% enrichment"
+    if group_param in {"h_to_u_ratio", "h_to_u"}:
+        return f"H/U = {group_value}"
+    if group_param in {"fill_fraction", "fill_fraction_percent"}:
+        return f"{group_value}% fill"
+    return f"{group_param} = {group_value}"
 
 
 def _format_param_label(param: str) -> str:
-    """Format parameter name for display on plots."""
     labels = {
         "enrichment": "Enrichment (%)",
         "fill_fraction": "Fill Fraction",
+        "fill_fraction_percent": "Fill Fraction (%)",
+        "fill_height_cm": "Fill Height (cm)",
         "h_to_u_ratio": "H/U Ratio",
         "h_to_u": "H/U Ratio",
         "gap_xy_cm": "Gap Distance (cm)",
@@ -231,265 +306,37 @@ def _format_param_label(param: str) -> str:
     return labels.get(param, param.replace("_", " ").title())
 
 
-def plot_heatmap(
-    results_csv: Path,
-    output_dir: Optional[Path] = None,
-    safety_limit: float = 0.95,
-) -> List[Path]:
-    """
-    Generate 2D heatmap for two-parameter sweeps.
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Generate a single plot from a crit-buddy results.csv")
+    subparsers = parser.add_subparsers(dest="command", required=True)
 
-    Args:
-        results_csv: Path to results.csv file
-        output_dir: Directory to save plots (default: same as CSV)
-        safety_limit: k-eff safety limit for contour line
+    keff_parser = subparsers.add_parser("keff", help="Generate one k-eff line plot")
+    keff_parser.add_argument("results_csv", help="Path to results.csv")
+    keff_parser.add_argument("--output", required=True, help="Path to output PNG")
+    keff_parser.add_argument("--x", dest="x_param", help="Swept parameter to use on the x-axis")
+    keff_parser.add_argument("--group-by", dest="group_param", help="Optional grouping parameter for a grouped line plot")
+    keff_parser.add_argument("--safety-limit", type=float, default=0.95, help="Administrative safety limit (default: 0.95)")
+    keff_parser.add_argument("--title", help="Optional plot title override")
 
-    Returns:
-        List of paths to generated heatmap files
-    """
-    results_csv = Path(results_csv)
-    df = pd.read_csv(results_csv)
+    return parser
 
-    if output_dir is None:
-        output_dir = results_csv.parent / "plots"
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
 
-    # Find swept parameters
-    standard_cols = {"case", "solver", "keff", "std", "keff_2sigma", "status", "execution_time"}
-    param_cols = [c for c in df.columns if c not in standard_cols]
+def main(argv: Sequence[str] | None = None) -> int:
+    parser = build_parser()
+    args = parser.parse_args(argv)
 
-    swept_params = []
-    for col in param_cols:
-        if df[col].nunique() > 1:
-            swept_params.append(col)
-
-    # Need exactly 2 swept parameters for heatmap
-    if len(swept_params) != 2:
-        return []
-
-    param_x, param_y = swept_params[0], swept_params[1]
-
-    # Use first solver if multiple
-    solver = df["solver"].iloc[0]
-    solver_df = df[df["solver"] == solver]
-
-    generated = []
-
-    # Get unique values for each parameter
-    x_vals = sorted(solver_df[param_x].unique())
-    y_vals = sorted(solver_df[param_y].unique())
-
-    # Create 2D grid for k-eff values
-    keff_grid = np.zeros((len(y_vals), len(x_vals)))
-    keff_grid[:] = np.nan
-
-    for _, row in solver_df.iterrows():
-        xi = x_vals.index(row[param_x])
-        yi = y_vals.index(row[param_y])
-        keff_grid[yi, xi] = row["keff"]
-
-    # Create heatmap
-    fig, ax = plt.subplots(figsize=(12, 9))
-
-    # Custom colormap: green (safe) -> yellow -> orange -> red (critical)
-    colors_list = ["#2ecc71", "#f1c40f", "#e67e22", "#e74c3c", "#8b0000"]
-    n_bins = 100
-    cmap = mcolors.LinearSegmentedColormap.from_list("criticality", colors_list, N=n_bins)
-
-    # Determine color scale bounds
-    vmin = max(0.5, np.nanmin(keff_grid) - 0.05)
-    vmax = min(2.0, np.nanmax(keff_grid) + 0.05)
-
-    # Plot heatmap
-    im = ax.imshow(
-        keff_grid,
-        cmap=cmap,
-        aspect="auto",
-        origin="lower",
-        extent=[min(x_vals) - 0.5, max(x_vals) + 0.5, min(y_vals) - 0.5, max(y_vals) + 0.5],
-        vmin=vmin,
-        vmax=vmax,
+    output_path = plot_keff_diagram(
+        args.results_csv,
+        args.output,
+        x_param=args.x_param,
+        group_param=args.group_param,
+        safety_limit=args.safety_limit,
+        title=args.title,
     )
 
-    # Add contour lines at safety limit and critical
-    X, Y = np.meshgrid(x_vals, y_vals)
-
-    # Safety limit contour (k=0.95)
-    try:
-        cs1 = ax.contour(X, Y, keff_grid, levels=[safety_limit], colors=["white"], linewidths=[3], linestyles=["--"])
-        ax.clabel(cs1, inline=True, fontsize=10, fmt=f"k={safety_limit}")
-    except ValueError:
-        pass  # No contour if all values above/below
-
-    # Critical contour (k=1.0)
-    try:
-        cs2 = ax.contour(X, Y, keff_grid, levels=[1.0], colors=["black"], linewidths=[2], linestyles=["-"])
-        ax.clabel(cs2, inline=True, fontsize=10, fmt="k=1.0")
-    except ValueError:
-        pass
-
-    # Colorbar
-    cbar = plt.colorbar(im, ax=ax, shrink=0.8)
-    cbar.set_label("k-eff", fontsize=12, fontweight="bold")
-
-    # Add horizontal lines at safety limit and critical on colorbar
-    cbar.ax.axhline(y=(safety_limit - vmin) / (vmax - vmin), color="white", linewidth=2, linestyle="--")
-    cbar.ax.axhline(y=(1.0 - vmin) / (vmax - vmin), color="black", linewidth=2, linestyle="-")
-
-    # Labels and title
-    ax.set_xlabel(param_x.replace("_", " ").title(), fontsize=14, fontweight="bold")
-    ax.set_ylabel(param_y.replace("_", " ").title(), fontsize=14, fontweight="bold")
-    ax.set_title(f"k-eff Heatmap: {param_y.replace('_', ' ').title()} vs {param_x.replace('_', ' ').title()}",
-                 fontsize=16, fontweight="bold")
-
-    # Set tick labels
-    ax.set_xticks(x_vals)
-    ax.set_yticks(y_vals)
-
-    # Add grid
-    ax.grid(True, alpha=0.3, color="white", linewidth=0.5)
-
-    # Add text annotations for each cell
-    for i, y in enumerate(y_vals):
-        for j, x in enumerate(x_vals):
-            val = keff_grid[i, j]
-            if not np.isnan(val):
-                # Choose text color based on background
-                text_color = "white" if val > 1.2 else "black"
-                ax.text(x, y, f"{val:.3f}", ha="center", va="center",
-                       fontsize=8, color=text_color, fontweight="bold")
-
-    plt.tight_layout()
-
-    output_path = output_dir / f"heatmap_{param_x}_vs_{param_y}.png"
-    plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-
-    generated.append(output_path)
-
-    # Also create a status heatmap (SAFE/MARGINAL/CRITICAL)
-    fig2, ax2 = plt.subplots(figsize=(12, 9))
-
-    # Create status grid
-    status_grid = np.zeros((len(y_vals), len(x_vals)))
-    for _, row in solver_df.iterrows():
-        xi = x_vals.index(row[param_x])
-        yi = y_vals.index(row[param_y])
-        k2sigma = row["keff_2sigma"]
-        if k2sigma < safety_limit:
-            status_grid[yi, xi] = 0  # SAFE
-        elif k2sigma < 1.0:
-            status_grid[yi, xi] = 1  # MARGINAL
-        else:
-            status_grid[yi, xi] = 2  # CRITICAL
-
-    # Status colormap
-    status_cmap = mcolors.ListedColormap(["#2ecc71", "#f39c12", "#e74c3c"])
-    bounds = [-0.5, 0.5, 1.5, 2.5]
-    norm = mcolors.BoundaryNorm(bounds, status_cmap.N)
-
-    im2 = ax2.imshow(
-        status_grid,
-        cmap=status_cmap,
-        norm=norm,
-        aspect="auto",
-        origin="lower",
-        extent=[min(x_vals) - 0.5, max(x_vals) + 0.5, min(y_vals) - 0.5, max(y_vals) + 0.5],
-    )
-
-    # Colorbar with status labels
-    cbar2 = plt.colorbar(im2, ax=ax2, shrink=0.8, ticks=[0, 1, 2])
-    cbar2.ax.set_yticklabels(["SAFE", "MARGINAL", "CRITICAL"])
-    cbar2.set_label("Status", fontsize=12, fontweight="bold")
-
-    ax2.set_xlabel(param_x.replace("_", " ").title(), fontsize=14, fontweight="bold")
-    ax2.set_ylabel(param_y.replace("_", " ").title(), fontsize=14, fontweight="bold")
-    ax2.set_title(f"Safety Status: {param_y.replace('_', ' ').title()} vs {param_x.replace('_', ' ').title()}",
-                  fontsize=16, fontweight="bold")
-
-    ax2.set_xticks(x_vals)
-    ax2.set_yticks(y_vals)
-    ax2.grid(True, alpha=0.3, color="white", linewidth=0.5)
-
-    plt.tight_layout()
-
-    output_path2 = output_dir / f"status_{param_x}_vs_{param_y}.png"
-    plt.savefig(output_path2, dpi=150, bbox_inches="tight", facecolor="white")
-    plt.close(fig2)
-
-    generated.append(output_path2)
-
-    return generated
+    print(output_path)
+    return 0
 
 
-def plot_keff_vs_gap_by_enrichment(
-    results_csv: Path,
-    output_path: Optional[Path] = None,
-    safety_limit: float = 0.95,
-    gap_param: str = "gap_xy_cm",
-    group_param: str = "enrichment",
-) -> Path:
-    """
-    Generate line plot of k-eff vs gap with separate lines for each enrichment.
-
-    Args:
-        results_csv: Path to results.csv file
-        output_path: Path for output plot file
-        safety_limit: k-eff safety limit line value
-        gap_param: Column name for gap parameter (x-axis)
-        group_param: Column name for grouping parameter (separate lines)
-
-    Returns:
-        Path to generated plot file
-    """
-    results_csv = Path(results_csv)
-    df = pd.read_csv(results_csv)
-
-    if output_path is None:
-        output_path = results_csv.parent / "plots" / f"keff_vs_{gap_param}_by_{group_param}.png"
-    output_path = Path(output_path)
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-
-    # Color palette for different enrichments
-    colors = plt.cm.viridis(np.linspace(0.1, 0.9, df[group_param].nunique()))
-
-    fig, ax = plt.subplots(figsize=(10, 7))
-
-    for i, group_val in enumerate(sorted(df[group_param].unique())):
-        group_df = df[df[group_param] == group_val].sort_values(gap_param)
-
-        ax.errorbar(
-            group_df[gap_param],
-            group_df["keff"],
-            yerr=2 * group_df["std"],
-            fmt="o-",
-            color=colors[i],
-            label=f"{group_val}% enrichment",
-            capsize=4,
-            markersize=8,
-            linewidth=2,
-        )
-
-    # Safety limit lines
-    ax.axhline(y=safety_limit, color="red", linestyle="--", linewidth=2,
-               label=f"Safety Limit (k={safety_limit})", alpha=0.8)
-    ax.axhline(y=1.0, color="darkred", linestyle="-", linewidth=2,
-               label="Critical (k=1.0)", alpha=0.6)
-
-    ax.set_xlabel("Gap Distance (cm)", fontsize=12, fontweight="bold")
-    ax.set_ylabel("k-effective", fontsize=12, fontweight="bold")
-    ax.set_title("k-effective vs Gap Distance by Enrichment", fontsize=14, fontweight="bold")
-    ax.legend(loc="upper right", fontsize=10)
-    ax.grid(True, alpha=0.3)
-
-    # Set reasonable y-axis limits
-    ymin = max(0.4, df["keff"].min() - 0.1)
-    ymax = min(1.3, df["keff"].max() + 0.1)
-    ax.set_ylim(ymin, ymax)
-
-    plt.tight_layout()
-    plt.savefig(output_path, dpi=150, bbox_inches="tight", facecolor="white")
-    plt.close(fig)
-
-    return output_path
+if __name__ == "__main__":
+    raise SystemExit(main())

@@ -52,6 +52,13 @@ The model is intended to answer questions such as:
 - where the `UO2F2` hydration / moderation optimum occurs
 - how sensitive the repeated crossing cell is to geometry and material changes
 
+## Visualization
+
+![Pipe cross geometry preview](pipe-cross-model-geometry.png)
+
+Preview generated from
+`models/pipe-cross-model/openmc/visualization_config.yaml` using `--validate`.
+
 ## Configurable Parameters
 
 All parameters below are user-configurable through the standard model YAML

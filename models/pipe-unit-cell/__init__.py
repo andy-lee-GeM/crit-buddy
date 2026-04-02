@@ -6,6 +6,8 @@ optionally with partial fill and headspace gas. The canonical configuration
 uses reflective boundaries to simulate an infinite lattice.
 """
 
+import math
+
 from critbuddy.core.template import ProblemTemplate, ParameterSpec
 from critbuddy.core.geometry.pipes import PIPE_REGISTRY, get_pipe
 
@@ -122,6 +124,8 @@ class PipeUnitCellTemplate(ProblemTemplate):
 
         fill_height = height * fill_frac
         half_height = height / 2.0
+        total_fuel_volume_cm3 = math.pi * solution_r**2 * height
+        fill_volume_cm3 = math.pi * solution_r**2 * fill_height
 
         # Pitch for unit cell (boundary extends slightly beyond pipe)
         pitch = outer_r * 2.2
@@ -138,6 +142,10 @@ class PipeUnitCellTemplate(ProblemTemplate):
             "PIPE_HALF_HEIGHT_CM": half_height,
             "FILL_FRACTION": fill_frac,
             "FILL_HEIGHT_CM": fill_height,
+            "TOTAL_FUEL_VOLUME_CM3": total_fuel_volume_cm3,
+            "TOTAL_FUEL_VOLUME_L": total_fuel_volume_cm3 / 1000.0,
+            "FILL_VOLUME_CM3": fill_volume_cm3,
+            "FILL_VOLUME_L": fill_volume_cm3 / 1000.0,
             "FILL_Z_TOP_CM": fill_height - half_height,
             "Z_MIN_CM": -half_height,
             "Z_MAX_CM": half_height,

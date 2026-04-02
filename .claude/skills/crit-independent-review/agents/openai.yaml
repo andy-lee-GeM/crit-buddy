@@ -1,4 +1,0 @@
-interface:
-  display_name: "Crit Model Assumptions"
-  short_description: "Help with Crit Model Assumptions tasks"
-  default_prompt: "Use $crit-model-assumptions to extract a full MCNP-ready assumptions checklist from an experiment YAML."

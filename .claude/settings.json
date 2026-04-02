@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(xargs grep:*)",
+      "Bash(grep -r \"leak_rate\\\\|void_volume\\\\|water.*ingress\" --include=*.py .)",
+      "Bash(find experiments/ workbench/ -name *.py -o -name *.ipynb)",
+      "Bash(grep -r \"water_mole_fraction\\\\|gas_temperature_k\\\\|31315789\" --include=*.py .)",
+      "Bash(find . -name *.py -exec grep -l \"760\\\\|torr\\\\|RH\" {})",
+      "Bash(2)",
+      "Bash(find . -name *.py -newer requests/CB-11/bounding_analysis.json)",
+      "Bash(find . -name *.md -exec grep -l \"bounding\\\\|water ingress\\\\|accumulation\" {})",
+      "Bash(grep -E \"\\\\.\\(py|ipynb|sh\\)$\")",
+      "Bash(python -m critbuddy.integrations.youtrack.cli list-forms)",
+      "Bash(ls models/cylinder-array/*.png)",
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(python -m *)",
+      "Bash(python3 -m *)",
+      "Bash(python -c *)",
+      "Bash(/home/gem/.local/miniforge3/envs/openmc-env/bin/python *)",
+      "Bash(python -m critbuddy.integrations.youtrack.cli create-form cylinder-array)"
+    ]
+  }
+}

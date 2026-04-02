@@ -44,10 +44,15 @@ class YouTrackClient:
             "file": "pipe-cross-model-form.md",
             "summary": "[TEMPLATE] Criticality Analysis Request: Pipe Cross Model",
         },
+        "cylinder-array": {
+            "file": "cylinder-array-form.md",
+            "summary": "[TEMPLATE] Criticality Analysis Request: Cylinder Array",
+        },
     }
     FORM_ALIASES = {
         "centrifuge": "centrifuge-unit-cell",
         "pipe-cross": "pipe-cross-model",
+        "cylinder": "cylinder-array",
     }
 
     def __init__(self, config_path: Optional[Path] = None):

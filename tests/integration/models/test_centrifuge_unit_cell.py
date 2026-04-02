@@ -1,5 +1,6 @@
 """Integration test for centrifuge-unit-cell model."""
 
+import math
 import unittest
 from pathlib import Path
 
@@ -114,6 +115,16 @@ class CentrifugeUnitCellTests(unittest.TestCase):
         self.assertAlmostEqual(derived["WALL_THICKNESS_CM"], 0.4, places=6)
         self.assertAlmostEqual(derived["FILL_HEIGHT_CM"], 30.0, places=6)
         self.assertAlmostEqual(derived["FILL_Z_CM"], 30.0, places=6)
+        self.assertAlmostEqual(
+            derived["TOTAL_FUEL_VOLUME_CM3"],
+            math.pi * 10.0**2 * 120.0,
+            places=6,
+        )
+        self.assertAlmostEqual(
+            derived["FILL_VOLUME_CM3"],
+            math.pi * 10.0**2 * 30.0,
+            places=6,
+        )
         self.assertAlmostEqual(derived["Z_CAP_BOTTOM_CM"], -0.4, places=6)
         self.assertAlmostEqual(derived["Z_CAP_TOP_CM"], 120.4, places=6)
         self.assertAlmostEqual(derived["HALF_PITCH_XY_CM"], 12.4, places=6)
