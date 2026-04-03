@@ -4,8 +4,9 @@ import unittest
 from pathlib import Path
 
 import openmc
-from critbuddy.core.template_loader import load_model_class, load_model_module
+from critbuddy.core.template_loader import load_model_class, load_openmc_model
 from critbuddy.core.materials.uo2f2_physics import uo2f2_density
+from critbuddy.models.model_interface import OMCModel
 
 ROOT = Path(__file__).resolve().parents[3]
 MODELS_ROOT = ROOT / "models"
@@ -17,15 +18,16 @@ class PipeCrossModelTests(unittest.TestCase):
     def test_model_imports_successfully(self):
         """Test that the model module can be imported."""
         template = load_model_class("pipe-cross-model")
-        model = load_model_module(MODELS_ROOT / "pipe-cross-model")
+        model = load_openmc_model(MODELS_ROOT / "pipe-cross-model")
 
         self.assertIsNotNone(template)
+        self.assertIsInstance(model, OMCModel)
         self.assertIsNotNone(model.build_model)
 
     def test_model_builds_with_defaults(self):
         """Test that model builds with default parameters."""
         template = load_model_class("pipe-cross-model")
-        model = load_model_module(MODELS_ROOT / "pipe-cross-model")
+        model = load_openmc_model(MODELS_ROOT / "pipe-cross-model")
         params = {}
         derived = template.derive_params(params)
         all_params = {**params, **derived, **template.get_simulation_params()}
@@ -65,7 +67,7 @@ class PipeCrossModelTests(unittest.TestCase):
     def test_xyz_cross_mode(self):
         """Test that xyz crossing mode creates all three pipes."""
         template = load_model_class("pipe-cross-model")
-        model = load_model_module(MODELS_ROOT / "pipe-cross-model")
+        model = load_openmc_model(MODELS_ROOT / "pipe-cross-model")
         params = {"cross_mode": "xyz"}
         derived = template.derive_params(params)
         all_params = {**params, **derived, **template.get_simulation_params()}
@@ -87,7 +89,7 @@ class PipeCrossModelTests(unittest.TestCase):
     def test_gap_zero_reference_case(self):
         """Test the gap=0 reference case matching MCNP deck."""
         template = load_model_class("pipe-cross-model")
-        model = load_model_module(MODELS_ROOT / "pipe-cross-model")
+        model = load_openmc_model(MODELS_ROOT / "pipe-cross-model")
 
         # Parameters matching the MCNP reference deck in REFERENCE_ANALYSIS.md
         params = {
@@ -158,7 +160,7 @@ class PipeCrossModelTests(unittest.TestCase):
     def test_invalid_wall_material_raises_in_model_builder(self):
         """Test that the model builder does not silently fall back on wall materials."""
         template = load_model_class("pipe-cross-model")
-        model = load_model_module(MODELS_ROOT / "pipe-cross-model")
+        model = load_openmc_model(MODELS_ROOT / "pipe-cross-model")
 
         params = {
             "wall_material": "not-a-material",
@@ -173,7 +175,7 @@ class PipeCrossModelTests(unittest.TestCase):
     def test_reflective_boundaries(self):
         """Test that reflective boundaries are set correctly."""
         template = load_model_class("pipe-cross-model")
-        model = load_model_module(MODELS_ROOT / "pipe-cross-model")
+        model = load_openmc_model(MODELS_ROOT / "pipe-cross-model")
         params = {
             "x_boundary_type": "reflective",
             "y_boundary_type": "reflective",
@@ -211,7 +213,7 @@ class PipeCrossModelTests(unittest.TestCase):
     def test_settings_creation(self):
         """Test that OpenMC settings are created correctly."""
         template = load_model_class("pipe-cross-model")
-        model = load_model_module(MODELS_ROOT / "pipe-cross-model")
+        model = load_openmc_model(MODELS_ROOT / "pipe-cross-model")
         params = {}
         derived = template.derive_params(params)
         all_params = {**params, **derived, **template.get_simulation_params()}
@@ -234,7 +236,7 @@ class PipeCrossModelTests(unittest.TestCase):
     def test_plots_creation(self):
         """Test that geometry plots are created."""
         template = load_model_class("pipe-cross-model")
-        model = load_model_module(MODELS_ROOT / "pipe-cross-model")
+        model = load_openmc_model(MODELS_ROOT / "pipe-cross-model")
         params = {}
         derived = template.derive_params(params)
         all_params = {**params, **derived, **template.get_simulation_params()}

@@ -6,7 +6,8 @@ from pathlib import Path
 
 import openmc
 from critbuddy.core.materials.uo2f2_physics import uo2f2_density
-from critbuddy.core.template_loader import load_model_class, load_model_module
+from critbuddy.core.template_loader import load_model_class, load_openmc_model
+from critbuddy.models.model_interface import OMCModel
 
 ROOT = Path(__file__).resolve().parents[3]
 MODELS_ROOT = ROOT / "models"
@@ -18,9 +19,10 @@ class CentrifugeUnitCellTests(unittest.TestCase):
     def test_model_imports_successfully(self):
         """Test that the model module can be imported."""
         template = load_model_class("centrifuge-unit-cell")
-        model = load_model_module(MODELS_ROOT / "centrifuge-unit-cell")
+        model = load_openmc_model(MODELS_ROOT / "centrifuge-unit-cell")
 
         self.assertIsNotNone(template)
+        self.assertIsInstance(model, OMCModel)
         self.assertIsNotNone(model.build_model)
 
     def test_template_derives_pipe_style_material_keys(self):
@@ -38,7 +40,7 @@ class CentrifugeUnitCellTests(unittest.TestCase):
     def test_model_builds_with_exact_air_and_shared_library_materials(self):
         """Test the current parity path: shared fuel/wall/water plus exact MCNP air."""
         template = load_model_class("centrifuge-unit-cell")
-        model = load_model_module(MODELS_ROOT / "centrifuge-unit-cell")
+        model = load_openmc_model(MODELS_ROOT / "centrifuge-unit-cell")
         params = {}
         derived = template.derive_params(params)
         all_params = {**params, **derived, **template.get_simulation_params()}
@@ -147,7 +149,7 @@ class CentrifugeUnitCellTests(unittest.TestCase):
     def test_invalid_air_material_raises(self):
         """Test that unsupported air material changes fail loudly."""
         template = load_model_class("centrifuge-unit-cell")
-        model = load_model_module(MODELS_ROOT / "centrifuge-unit-cell")
+        model = load_openmc_model(MODELS_ROOT / "centrifuge-unit-cell")
 
         derived = template.derive_params({})
         derived["AIR_MATERIAL"] = "not-a-material"

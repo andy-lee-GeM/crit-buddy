@@ -2,7 +2,6 @@
 OpenMC solver backend for criticality calculations.
 """
 
-import importlib.util
 import subprocess
 import time
 from pathlib import Path
@@ -10,6 +9,7 @@ from typing import Optional
 
 import openmc
 
+from critbuddy.core.template_loader import load_openmc_model
 from critbuddy.solvers.base import Solver, SolverResult, compute_status
 from critbuddy.progress import OpenMCProgressMonitor, clear_progress_bar
 from critbuddy.utils import working_directory, get_logger
@@ -31,20 +31,9 @@ class OpenMCSolver(Solver):
         """
         self.show_progress = show_progress
 
-    def _load_template(self, template_dir: Path):
-        """Dynamically load template module."""
-        # Look in openmc subdirectory first (new structure)
-        model_path = template_dir / "openmc" / "model.py"
-        if not model_path.exists():
-            # Fall back to old structure (model.py directly in template_dir)
-            model_path = template_dir / "model.py"
-        if not model_path.exists():
-            raise FileNotFoundError(f"Template model not found: {model_path}")
-
-        spec = importlib.util.spec_from_file_location("model", model_path)
-        module = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(module)
-        return module
+    def _load_model(self, template_dir: Path):
+        """Load the OpenMC model implementation for a definition directory."""
+        return load_openmc_model(template_dir)
 
     def run(
         self,
@@ -72,8 +61,8 @@ class OpenMCSolver(Solver):
 
         try:
             # Load template
-            template = self._load_template(template_dir)
-            logger.debug(f"Loaded template from {template_dir}")
+            model = self._load_model(template_dir)
+            logger.debug(f"Loaded OpenMC model from {template_dir}")
 
             # Create case directory
             case_dir.mkdir(parents=True, exist_ok=True)
@@ -84,14 +73,14 @@ class OpenMCSolver(Solver):
 
                 # Build model
                 logger.debug("Building model...")
-                materials, geometry, dims = template.build_model(params)
+                materials, geometry, dims = model.build_model(params)
 
                 # Export XML files
                 materials.export_to_xml()
                 geometry.export_to_xml()
 
                 # Settings
-                settings = template.create_settings(params, dims)
+                settings = model.create_settings(params, dims)
                 settings.export_to_xml()
 
                 # Get batch count for progress monitoring
@@ -194,7 +183,7 @@ class OpenMCSolver(Solver):
         """
         from critbuddy.visualization import create_geometry_plot
 
-        template = self._load_template(template_dir)
+        model = self._load_model(template_dir)
 
         # Create validation directory
         case_dir.mkdir(parents=True, exist_ok=True)
@@ -204,14 +193,14 @@ class OpenMCSolver(Solver):
             openmc.reset_auto_ids()
 
             # Build model
-            materials, geometry, dims = template.build_model(params)
+            materials, geometry, dims = model.build_model(params)
 
             # Export
             materials.export_to_xml()
             geometry.export_to_xml()
 
             # Create plots
-            plots, color_legend = template.create_plots(dims, materials)
+            plots, color_legend = model.create_plots(dims, materials)
             plots.export_to_xml()
             openmc.plot_geometry()
 
