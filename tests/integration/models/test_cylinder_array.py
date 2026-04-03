@@ -6,7 +6,8 @@ from pathlib import Path
 import openmc
 
 from critbuddy.core.materials.uo2f2_physics import uo2f2_density
-from critbuddy.core.template_loader import load_model_class, load_model_module
+from critbuddy.core.template_loader import load_model_class, load_openmc_model
+from critbuddy.models.model_interface import OMCModel
 
 ROOT = Path(__file__).resolve().parents[3]
 MODELS_ROOT = ROOT / "models"
@@ -17,9 +18,10 @@ class CylinderArrayModelTests(unittest.TestCase):
 
     def test_model_imports_successfully(self):
         template = load_model_class("cylinder-array")
-        model = load_model_module(MODELS_ROOT / "cylinder-array")
+        model = load_openmc_model(MODELS_ROOT / "cylinder-array")
 
         self.assertIsNotNone(template)
+        self.assertIsInstance(model, OMCModel)
         self.assertIsNotNone(model.build_model)
 
     def test_template_derives_expected_geometry(self):
@@ -85,7 +87,7 @@ class CylinderArrayModelTests(unittest.TestCase):
 
     def test_model_builds_with_defaults(self):
         template = load_model_class("cylinder-array")
-        model = load_model_module(MODELS_ROOT / "cylinder-array")
+        model = load_openmc_model(MODELS_ROOT / "cylinder-array")
 
         params = {}
         derived = template.derive_params(params)
@@ -135,7 +137,7 @@ class CylinderArrayModelTests(unittest.TestCase):
 
     def test_model_builds_with_explicit_uf6(self):
         template = load_model_class("cylinder-array")
-        model = load_model_module(MODELS_ROOT / "cylinder-array")
+        model = load_openmc_model(MODELS_ROOT / "cylinder-array")
 
         params = {
             "fissile_material": "uf6",
@@ -154,7 +156,7 @@ class CylinderArrayModelTests(unittest.TestCase):
 
     def test_boundary_mapping_uses_user_axes(self):
         template = load_model_class("cylinder-array")
-        model = load_model_module(MODELS_ROOT / "cylinder-array")
+        model = load_openmc_model(MODELS_ROOT / "cylinder-array")
 
         params = {
             "x_boundary_type": "reflective",
@@ -196,7 +198,7 @@ class CylinderArrayModelTests(unittest.TestCase):
 
     def test_settings_creation(self):
         template = load_model_class("cylinder-array")
-        model = load_model_module(MODELS_ROOT / "cylinder-array")
+        model = load_openmc_model(MODELS_ROOT / "cylinder-array")
 
         params = {
             "num_cylinders_x": 3,
