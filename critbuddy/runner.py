@@ -262,6 +262,8 @@ def validate_geometry(
     solver: str = "openmc",
 ) -> Path:
     """Generate a geometry validation image for the first case in a config."""
+    from critbuddy.core.config import ExperimentConfig, generate_cases
+
     config_path = Path(config_path).resolve()
     if not config_path.exists():
         raise FileNotFoundError(f"Config not found: {config_path}")

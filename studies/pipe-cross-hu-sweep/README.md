@@ -1,31 +1,31 @@
 # Pipe Cross H/U Sweep
 
-This study stages the first H/U optimization run for the original reflective
-`xz` pipe-cross cell. It is set up for review and has not been run yet.
+This study reruns the reflected `xz` pipe-cross H/U optimization using the
+current shared `UO2F2` density formulas. The goal is to identify the peak
+moderation ratio for the known pipe-cross geometry and document the basis in a
+form a criticality safety engineer can audit.
 
 ## Fixed Basis
 
-- Geometry: canonical `xz` pipe-cross cell with `gap = 0` (`separation_cm: 0.0`)
-- Pipe dimensions: `r_outer = 5.715 cm`, wall thickness `0.3048 cm`
-- Fuel annulus: `r_gas = 4.4102 cm`, `r_fuel_outer = 5.4102 cm`
-- Enrichment: `20.19 wt% U-235`
-- Gas: `UF6` at `0.0127 g/cm3`
-- Wall: `aluminum`
-- Moderator: water at `1.0 g/cm3`
-- Boundaries: reflective in `x`, `y`, and `z`
+- Geometry: reflected `xz` pipe-cross cell with `separation_cm = 0.0`
+- Pipe dimensions: `pipe_outer_radius_cm = 5.715`, `pipe_wall_thickness_cm = 0.3048`
+- Fuel geometry: `gas_core_radius_cm = 4.4102`, `fuel_outer_radius_cm = 5.4102`
+- Enrichment: `20.00 wt% U-235`
+- `UF6` density: `0.0127 g/cm3`
+- Wall material: `aluminum`
+- Moderator density: `1.0 g/cm3`
+- Boundary conditions: reflective in `x`, `y`, and `z`
 
-## Sweep
+## Workflow
 
-The study sweeps:
+See [experiment-plan.md](experiment-plan.md) for the staged execution plan.
 
-- `h_to_u = 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50`
+- Broad sweep config: `configs/01_broad_sweep.yaml`
+- Refined sweep config: `configs/02_refined_sweep.yaml`
+- Density traceability helper: `scripts/uo2f2_density_hu_sweep.py`
+- Final engineer-facing summary: `report.md`
 
-`uo2f2_density_g_cm3` is intentionally omitted. The model derives the UO2F2
-density from `h_to_u` and `enrichment_pct` using the shared ORNL/TM-12292
-helper in `critbuddy/core/materials/uo2f2_physics.py`.
-
-## Run
-
-```bash
-python run_study.py studies/pipe-cross-hu-sweep/study.yaml
-```
+`uo2f2_density_g_cm3` is intentionally omitted from the study configs. The
+model derives `UO2F2` density directly from `h_to_u` and `enrichment_pct`
+using the shared ORNL/TM-12292 helper in
+`critbuddy/core/materials/uo2f2_physics.py`.

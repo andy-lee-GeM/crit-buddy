@@ -358,23 +358,32 @@ class YouTrackClient:
         print(f"Pushing results to {ticket_id}...")
         print(f"  YouTrack URL: {self.url}")
 
-        # 1. Attach files first
-        attached_files = []
+        # 1. Attach files first, skipping files already present on the ticket.
+        existing_names = {
+            attachment.get("name")
+            for attachment in self.get_ticket_attachments(ticket_id)
+            if attachment.get("name")
+        }
 
         if csv_path.exists():
-            print(f"  Attaching {csv_path.name}...")
-            try:
-                self.attach_file(ticket_id, csv_path)
-                attached_files.append(csv_path.name)
-            except requests.HTTPError as e:
-                print(f"  Error attaching CSV: {e}")
+            if csv_path.name in existing_names:
+                print(f"  Skipping {csv_path.name} (already attached)")
+            else:
+                print(f"  Attaching {csv_path.name}...")
+                try:
+                    self.attach_file(ticket_id, csv_path)
+                except requests.HTTPError as e:
+                    print(f"  Error attaching CSV: {e}")
 
         if plots_dir.exists():
             for plot_path in sorted(plots_dir.glob("*.png")):
+                if plot_path.name in existing_names:
+                    print(f"  Skipping {plot_path.name} (already attached)")
+                    continue
+
                 print(f"  Attaching {plot_path.name}...")
                 try:
                     self.attach_file(ticket_id, plot_path)
-                    attached_files.append(plot_path.name)
                 except requests.HTTPError as e:
                     print(f"  Error attaching {plot_path.name}: {e}")
 

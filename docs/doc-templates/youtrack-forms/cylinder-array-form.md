@@ -122,6 +122,11 @@ Typical outputs attached back to the working ticket:
 - `REPORT.md` - Detailed experiment report
 - Generated plots (H/U optimization, k-eff heatmaps, parameter sweeps)
 
+When a cylinder-array ticket also depends on a per-cylinder allowable-fill
+interpolation from the same geometry basis, include that allowable-fill summary
+in `REPORT.md`. At minimum capture the interpolation basis, allowable fill
+percent, allowable fill height, and liters / kilograms for UF6 and wet UO2F2.
+
 ---
 
 **Model:** `cylinder-array`

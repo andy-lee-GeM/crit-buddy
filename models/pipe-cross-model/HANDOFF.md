@@ -263,7 +263,7 @@ Fixed basis:
 - wall material: `aluminum`
 - moderator density: `1.0 g/cm3`
 
-Results:
+Coarse broad-sweep results:
 
 | Separation (cm) | OpenMC keff | OpenMC std | MCNP keff | Delta keff |
 | ---: | ---: | ---: | ---: | ---: |
@@ -313,12 +313,15 @@ Results:
 
 Interpretation:
 
-- The highest sampled reactivity occurs at `H/U = 3`.
-- The low-hydration maximum is broad; `H/U = 1-3` behaves like the peak region
-  within Monte Carlo uncertainty.
+- The coarse broad sweep again places the highest sampled point at `H/U = 3`.
+- A refined rerun on `2026-04-05` using the staged study in
+  `studies/pipe-cross-hu-sweep/` found a slightly higher sampled point at
+  `H/U = 3.5` with `k-eff = 1.11426 +/- 0.00121` and `k+2sigma = 1.11669`.
+- The low-hydration maximum remains broad; `H/U = 2.5-3.5` behaves like the
+  peak region within Monte Carlo uncertainty.
 - Reactivity falls steadily as hydration increases beyond that peak.
-- On the sampled grid, the transition from clearly supercritical to subcritical
-  behavior occurs between `H/U = 20` and `H/U = 30`.
+- On the sampled broad grid, the transition from clearly supercritical to
+  subcritical behavior occurs between `H/U = 20` and `H/U = 30`.
 
 This H/U sweep is useful as an engineering lookup table, but it is not the same
 thing as the frozen OpenMC/MCNP benchmark. It should be treated as an OpenMC
@@ -369,4 +372,6 @@ exploration result built on the same model family.
 - [study.yaml](../../certifications/pipe-cross-model/2026-03-30-r1/openmc/study.yaml)
 - [REPORT.md](../../certifications/pipe-cross-model/2026-03-30-r1/openmc/results/REPORT.md)
 - [report.md](../../studies/pipe-cross-hu-sweep/report.md)
-- [study.yaml](../../studies/pipe-cross-hu-sweep/study.yaml)
+- [experiment-plan.md](../../studies/pipe-cross-hu-sweep/experiment-plan.md)
+- [01_broad_sweep.yaml](../../studies/pipe-cross-hu-sweep/configs/01_broad_sweep.yaml)
+- [02_refined_sweep.yaml](../../studies/pipe-cross-hu-sweep/configs/02_refined_sweep.yaml)

@@ -104,12 +104,20 @@ density forms they produce, use:
 python3 scripts/get_mcnp_density.py uo2f2 -e 20.2 -hu 3
 ```
 
+For study-facing `H/U` density traceability tables tied directly to the shared
+ORNL basis, use:
+
+```bash
+python3 scripts/uo2f2_density_hu_sweep.py --enrichment 20.0 --h-values 3.5 --format csv
+```
+
 The current lightweight solver-to-solver checkpoint for the separation sweep
 lives under `certifications/pipe-cross-model/2026-03-30-r1/` and includes the
 frozen `openmc/model.py` source snapshot alongside the exported cases.
 
 The staged H/U optimization setup for the original `xz`, `gap = 0` geometry
-lives under `studies/pipe-cross-hu-sweep/`.
+lives under `studies/pipe-cross-hu-sweep/`, with the current execution basis in
+`experiment-plan.md` and `configs/`.
 
 ## Notes
 
