@@ -39,7 +39,7 @@ class UranylFluorideModel:
     N: float = 1.0          # uranium atoms per formula unit
     M: float = 2.0          # hydrogen atoms per water molecule
     Y: float = 2.0          # waters of hydration (UO2F2·2H2O)
-    Vuc: float = 72.2809    # molar volume of UO2F2·2H2O [cm³/mol]
+    Vuc: float = 104.2    # molar volume of UO2F2·2H2O [cm³/mol]
     Vm: float = 18.0574     # molar volume of H2O [cm³/mol]
 
     # Eq. A.2 parameters (H/U < 4 region)
