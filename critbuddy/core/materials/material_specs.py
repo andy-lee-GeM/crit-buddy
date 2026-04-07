@@ -76,9 +76,9 @@ STATIC_MATERIAL_SPECS = {
     ),
     "humid_air": MaterialSpec(
         name="Humid_Air",
-        density_g_cm3=0.0011,
+        density_g_cm3=0.00119,
         fraction_basis="ao",
-        components={"N14": 0.702, "O16": 0.223, "Ar40": 0.004, "H1": 0.071},
+        components={"N14": 0.77, "O16": 0.2084, "Ar40": 0.009, "H1": 0.005},
     ),
     "void": MaterialSpec(
         name="Void",
