@@ -96,11 +96,11 @@ def humid_air() -> openmc.Material:
 def centrifuge_air() -> openmc.Material:
     """Create the legacy centrifuge MCNP air card for parity work."""
     mat = openmc.Material(name="Air")
-    mat.set_density("atom/b-cm", 3.3e-02)
-    mat.add_nuclide("N14", 3.9e-05, percent_type="ao")
-    mat.add_nuclide("O16", 1.05e-05, percent_type="ao")
-    mat.add_nuclide("Ar40", 2.4e-04, percent_type="ao")
-    mat.add_nuclide("H1", 1.1e-06, percent_type="ao")
+    mat.set_density("atom/b-cm", 5.36e-05)
+    mat.add_nuclide("N14", 3.921e-05, percent_type="ao")
+    mat.add_nuclide("O16", 1.13e-05, percent_type="ao")
+    mat.add_nuclide("Ar40", 2.494e-07, percent_type="ao")
+    mat.add_nuclide("H1", 3.24e-07, percent_type="ao")
     return mat
 
 
