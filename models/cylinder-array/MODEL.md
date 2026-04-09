@@ -9,6 +9,8 @@ specifies explicit cylinder counts and a uniform wall-to-wall gap.
 
 ## Files
 
+- `HANDOFF.md`: reviewer-facing engineering handoff covering current model
+  status, validation, engineering use, and certification gaps.
 - `openmc/model.py`: active OpenMC implementation used for development and
   config-driven studies.
 - `openmc/example_config.yaml`: copy-pasteable OpenMC study config showing the
@@ -64,3 +66,16 @@ specifies explicit cylinder counts and a uniform wall-to-wall gap.
   `tests/integration/models/test_cylinder_array.py`.
 - Visualization can be generated with
   `models/cylinder-array/openmc/visualization_config.yaml`.
+- The current reviewer-facing handoff is `models/cylinder-array/HANDOFF.md`.
+- The model has completed production engineering use in `requests/CB-17/`.
+- No frozen OpenMC/MCNP certification checkpoint exists yet under
+  `certifications/cylinder-array/`.
+
+## History
+
+- The model was introduced as the finite-array extension of the maintained
+  `centrifuge-unit-cell` vessel basis.
+- The first completed published engineering workflow for this model family is
+  `requests/CB-17/`.
+- As of `2026-04-05`, the model has a formal handoff document but does not yet
+  have a blessed solver-to-solver certification checkpoint.

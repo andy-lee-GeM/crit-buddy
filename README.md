@@ -81,9 +81,11 @@ Each canonical model should include a `MODEL.md` file with this structure:
 - `Validation`
 - `History`
 
-This is the stable model handoff document for the team. Detailed validation
-results and solver comparisons can be frozen under `certifications/`, while
-production or exploratory analyses belong under `studies/`.
+`MODEL.md` is the concise stable model summary for the team. When a model needs
+a deeper reviewer-facing engineering handoff, add a sibling `HANDOFF.md`.
+Detailed validation results and solver comparisons can be frozen under
+`certifications/`, while production or exploratory analyses belong under
+`studies/`.
 
 ## Outputs
 
