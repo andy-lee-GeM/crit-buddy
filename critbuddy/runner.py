@@ -208,6 +208,18 @@ def _build_display_params(user_params: dict, derived_params: dict) -> dict:
         if user_key in display_params:
             display_params[user_key] = derived_value
 
+    # Preserve key derived companion parameters in results.csv when the user
+    # supplied a paper-facing or library-facing moderation input.
+    if "h_over_x" in display_params and "H_TO_U" in derived_params:
+        display_params["h_to_u"] = derived_params["H_TO_U"]
+    if "h_to_u" in display_params and "H_OVER_X" in derived_params:
+        display_params["h_over_x"] = derived_params["H_OVER_X"]
+    if (
+        ("h_over_x" in display_params or "h_to_u" in display_params)
+        and "UO2F2_DENSITY_G_CM3" in derived_params
+    ):
+        display_params["uo2f2_density_g_cm3"] = derived_params["UO2F2_DENSITY_G_CM3"]
+
     return display_params
 
 

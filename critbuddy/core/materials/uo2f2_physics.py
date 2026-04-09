@@ -39,7 +39,7 @@ class UranylFluorideModel:
     N: float = 1.0          # uranium atoms per formula unit
     M: float = 2.0          # hydrogen atoms per water molecule
     Y: float = 2.0          # waters of hydration (UO2F2·2H2O)
-    Vuc: float = 104.2    # molar volume of UO2F2·2H2O [cm³/mol]
+    Vuc: float = 72.2809    # molar volume of UO2F2·2H2O [cm³/mol]
     Vm: float = 18.0574     # molar volume of H2O [cm³/mol]
 
     # Eq. A.2 parameters (H/U < 4 region)
@@ -98,6 +98,30 @@ def uranium_molar_mass(enrichment_pct: float) -> float:
     if enrichment_pct <= 0.0:
         raise ValueError("Enrichment must be positive")
     return _uranium_molar_mass(enrichment_pct)
+
+
+def h_x_to_h_u(h_x: float, enrichment_pct: float) -> float:
+    """Convert H/X (hydrogen-to-fissile) to H/U (hydrogen-to-uranium)."""
+    if h_x < 0.0:
+        raise ValueError("H/X ratio must be non-negative")
+    if enrichment_pct <= 0.0:
+        raise ValueError("Enrichment must be positive")
+
+    x235, _ = _uranium_atom_fractions(enrichment_pct)
+    return h_x * x235
+
+
+def h_u_to_h_x(h_u: float, enrichment_pct: float) -> float:
+    """Convert H/U (hydrogen-to-uranium) to H/X (hydrogen-to-fissile)."""
+    if h_u < 0.0:
+        raise ValueError("H/U ratio must be non-negative")
+    if enrichment_pct <= 0.0:
+        raise ValueError("Enrichment must be positive")
+
+    x235, _ = _uranium_atom_fractions(enrichment_pct)
+    if x235 <= 0.0:
+        raise ValueError("U-235 atom fraction must be positive")
+    return h_u / x235
 
 
 def uranium_density(

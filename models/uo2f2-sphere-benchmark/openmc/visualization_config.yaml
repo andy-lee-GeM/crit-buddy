@@ -1,0 +1,10 @@
+model: uo2f2-sphere-benchmark
+name: "UO2F2 Sphere Benchmark Preview"
+
+params:
+  enrichment_pct: 20.0
+  h_over_x: 100.0
+  sphere_radius_cm: 13.88
+  reflector_thickness_cm: 100.0
+  reflector_density_g_cm3: 1.0
+  outer_boundary_type: vacuum
