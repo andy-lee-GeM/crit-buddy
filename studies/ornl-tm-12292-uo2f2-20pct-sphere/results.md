@@ -94,6 +94,68 @@ quantities. The useful comparison is the trend location:
 | 500.0 | 101.020856 | 1.28382 | 0.87221 | 0.00110 |
 | 700.0 | 141.429198 | 1.20431 | 0.80408 | 0.00097 |
 
+## OpenMC vs MCNP Comparison
+
+The same `H/X` sweep was rerun through the model's MCNP path using the shared
+`UO2F2` density / `H/X -> H/U` conversion basis and study-owned case outputs:
+
+- OpenMC results: `runs/02_hx_validation_sweep/latest/results.csv`
+- MCNP results: `runs/02_hx_validation_sweep_mcnp/latest/results.csv`
+- MCNP case outputs: `runs/02_hx_validation_sweep_mcnp/latest/cases/`
+
+The solver-to-solver comparison shows the same broad moderation shape and the
+same preferred region near `H/X = 100-200`, with MCNP lower than OpenMC at all
+sampled points.
+
+| H/X | OpenMC k-eff | MCNP k-eff | OpenMC std | MCNP std | Delta (MCNP - OpenMC) |
+| ---: | ---: | ---: | ---: | ---: | ---: |
+| 0.0 | 0.61130 | 0.61043 | 0.00092 | 0.00076 | -0.00087 |
+| 5.0 | 0.71424 | 0.71196 | 0.00101 | 0.00074 | -0.00228 |
+| 10.0 | 0.80386 | 0.79872 | 0.00111 | 0.00095 | -0.00514 |
+| 20.0 | 0.87303 | 0.86960 | 0.00108 | 0.00094 | -0.00343 |
+| 50.0 | 0.95927 | 0.95573 | 0.00118 | 0.00092 | -0.00354 |
+| 100.0 | 0.99369 | 0.98888 | 0.00113 | 0.00097 | -0.00481 |
+| 200.0 | 0.98330 | 0.97921 | 0.00111 | 0.00080 | -0.00409 |
+| 300.0 | 0.94631 | 0.94557 | 0.00116 | 0.00096 | -0.00074 |
+| 500.0 | 0.87221 | 0.87124 | 0.00110 | 0.00086 | -0.00097 |
+| 700.0 | 0.80408 | 0.80284 | 0.00097 | 0.00073 | -0.00124 |
+
+For this study basis:
+
+- both solvers peak in the same `H/X = 100-200` region
+- both solvers classify `H/X = 50`, `100`, and `200` as `MARGINAL`
+- MCNP is lower at every point by about `271 pcm` on average
+- the largest sampled gap is about `514 pcm` at `H/X = 10`
+
+## Infinite Reflection Check
+
+On April 10, 2026, the same fixed-radius `H/X` sweep was rerun with:
+
+- Config: `configs/03_hx_infinite_reflection_sweep.yaml`
+- Outer boundary: `reflective`
+- Run results: `runs/03_hx_infinite_reflection_sweep/latest/results.csv`
+
+The reflective rerun produced the same sampled `k-eff` and `std` values at
+every `H/X` point as the original `vacuum`-boundary run. The only material
+difference in the result CSV is the recorded `outer_boundary_type` value.
+
+That means the `100 cm` light-water shell is already thick enough that changing
+the outer spherical boundary from `vacuum` to `reflective` did not move the
+observed moderation trend for this study basis.
+
+| H/X | Vacuum k-eff | Reflective k-eff | Delta |
+| ---: | ---: | ---: | ---: |
+| 0.0 | 0.61130 | 0.61130 | 0.00000 |
+| 5.0 | 0.71424 | 0.71424 | 0.00000 |
+| 10.0 | 0.80386 | 0.80386 | 0.00000 |
+| 20.0 | 0.87303 | 0.87303 | 0.00000 |
+| 50.0 | 0.95927 | 0.95927 | 0.00000 |
+| 100.0 | 0.99369 | 0.99369 | 0.00000 |
+| 200.0 | 0.98330 | 0.98330 | 0.00000 |
+| 300.0 | 0.94631 | 0.94631 | 0.00000 |
+| 500.0 | 0.87221 | 0.87221 | 0.00000 |
+| 700.0 | 0.80408 | 0.80408 | 0.00000 |
+
 ## Conclusion
 
 This study supports the narrow validation claim we wanted:
@@ -104,6 +166,10 @@ This study supports the narrow validation claim we wanted:
 - the most reactive fixed-radius region is around `H/X = 100-200`
 - `H/X = 500` should be interpreted as the minimum critical uranium mass point,
   not the fixed-radius peak-reactivity point
+- the MCNP rerun of the same ten study points shows the same moderation-shape
+  conclusion as OpenMC, while landing modestly lower in absolute `k-eff`
+- rerunning the same sweep with an explicitly `reflective` outer boundary did
+  not change the sampled results for this `100 cm` water-reflected basis
 
 ## Artifacts
 
@@ -111,3 +177,8 @@ This study supports the narrow validation claim we wanted:
 - Standard results: `runs/02_hx_validation_sweep/latest/results.csv`
 - `k-eff` vs `H/X`: `runs/02_hx_validation_sweep/latest/plots/keff_vs_h_over_x.png`
 - `k-eff` vs exact `H/U`: `runs/02_hx_validation_sweep/latest/plots/keff_vs_h_to_u.png`
+- MCNP results: `runs/02_hx_validation_sweep_mcnp/latest/results.csv`
+- MCNP case outputs: `runs/02_hx_validation_sweep_mcnp/latest/cases/`
+- Infinite-reflection results: `runs/03_hx_infinite_reflection_sweep/latest/results.csv`
+- Infinite-reflection `k-eff` vs `H/X`: `runs/03_hx_infinite_reflection_sweep/latest/plots/keff_vs_h_over_x.png`
+- Infinite-reflection `k-eff` vs exact `H/U`: `runs/03_hx_infinite_reflection_sweep/latest/plots/keff_vs_h_to_u.png`

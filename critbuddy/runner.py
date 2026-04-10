@@ -68,12 +68,16 @@ def create_run_directory(experiment_dir: Path, run_name: str) -> Path:
 
 def create_solvers(solver_name: str = "openmc") -> list:
     """Create solver instances for config-driven runs."""
-    from critbuddy.solvers import OpenMCSolver
+    from critbuddy.solvers import MCNPSolver, OpenMCSolver
 
-    if solver_name != "openmc":
-        raise ValueError("Config-driven runs only support the OpenMC solver")
+    if solver_name == "openmc":
+        return [OpenMCSolver()]
+    if solver_name == "mcnp":
+        return [MCNPSolver()]
+    if solver_name == "both":
+        return [OpenMCSolver(), MCNPSolver()]
 
-    return [OpenMCSolver()]
+    raise ValueError(f"Unsupported solver selection: {solver_name}")
 
 
 @dataclass
@@ -404,7 +408,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Run criticality analysis")
     parser.add_argument("experiment", help="Path to a study/request/model YAML config")
-    parser.add_argument("--solver", choices=["openmc"], default="openmc")
+    parser.add_argument("--solver", choices=["openmc", "mcnp", "both"], default="openmc")
     parser.add_argument("--name", help="Custom run name (default: YAML filename)")
     parser.add_argument("--validate", action="store_true", help="Generate geometry validation output only")
     parser.add_argument("--no-report", action="store_true", help="Skip plot/report generation")

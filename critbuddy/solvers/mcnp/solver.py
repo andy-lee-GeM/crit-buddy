@@ -114,9 +114,18 @@ class MCNPSolver(Solver):
             # Build render params
             render_params = {**params, "CASE_LABEL": case_label}
 
-            # If model has build_materials(), call it
-            if model and hasattr(model, "build_materials"):
-                render_params["MATERIALS"] = model.build_materials(params)
+            # Let model.py inject MCNP-specific render parameters.
+            if model and hasattr(model, "build_render_params"):
+                extra_params = model.build_render_params(params)
+                if not isinstance(extra_params, dict):
+                    raise TypeError("mcnp/model.py build_render_params() must return a dict")
+                render_params.update(extra_params)
+            elif model and hasattr(model, "build_materials"):
+                materials = model.build_materials(params)
+                if isinstance(materials, dict):
+                    render_params.update(materials)
+                else:
+                    render_params["MATERIALS"] = materials
 
             # Create case directory and render template
             case_dir = Path(case_dir)

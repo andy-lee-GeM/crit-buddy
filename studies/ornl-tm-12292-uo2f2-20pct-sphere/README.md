@@ -23,10 +23,23 @@ Validation sweep:
 python run_study.py studies/ornl-tm-12292-uo2f2-20pct-sphere/configs/02_hx_validation_sweep.yaml
 ```
 
+Validation sweep (MCNP):
+
+```bash
+python run_study.py studies/ornl-tm-12292-uo2f2-20pct-sphere/configs/02_hx_validation_sweep.yaml --solver mcnp --name 02_hx_validation_sweep_mcnp
+```
+
+Infinite-reflection sweep:
+
+```bash
+python run_study.py studies/ornl-tm-12292-uo2f2-20pct-sphere/configs/03_hx_infinite_reflection_sweep.yaml
+```
+
 ## Core Files
 
 - `configs/01_geometry_preview.yaml`
 - `configs/02_hx_validation_sweep.yaml`
+- `configs/03_hx_infinite_reflection_sweep.yaml`
 - `reference/20pct_table_a3.csv`
 - `reference/20pct_table_b1.csv`
 - `reference/20pct_table_b2.csv`

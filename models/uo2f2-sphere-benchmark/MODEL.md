@@ -12,6 +12,10 @@ the reference basis is expressed in `H/X` but the shared material builders use
 - `openmc/model.py`: active OpenMC implementation used for config-driven runs
 - `openmc/example_config.yaml`: copy-pasteable config showing the user-facing inputs
 - `openmc/visualization_config.yaml`: single-case preview config for `--validate`
+- `mcnp/template.inp`: active MCNP template used for config-driven study runs
+- `mcnp/model.py`: MCNP render helper that derives material cards from the shared builders
+- `mcnp/model.inp`: canonical MCNP deck for the `20 wt%`, `H/X = 100` single-case parity check
+- `mcnp/REFERENCE_ANALYSIS.md`: geometry/material notes for the canonical MCNP deck
 
 ## User Inputs
 
@@ -42,3 +46,15 @@ Exactly one moderation input should be provided:
   directly back to the paper tables.
 - The template derives the exact companion `H/U` internally from enrichment and
   the `U-235` atom fraction.
+- The canonical MCNP deck currently covers one benchmark point:
+  `20 wt%`, `H/X = 100`, `13.88 cm` fuel radius, `100 cm` water reflector,
+  vacuum outer boundary.
+- The templated MCNP path uses the same shared `H/X -> H/U -> density` basis as
+  the OpenMC model, so study sweeps can be rerun with
+  `python run_study.py ... --solver mcnp`.
+- To regenerate the shared MCNP-oriented fuel density / nuclide table for that
+  point, use:
+
+```bash
+python scripts/get_mcnp_density.py uo2f2 --no-default-sweeps -e 20.0 --h-to-u 20.204171182632887
+```

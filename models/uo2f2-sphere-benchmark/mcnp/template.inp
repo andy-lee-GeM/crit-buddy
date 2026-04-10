@@ -1,0 +1,25 @@
+UO2F2 Sphere Benchmark - {{CASE_LABEL}}
+c
+c Auto-rendered MCNP deck for uo2f2-sphere-benchmark
+c
+c Cell Cards
+c
+1 1 {{FUEL_CELL_DENSITY}} -1 imp:n=1 $ homogeneous UO2F2-H2O fuel sphere
+2 2 {{REFLECTOR_CELL_DENSITY}} 1 -2 imp:n=1 $ water reflector
+99 0 2 imp:n=0 $ exterior region
+
+c Surface Cards
+c
+1 so {{SPHERE_RADIUS_CM}}   $ fuel radius [cm]
+{{OUTER_SURFACE_CARD}}
+
+c Data Cards
+c
+mode n
+kcode {{PARTICLES}} 1.0 {{INACTIVE}} {{BATCHES}}
+ksrc 0 0 0
+{{FUEL_MATERIAL_CARD}}
+{{FUEL_THERMAL_CARD}}
+{{REFLECTOR_MATERIAL_CARD}}
+{{REFLECTOR_THERMAL_CARD}}
+print
