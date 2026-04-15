@@ -24,6 +24,8 @@ from typing import NamedTuple
 
 from critbuddy.core.materials.uo2f2_physics import (
     ATOMIC_MASSES,
+    h_u_to_h_x,
+    h_x_to_h_u,
     uo2f2_density,
     uo2f2_stoichiometry,
     uranium_molar_mass,
@@ -41,31 +43,6 @@ class ORNLCase(NamedTuple):
     uo2f2_density: float      # Column 4: UO2F2 component density [g/cm³]
     h2o_density: float        # Column 5: H2O component density [g/cm³]
 
-
-def h_x_to_h_u(h_x: float, enrichment_pct: float) -> float:
-    """Convert H/X (hydrogen-to-fissile) to H/U (hydrogen-to-uranium).
-
-    Args:
-        h_x: Hydrogen-to-fissile (U-235) atomic ratio
-        enrichment_pct: U-235 weight percent (0-100)
-
-    Returns:
-        H/U atomic ratio
-
-    Example:
-        >>> h_x_to_h_u(500.0, 20.0)  # H/X=500, 20% enriched
-        101.02085591316444
-    """
-    # ORNL Table A.3 uses H/X with X = U-235 atoms, so the conversion must use
-    # the U-235 atom fraction rather than the input weight-percent directly.
-    w235 = enrichment_pct / 100.0
-    w238 = 1.0 - w235
-    n235 = w235 / ATOMIC_MASSES.u235_g_per_mol
-    n238 = w238 / ATOMIC_MASSES.u238_g_per_mol
-    x235 = n235 / (n235 + n238)
-    return h_x * x235
-
-
 class TestUO2F2Density(unittest.TestCase):
     """Validate densities against ORNL Table A.3.
 
@@ -82,6 +59,15 @@ class TestUO2F2Density(unittest.TestCase):
     def test_h_x_to_h_u_uses_u235_atom_fraction(self):
         self.assertAlmostEqual(h_x_to_h_u(5.0, 20.0), 1.0102085591316443, places=12)
         self.assertAlmostEqual(h_x_to_h_u(100.0, 5.0), 5.06072956259366, places=12)
+
+    def test_h_u_to_h_x_round_trips_with_h_x_to_h_u(self):
+        h_x = 500.0
+        enrichment_pct = 20.0
+        self.assertAlmostEqual(
+            h_u_to_h_x(h_x_to_h_u(h_x, enrichment_pct), enrichment_pct),
+            h_x,
+            places=12,
+        )
 
     def test_uranium_molar_mass_returns_mu_for_20_percent_enrichment(self):
         self.assertAlmostEqual(uranium_molar_mass(20.0), 237.4434605725382, places=9)

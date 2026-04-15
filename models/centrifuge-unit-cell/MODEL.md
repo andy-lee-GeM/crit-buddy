@@ -49,7 +49,7 @@ shared baseline for OpenMC development and MCNP reference runs.
 ## Validation
 
 - The current lightweight cross-solver checkpoint lives under
-  `certifications/centrifuge-unit-cell/2026-03-31-r1/` and includes the
+  `certifications/centrifuge-unit-cell/2026-03-30-r1/` and includes the
   frozen `openmc/model.py` source snapshot alongside the exported cases.
 - Model geometry and material construction are covered by the test suite.
 - Additional benchmark-style validation can be added as separate studies.

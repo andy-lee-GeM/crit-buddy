@@ -104,7 +104,7 @@ Study-specific reports or merged solver comparisons can live at the study root,
 for example:
 
 ```text
-certifications/centrifuge-unit-cell/2026-03-31-r1/
+certifications/centrifuge-unit-cell/2026-03-30-r1/
   openmc/
     model.py
     study.yaml
@@ -118,6 +118,29 @@ certifications/centrifuge-unit-cell/2026-03-31-r1/
 ```
 
 See `docs/model-certifications.md` for the lightweight certification format.
+
+## Shared KCODE Settings
+
+The default Monte Carlo run controls now live in:
+
+```text
+critbuddy/solvers/kcode_settings.py
+```
+
+That module is the source of truth for:
+
+- `PARTICLES`
+- `BATCHES`
+- `INACTIVE`
+
+The base template pulls its default simulation settings from
+`critbuddy.solvers.kcode_settings.KCODE_SETTINGS`, and the case generator uses
+`SMOKE_TEST_KCODE_SETTINGS` for smoke-test runs.
+
+The current parity-style model definitions inherit this shared default instead
+of repeating `4800 / 200 / 50` in each model file. Model-specific benchmark
+definitions can still override `SIMULATION` when they intentionally need a
+different fixed basis.
 
 ## Materials and Physics
 
@@ -140,26 +163,32 @@ python -m pip install -r requirements.txt
 
 ### Codex Environment
 
-In the Codex execution environment used for repo work, OpenMC is installed and
-available from:
+In automation or coding sessions, prefer running with the named conda
+environment instead of assuming the active `python` already has `openmc`:
 
 ```bash
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python
+conda run -n openmc-env python -c "import openmc; print(openmc.__version__)"
+conda run -n openmc-env python -m unittest tests.unit.materials.test_builders tests.unit.materials.test_properties tests.unit.materials.test_uo2f2_physics
+conda run -n openmc-env python scripts/get_mcnp_density.py water
 ```
 
-Future coding sessions should use that interpreter for any OpenMC-backed import,
-script, or test instead of assuming `openmc` is unavailable on the path.
-
-Examples:
+On the current workstation used for repo work, the interpreter resolves to:
 
 ```bash
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python -c "import openmc; print(openmc.__version__)"
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_builders tests.unit.materials.test_properties tests.unit.materials.test_uo2f2_physics
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python scripts/get_mcnp_density.py water
+/home/andylee/anaconda3/envs/openmc-env/bin/python
 ```
 
-That path is specific to this Codex environment and should not be assumed to
-match a developer's local machine.
+When using the direct interpreter path on this machine, the equivalent commands
+are:
+
+```bash
+/home/andylee/anaconda3/envs/openmc-env/bin/python -c "import openmc; print(openmc.__version__)"
+/home/andylee/anaconda3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_builders tests.unit.materials.test_properties tests.unit.materials.test_uo2f2_physics
+/home/andylee/anaconda3/envs/openmc-env/bin/python scripts/get_mcnp_density.py water
+```
+
+That absolute path is workstation-specific and should not be assumed to match a
+different developer machine.
 
 ### 2. Configure Nuclear Data
 
@@ -201,5 +230,5 @@ python -m unittest tests.integration.models.test_centrifuge_unit_cell tests.unit
 In the Codex environment, use:
 
 ```bash
-/home/gem/.local/miniforge3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_builders tests.unit.materials.test_properties tests.unit.materials.test_uo2f2_physics tests.unit.geometry.test_cylinders tests.unit.geometry.test_pipes tests.integration.models.test_cylinder_unit_cell tests.integration.models.test_cascade_array tests.integration.models.test_centrifuge_unit_cell
+/home/andylee/anaconda3/envs/openmc-env/bin/python -m unittest tests.unit.materials.test_builders tests.unit.materials.test_properties tests.unit.materials.test_uo2f2_physics tests.unit.geometry.test_cylinders tests.unit.geometry.test_pipes tests.integration.models.test_cylinder_unit_cell tests.integration.models.test_cascade_array tests.integration.models.test_centrifuge_unit_cell
 ```

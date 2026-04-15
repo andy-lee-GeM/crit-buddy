@@ -98,12 +98,6 @@ class CentrifugeUnitCellTemplate(ProblemTemplate):
         ),
     }
 
-    SIMULATION = {
-        "PARTICLES": 4800,
-        "BATCHES": 200,
-        "INACTIVE": 50,
-    }
-
     SAFETY_LIMIT = 0.95
 
     def derive_params(self, p: dict) -> dict:

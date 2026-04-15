@@ -9,6 +9,7 @@ Provides a clean interface for running MCNP simulations with:
 """
 
 import os
+import shutil
 import subprocess
 import time
 from dataclasses import dataclass
@@ -20,7 +21,16 @@ from critbuddy.progress import MCNPProgressMonitor
 
 def _get_mcnp_executable():
     """Get MCNP executable from environment variable (checked at runtime)."""
-    return os.getenv("MCNP_EXECUTABLE")
+    explicit = os.getenv("MCNP_EXECUTABLE")
+    if explicit:
+        return explicit
+
+    for candidate in ("mcnp6", "mcnp6.exe", "mcnp", "mcnp5"):
+        resolved = shutil.which(candidate)
+        if resolved:
+            return resolved
+
+    return None
 
 
 @dataclass

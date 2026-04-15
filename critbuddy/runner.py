@@ -68,12 +68,16 @@ def create_run_directory(experiment_dir: Path, run_name: str) -> Path:
 
 def create_solvers(solver_name: str = "openmc") -> list:
     """Create solver instances for config-driven runs."""
-    from critbuddy.solvers import OpenMCSolver
+    from critbuddy.solvers import MCNPSolver, OpenMCSolver
 
-    if solver_name != "openmc":
-        raise ValueError("Config-driven runs only support the OpenMC solver")
+    if solver_name == "openmc":
+        return [OpenMCSolver()]
+    if solver_name == "mcnp":
+        return [MCNPSolver()]
+    if solver_name == "both":
+        return [OpenMCSolver(), MCNPSolver()]
 
-    return [OpenMCSolver()]
+    raise ValueError(f"Unsupported solver selection: {solver_name}")
 
 
 @dataclass
@@ -207,6 +211,18 @@ def _build_display_params(user_params: dict, derived_params: dict) -> dict:
         user_key = derived_key.lower()
         if user_key in display_params:
             display_params[user_key] = derived_value
+
+    # Preserve key derived companion parameters in results.csv when the user
+    # supplied a paper-facing or library-facing moderation input.
+    if "h_over_x" in display_params and "H_TO_U" in derived_params:
+        display_params["h_to_u"] = derived_params["H_TO_U"]
+    if "h_to_u" in display_params and "H_OVER_X" in derived_params:
+        display_params["h_over_x"] = derived_params["H_OVER_X"]
+    if (
+        ("h_over_x" in display_params or "h_to_u" in display_params)
+        and "UO2F2_DENSITY_G_CM3" in derived_params
+    ):
+        display_params["uo2f2_density_g_cm3"] = derived_params["UO2F2_DENSITY_G_CM3"]
 
     return display_params
 
@@ -392,7 +408,7 @@ def main() -> None:
 
     parser = argparse.ArgumentParser(description="Run criticality analysis")
     parser.add_argument("experiment", help="Path to a study/request/model YAML config")
-    parser.add_argument("--solver", choices=["openmc"], default="openmc")
+    parser.add_argument("--solver", choices=["openmc", "mcnp", "both"], default="openmc")
     parser.add_argument("--name", help="Custom run name (default: YAML filename)")
     parser.add_argument("--validate", action="store_true", help="Generate geometry validation output only")
     parser.add_argument("--no-report", action="store_true", help="Skip plot/report generation")

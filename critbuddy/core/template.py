@@ -10,6 +10,8 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
+from critbuddy.solvers.kcode_settings import KCODE_SETTINGS
+
 
 @dataclass
 class ParameterSpec:
@@ -38,11 +40,7 @@ class ProblemTemplate(ABC):
 
     # Subclasses override these
     PARAMETERS: Dict[str, ParameterSpec] = {}
-    SIMULATION: Dict[str, int] = {
-        "PARTICLES": 10000,
-        "BATCHES": 150,
-        "INACTIVE": 50,
-    }
+    SIMULATION: Dict[str, int] = dict(KCODE_SETTINGS)
     SAFETY_LIMIT: float = 0.95
 
     @abstractmethod

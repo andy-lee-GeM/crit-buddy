@@ -1,0 +1,10 @@
+model: uo2f2-sphere-benchmark
+name: "ORNL/TM-12292 20% H/X Infinite Reflection Sweep"
+
+params:
+  enrichment_pct: 20.0
+  h_over_x: [0.0, 5.0, 10.0, 20.0, 50.0, 100.0, 200.0, 300.0, 500.0, 700.0]
+  sphere_radius_cm: 13.88
+  reflector_thickness_cm: 100.0
+  reflector_density_g_cm3: 1.0
+  outer_boundary_type: reflective
