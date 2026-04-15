@@ -6,9 +6,9 @@ description: Create or update lightweight model certification checkpoints under 
 # Skill: Run Model Certification
 
 Create a lightweight, rerunnable certification checkpoint. Preserve the OpenMC
-sweep config, lightweight OpenMC outputs, the rerunnable MCNP case directories,
-and a short `results.md` that lets a future engineer inspect and rerun the
-comparison from git.
+source snapshot and sweep config, lightweight OpenMC outputs, the rerunnable
+MCNP case directories, and a short `results.md` that lets a future engineer
+inspect and rerun the comparison from git.
 
 Read `references/format.md` when you need the exact directory tree, the
 `results.md` template, or the repo documentation touch points.
@@ -17,12 +17,13 @@ Read `references/format.md` when you need the exact directory tree, the
 
 1. Identify the source artifacts.
 2. Create or update `certifications/<model>/<yyyy-mm-dd-rN>/`.
-3. Copy the OpenMC sweep config into `openmc/study.yaml`.
-4. Store deterministic per-case OpenMC exports in `openmc/cases/`.
-5. Copy lightweight OpenMC outputs into `openmc/results/`.
-6. Copy each MCNP case with only `input.inp` and `out`.
-7. Write or refresh `results.md`.
-8. Update the repo docs that point to the blessed checkpoint.
+3. Copy the OpenMC source snapshot into `openmc/model.py`.
+4. Copy the OpenMC sweep config into `openmc/study.yaml`.
+5. Store deterministic per-case OpenMC exports in `openmc/cases/`.
+6. Copy lightweight OpenMC outputs into `openmc/results/`.
+7. Copy each MCNP case with only `input.inp` and `out`.
+8. Write or refresh `results.md`.
+9. Update the repo docs that point to the blessed checkpoint.
 
 ## Source Artifacts
 
@@ -32,6 +33,7 @@ rewrite them unless explicitly asked to regenerate them.
 
 Keep:
 
+- `openmc/model.py`
 - `openmc/study.yaml`
 - `openmc/cases/<case>/materials.xml`
 - `openmc/cases/<case>/geometry.xml`

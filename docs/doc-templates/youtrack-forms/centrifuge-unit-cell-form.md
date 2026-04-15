@@ -64,7 +64,7 @@ These are not intended RE inputs on the template:
 - Validation preview config:
   `models/centrifuge-unit-cell/openmc/visualization_config.yaml`
 - Current certification checkpoint:
-  `certifications/centrifuge-unit-cell/2026-03-31-r1/results.md`
+  `certifications/centrifuge-unit-cell/2026-03-30-r1/results.md`
 
 ## Instructions
 

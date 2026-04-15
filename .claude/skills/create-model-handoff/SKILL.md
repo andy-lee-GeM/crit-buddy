@@ -25,6 +25,8 @@ Inside that package:
 
 Read `references/directory-structure.md` for the expected output layout.
 Read `references/report-sections.md` for the report section order and content.
+Read `references/report-template.md` when you need the full reviewer-facing
+template language.
 
 ## Handoff Document Ownership
 

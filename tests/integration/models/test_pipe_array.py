@@ -5,6 +5,7 @@ from pathlib import Path
 
 import openmc
 from critbuddy.core.template_loader import load_model_class, load_model_module
+from critbuddy.solvers.kcode_settings import KCODE_SETTINGS
 
 ROOT = Path(__file__).resolve().parents[3]
 MODELS_ROOT = ROOT / "models"
@@ -246,9 +247,9 @@ class PipeArrayModelTests(unittest.TestCase):
         settings = model.create_settings(all_params, dims)
 
         self.assertEqual(settings.run_mode, "eigenvalue")
-        self.assertEqual(settings.particles, 4800)
-        self.assertEqual(settings.batches, 200)
-        self.assertEqual(settings.inactive, 50)
+        self.assertEqual(settings.particles, KCODE_SETTINGS["PARTICLES"])
+        self.assertEqual(settings.batches, KCODE_SETTINGS["BATCHES"])
+        self.assertEqual(settings.inactive, KCODE_SETTINGS["INACTIVE"])
         self.assertIsNotNone(settings.source)
 
     def test_plots_creation(self):

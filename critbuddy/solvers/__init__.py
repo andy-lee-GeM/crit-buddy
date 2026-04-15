@@ -6,8 +6,17 @@ Monte Carlo codes (OpenMC, MCNP).
 """
 
 from .base import Solver, SolverResult, compute_status
+from .kcode_settings import KCODE_SETTINGS, SMOKE_TEST_KCODE_SETTINGS
 
-__all__ = ["Solver", "SolverResult", "compute_status", "OpenMCSolver", "MCNPSolver"]
+__all__ = [
+    "Solver",
+    "SolverResult",
+    "compute_status",
+    "KCODE_SETTINGS",
+    "SMOKE_TEST_KCODE_SETTINGS",
+    "OpenMCSolver",
+    "MCNPSolver",
+]
 
 
 def __getattr__(name: str):

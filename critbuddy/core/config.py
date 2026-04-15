@@ -14,6 +14,8 @@ from typing import Any, Dict, List, Optional
 
 import yaml
 
+from critbuddy.solvers.kcode_settings import SMOKE_TEST_KCODE_SETTINGS
+
 
 @dataclass
 class ExperimentConfig:
@@ -168,7 +170,7 @@ def generate_cases(
 
     # Get simulation params (may be overridden for smoke test)
     if smoke_test:
-        simulation_params = {"PARTICLES": 5000, "BATCHES": 50, "INACTIVE": 10}
+        simulation_params = dict(SMOKE_TEST_KCODE_SETTINGS)
     else:
         simulation_params = template.get_simulation_params()
 
